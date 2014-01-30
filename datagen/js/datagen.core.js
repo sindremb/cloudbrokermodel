@@ -56,11 +56,11 @@ function NetworkViewModel() {
 }
 
 // Network node viewmodel class
-function NodeViewModel(network) {
+function NodeViewModel(network, x, y) {
     this.network = network;
 
-    this.x = ko.observable()
-    this.y = ko.observable()
+    this.x = ko.observable(x)
+    this.y = ko.observable(y)
 
     this.nodeNumber = ko.computed(function () {
         return this.network.nodes.indexOf(this) + 1;

@@ -135,14 +135,13 @@ Datagen.utils.toMoselData = function (dataVM) {
 };
 
 Datagen.utils.generateData = function (genConfig) {
-    // clear existing (if any)
     var dataVM = new DataViewModel()
 
     // STEP 1: Generate network
     var network = new NetworkViewModel()
     // generate random nodes
     for (var i = 0; i < genConfig.numberOfNodes(); i++) {
-        network.nodes.push(new NodeViewModel(network))
+        network.nodes.push(new NodeViewModel(network, Math.floor((Math.random() * 800)), Math.floor((Math.random() * 500))))
     }
     // generate random arcs
     for (var i = 0; i < genConfig.numberOfArcs(); i++) {
