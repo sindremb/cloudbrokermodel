@@ -19,7 +19,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'smallB2.txt';
+	Data = 'smallA.txt';
 	! Use thightened restrictions (v2) or not (v1)
 	TightenLP = false;
 end-parameters
@@ -220,7 +220,7 @@ forall(nn in Nodes, mm in Nodes, ss in Services | exists(F_BandwidthCap(nn,mm)))
 	create(u_CapacityDown(nn,mm,ss));
 	u_CapacityDown(nn,mm,ss) <=1;
 	create(v_UseLink(nn,mm,ss));
-	v_UseLink is_binary;
+	v_UseLink(nn,mm,ss) is_binary;
 end-do
 
 ! - for all existing LEASABLE arcs
@@ -261,8 +261,8 @@ declarations
 	TotalLeasedCapacity:			dynamic array(Nodes,Nodes)					of linctr;
 	UserSideBandwidth:				dynamic array(Services)						of linctr;
 	UserSideBandwidthDown:			dynamic array(Services)						of linctr;
-	AvailiabilityBoundD:			dynamic array(Services)						of linctr;
-	AvailabilityBoundU:				dynamic array(Services)						of linctr;
+	AvailabilityBoundD:			dynamic array(Services)						of linctr;
+	AvailabilityBoundU:			dynamic array(Services)						of linctr;
 	AvailabilityRequirement:		dynamic array(Services)						of linctr;
 	
 	temp:	real;
@@ -384,26 +384,20 @@ forall (cc in Customers, ss in S_ServiceForCustomer(cc)) do
 end-do
 
 forall (nn in Nodes, mm in Nodes, ss in Services) do
-	AvailiabilityBoundD(ss) := (
+	AvailabilityBoundD(ss) := (
 		v_UseLink(nn,mm,ss) - u_Capacity(nn,mm,ss) >= 0);
-	AvailiabilityBoundU(ss) := (
+	AvailabilityBoundU(ss) := (
 		v_UseLink(nn,mm,ss) - u_CapacityDown(nn,mm,ss) >=0);
 end-do
 
 forall (ss in Services) do
 	AvailabilityRequirement(ss) := (
-		sum( nn in Nodes, mm in Nodes) v_UseLink(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm)) >= ln(Y_AvailabilityReq(ss));
+		sum( nn in Nodes, mm in Nodes) v_UseLink(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm)) >= ln(Y_AvailabilityReq(ss)));
 end-do
 	
 
 
-(! CAPACITY LEAKAGE PREVENTION CONSTRAINT
-! a service must consume all bandwidth leased by it (to avoid having one service leasing
-! on behalf of another service (transfering the latency to the wrong service)
-forall (nn in Nodes, mm in Nodes, ss in Services | exists(O_LeasedBandwidthCap(nn,mm))) do
-	UseLeasedCap(nn,mm,ss) := v_Bandwidth(nn,mm,ss) - l_LeaseCap(nn,mm,ss) >= 0.00;
-	UseLeasedCapDown(nn,mm,ss) := v_BandwidthDown(nn,mm,ss) - l_LeaseCapDown(nn,mm,ss) >= 0.00;
-end-do!)
+
 
 writeln("Model building completed in ", timestamp - timetracker, " seconds");
 
