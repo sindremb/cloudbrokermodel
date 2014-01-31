@@ -20,7 +20,7 @@ function GenerationConfigViewModel() {
 	this.numNodeLevels = ko.observable(2)
 	this.numNodesPerCluster = ko.observable(5)
 	//this.avgArcsPerNode = ko.observable(3)
-    this.numberOfLeasableArcs = ko.observable(10);
+    this.numLeasableArcs = ko.observable(10);
     this.numberOfCustomers = ko.observable(10);
     this.maxNumberOfServicesPerCustomer = ko.observable(3);
     this.numberOfProviders = ko.observable(10);
@@ -59,15 +59,26 @@ function NetworkViewModel() {
 }
 
 // Network node viewmodel class
-function NodeViewModel(network, x, y, level) {
+function NodeViewModel(network, x, y, level, type) {
     this.network = network;
 
     this.x = ko.observable(x);
     this.y = ko.observable(y);
 	this.level = ko.observable(level);
+	this.nodeType = ko.observable(type);
 
     this.nodeNumber = ko.computed(function () {
         return this.network.nodes.indexOf(this) + 1;
+    }, this);
+	
+	this.colour = ko.computed(function () {
+		if(this.nodeType()=='provider'){
+			return 'green';
+		} else if (this.nodeType()=='customer') {
+			return 'red';
+		} else {
+			return 'gray';
+		}
     }, this);
 }
 
