@@ -22,7 +22,7 @@
     <button data-bind="click: function() {generateRandomNetwork('dataOutputBox')}">Generate network</button>
 </div>
 <div>
-    <h3>Visualisation of network is planned to go here.. (with drag-and-drop editor)</h3>
+    <h3>Network data visualisation: </h3>
     <svg height="500" width="800">
 		<g data-bind="foreach: dataVM().network().arcs">
 			<line data-bind="attr: { x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y}" style="stroke:rgb(0,0,0);stroke-width:2" />

@@ -62,6 +62,12 @@ Datagen.utils.toMoselData = function (dataVM) {
         data = data + dataVM.services()[i].bandwidthRequirementDown() + ' ';
     }
     data = data + ']\n';
+	
+	data = data + '\nY_AvailabilityReq: [';
+	for (var i in dataVM.services()) {
+        data = data + dataVM.services()[i].availabilityRequirement() + ' ';
+    }
+	data = data + ']\n';
 
     data = data + '\n! (s, p) Price of placing service s at provider p\n';
     data = data + 'H_PlacePrice: [\n';
@@ -104,6 +110,13 @@ Datagen.utils.toMoselData = function (dataVM) {
         data = data + ' (' + arc.nodeTo().nodeNumber() + ' ' + arc.nodeFrom().nodeNumber() + ') ' + arc.bandwidthPrice();
     }
     data = data + ']\n'
+	
+	data = data + '\nD_AvailabilityExp: [\n'
+	for (var i in dataVM.network().arcs()) {
+        var arc = dataVM.network().arcs()[i];
+        data = data + ' (' + arc.nodeTo().nodeNumber() + ' ' + arc.nodeFrom().nodeNumber() + ') ' + arc.expectedAvailability();
+    }
+	data = data + ']\n'
 
     data = data + '\n!!! Leasable network\n';
 
@@ -146,13 +159,13 @@ Datagen.utils.generateData = function (genConfig) {
     // generate random arcs
     for (var i = 0; i < genConfig.numberOfArcs(); i++) {
         network.arcs.push(new ArcViewModel(
-                network.nodes()[(Math.floor((Math.random() * 10)))],
-                network.nodes()[(Math.floor((Math.random() * 10)))],
-                Math.floor((Math.random() * 40)) + 10,
-                Math.floor((Math.random() * 180)) + 20,
-                Math.floor((Math.random() * 4)) + 1,
-                Math.random()
-            ));
+					network.nodes()[(Math.floor((Math.random() * genConfig.numberOfNodes())))],
+					network.nodes()[(Math.floor((Math.random() * genConfig.numberOfNodes())))],
+					Math.floor((Math.random() * 40)) + 10,
+					Math.floor((Math.random() * 180)) + 20,
+					Math.floor((Math.random() * 4)) + 1,
+					Math.random() * 0.01 + 0.99
+				));
     }
     // generate random leasable arcs
     for (var i = 0; i < genConfig.numberOfLeasableArcs(); i++) {
@@ -162,7 +175,7 @@ Datagen.utils.generateData = function (genConfig) {
                 Math.floor((Math.random() * 50)) + 20,
                 Math.floor((Math.random() * 1000)) + 200,
                 Math.floor((Math.random() * 6)) + 2,
-                Math.random()
+				Math.random()
             ));
     }
     dataVM.network(network);
@@ -174,7 +187,8 @@ Datagen.utils.generateData = function (genConfig) {
         for (var j = 0; j < numServices; j++) {
             customer.services.push(new ServiceViewModel(
                     dataVM, Math.floor((Math.random() * 15)) + 5, Math.floor((Math.random() * 250)) + 50,
-                    Math.floor((Math.random() * 15)) + 5, Math.floor((Math.random() * 250)) + 50
+                    Math.floor((Math.random() * 15)) + 5, Math.floor((Math.random() * 250)) + 50,
+					(Math.random() * 0.025) + 0.97
                 ));
         }
         dataVM.customers.push(customer);

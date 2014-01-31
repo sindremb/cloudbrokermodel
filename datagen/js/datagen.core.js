@@ -74,7 +74,7 @@ function ArcViewModel(nodeTo, nodeFrom, latency, bandwidthCap, bandwidthPrice, a
     this.latency = ko.observable(latency);
     this.bandwidthCap = ko.observable(bandwidthCap);
     this.bandwidthPrice = ko.observable(bandwidthPrice);
-    this.availability = ko.observable(availability);
+    this.expectedAvailability = ko.observable(availability);
 }
 
 // Provider viewmodel class
@@ -98,7 +98,7 @@ function CustomerViewModel(main, revenue) {
 }
 
 // Service viewmodel class
-function ServiceViewModel(main, bandwidthReq, latencyReq, bandwidthReqDown, latencyReqDown) {
+function ServiceViewModel(main, bandwidthReq, latencyReq, bandwidthReqDown, latencyReqDown, availabilityReq) {
     this.main = main;
     this.main.services.push(this);
 
@@ -106,6 +106,7 @@ function ServiceViewModel(main, bandwidthReq, latencyReq, bandwidthReqDown, late
     this.latencyRequirementUp = ko.observable(latencyReq);
     this.bandwidthRequirementDown = ko.observable(bandwidthReqDown);
     this.latencyRequirementDown = ko.observable(latencyReqDown);
+	this.availabilityRequirement = ko.observable(availabilityReq)
 
     this.placements = ko.observableArray();
 
