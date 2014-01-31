@@ -10,8 +10,12 @@
 </head>
 <body>
 <div id="genConfigs">
+	# node levels = <input type="text" data-bind="value: generationConfig().numNodeLevels" /><br />
+	# nodes per cluster = <input type="text" data-bind="value: generationConfig().numNodesPerCluster" /><br />
+	<!--# avg. arcs per node = <input type="text" data-bind="value: generationConfig().avgArcsPerNode" /><br />
     Number of nodes: <input type="text" data-bind="value: generationConfig().numberOfNodes" /><br />
     Number of arcs: <input type="text" data-bind="value: generationConfig().numberOfArcs" /><br />
+	-->
     Number of leasable arcs: <input type="text" data-bind="value: generationConfig().numberOfLeasableArcs" /><br />
     Number of customers: <input type="text" data-bind="value: generationConfig().numberOfCustomers" /><br />
     Number of providers: <input type="text" data-bind="value: generationConfig().numberOfProviders" /><br />
@@ -27,8 +31,11 @@
 		<g data-bind="foreach: dataVM().network().arcs">
 			<line data-bind="attr: { x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y}" style="stroke:rgb(0,0,0);stroke-width:2" />
 		</g>
+		<g data-bind="foreach: dataVM().network().leasableArcs">
+			<line data-bind="attr: { x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y}" style="stroke:rgb(0,255,255);stroke-width:2" />
+		</g>
 		<g data-bind="foreach: dataVM().network().nodes">
-			<circle data-bind="attr: { cx: x, cy: y}" r="20" stroke="black" stroke-width="3" fill="red" />
+			<circle data-bind="attr: { cx: x, cy: y, r: (15 / level())}" stroke="black" stroke-width="3" fill="red" />
 		</g>
 		Sorry, your browser does not support inline SVG.  
 	</svg> 
