@@ -17,13 +17,16 @@ function MainViewModel() {
 
 // Data generation config viewmodel
 function GenerationConfigViewModel() {
+	this.numNodeLevels = ko.observable(2)
+	this.numNodesPerCluster = ko.observable(5)
+	//this.avgArcsPerNode = ko.observable(3)
     this.numberOfLeasableArcs = ko.observable(10);
     this.numberOfCustomers = ko.observable(10);
     this.maxNumberOfServicesPerCustomer = ko.observable(3);
     this.numberOfProviders = ko.observable(10);
     this.proportionEligibleProviders = ko.observable(0.5);
-    this.numberOfNodes = ko.observable(this.numberOfProviders() + this.numberOfCustomers() + 10);
-    this.numberOfArcs = ko.observable(this.numberOfNodes()*3);
+    //this.numberOfNodes = ko.observable(this.numberOfProviders() + this.numberOfCustomers() + 10);
+    //this.numberOfArcs = ko.observable(this.numberOfNodes()*3);
 }
 
 // Main viewmodel class
@@ -56,11 +59,12 @@ function NetworkViewModel() {
 }
 
 // Network node viewmodel class
-function NodeViewModel(network, x, y) {
+function NodeViewModel(network, x, y, level) {
     this.network = network;
 
-    this.x = ko.observable(x)
-    this.y = ko.observable(y)
+    this.x = ko.observable(x);
+    this.y = ko.observable(y);
+	this.level = ko.observable(level);
 
     this.nodeNumber = ko.computed(function () {
         return this.network.nodes.indexOf(this) + 1;
