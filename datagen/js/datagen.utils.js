@@ -193,6 +193,7 @@ Datagen.utils.generateData = function (genConfig) {
     var network = new NetworkViewModel()
 	Datagen.utils._generateNodeLevelRecursive(400, 250, null, network, genConfig, 1)
     
+	/*
     // generate random leasable arcs
     for (var i = 0; i < genConfig.numLeasableArcs(); i++) {
         network.leasableArcs.push(new ArcViewModel(
@@ -203,12 +204,14 @@ Datagen.utils.generateData = function (genConfig) {
                 Math.floor((Math.random() * 6)) + 2,
 				Math.random()
             ));
-    }
-    dataVM.network(network);
-
+    }*/
+    
     // STEP 2: Generate customers and services
+	
+	var numLeafNodes = Math.pow(genConfig.numNodesPerCluster(), genConfig.numNodeLevels());
+	var firstIndex = network.nodes().length - numLeafNodes;
     for (var i = 0; i < genConfig.numberOfCustomers(); i++) {
-		var neighbour = network.nodes()[(Math.floor((Math.random() * network.nodes().length)))];
+		var neighbour = network.nodes()[firstIndex+i+(Math.floor((Math.random() * numLeafNodes)))];
 		var node = new NodeViewModel(network, neighbour.x() -25 + Math.floor(Math.random()*50), neighbour.y() -25 + Math.floor(Math.random()*50), genConfig.numNodeLevels()+1, 'customer');
 		network.nodes.unshift(node);
 		network.arcs.push(Datagen.utils._arcForNodes(neighbour, node, genConfig));
@@ -227,10 +230,10 @@ Datagen.utils.generateData = function (genConfig) {
     // STEP 3: Generate providers
     for (var i = 0; i < genConfig.numberOfProviders(); i++) {
         dataVM.providers.push(new ProviderViewModel(dataVM));
-		var neighbour = network.nodes()[(Math.floor((Math.random() * network.nodes().length)))];
+		var neighbour = network.nodes()[genConfig.numberOfCustomers() + Math.floor(Math.random() * genConfig.numNodesPerCluster())];
 		var node = new NodeViewModel(network, neighbour.x() -25 + Math.floor(Math.random()*50), neighbour.y() -25 + Math.floor(Math.random()*50), genConfig.numNodeLevels()+1, 'provider');
 		network.nodes.push(node);
-		network.arcs.push(Datagen.utils._arcForNodes(neighbour, node, genConfig));
+		network.leasableArcs.push(Datagen.utils._arcForNodes(neighbour, node, genConfig));
     }
 
     // STEP 4: Map services to eligible providers
@@ -245,6 +248,8 @@ Datagen.utils.generateData = function (genConfig) {
             }
         }
     }
-
+	
+	// add network to data viewmodel
+	dataVM.network(network);
     return dataVM
 };

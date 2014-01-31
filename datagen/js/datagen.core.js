@@ -17,16 +17,109 @@ function MainViewModel() {
 
 // Data generation config viewmodel
 function GenerationConfigViewModel() {
-	this.numNodeLevels = ko.observable(2)
-	this.numNodesPerCluster = ko.observable(5)
-	//this.avgArcsPerNode = ko.observable(3)
-    this.numLeasableArcs = ko.observable(10);
-    this.numberOfCustomers = ko.observable(10);
-    this.maxNumberOfServicesPerCustomer = ko.observable(3);
-    this.numberOfProviders = ko.observable(10);
-    this.proportionEligibleProviders = ko.observable(0.5);
-    //this.numberOfNodes = ko.observable(this.numberOfProviders() + this.numberOfCustomers() + 10);
-    //this.numberOfArcs = ko.observable(this.numberOfNodes()*3);
+	this._numNodeLevels = ko.observable(2)
+	this._numNodesPerCluster = ko.observable(5)
+    this._numLeasableArcs = ko.observable(10);
+    this._numberOfCustomers = ko.observable(10);
+    this._maxNumberOfServicesPerCustomer = ko.observable(3);
+    this._numberOfProviders = ko.observable(10);
+    this._proportionEligibleProviders = ko.observable(0.5);
+	
+	this.numNodeLevels = ko.computed({
+		read : function() { return this._numNodeLevels(); },
+		write : function(value) {
+				var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._numNodeLevels(numval)
+				}
+				else {
+					console.log('failed to set "numNodeLevels" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.numNodesPerCluster = ko.computed({
+		read : function() { return this._numNodesPerCluster(); },
+		write : function(value) {
+				var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._numNodesPerCluster(numval)
+				}
+				else {
+					console.log('failed to set "numNodesPerCluster" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.numLeasableArcs = ko.computed({
+		read : function() { return this._numLeasableArcs(); },
+		write : function(value) {
+				var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._numLeasableArcs(numval)
+				}
+				else {
+					console.log('failed to set "numLeasableArcs" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.numberOfCustomers = ko.computed({
+		read : function() { return this._numberOfCustomers(); },
+		write : function(value) {
+				var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._numberOfCustomers(numval)
+				}
+				else {
+					console.log('failed to set "numberOfCustomers" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.maxNumberOfServicesPerCustomer = ko.computed({
+		read : function() { return this._maxNumberOfServicesPerCustomer(); },
+		write : function(value) {
+				var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._maxNumberOfServicesPerCustomer(numval)
+				}
+				else {
+					console.log('failed to set "maxNumberOfServicesPerCustomer" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.numberOfProviders = ko.computed({
+		read : function() { return this._numberOfProviders(); },
+		write : function(value) { var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._numberOfProviders(numval)
+				}
+				else {
+					console.log('failed to set "numberOfProviders" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.proportionEligibleProviders = ko.computed({
+		read : function() { return this._proportionEligibleProviders(); },
+		write : function(value) { var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._proportionEligibleProviders(numval)
+				}
+				else {
+					console.log('failed to set "proportionEligibleProviders" to', value);
+				}
+			},
+		owner : this
+	});
 }
 
 // Main viewmodel class
