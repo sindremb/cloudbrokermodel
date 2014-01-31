@@ -1,7 +1,10 @@
 ﻿var Datagen = {};
 
 function MainViewModel() {
+	self = this;
     this.dataVM = ko.observable(new DataViewModel());
+	
+	this.selectedObjects = [];
 
     this.generationConfig = ko.observable(new GenerationConfigViewModel());
 
@@ -13,6 +16,48 @@ function MainViewModel() {
         this.dataVM(Datagen.utils.generateData(this.generationConfig()));
         this.outputToMoselData(containerId);
     };
+	
+	this.handleKeypress = function(keycode) {
+		//alert(keycode);
+		if(keycode == 46) { // delete key
+			var nodes = this.dataVM().network().nodes()
+			var tobeDeleted = []
+			for(var i in nodes) {
+				if(nodes[i].selected()) {
+					tobeDeleted.push(nodes[i]);
+				}
+			}
+			for(var i in tobeDeleted) {
+				this.dataVM().network().nodes.remove(tobeDeleted[i]);
+			}
+			var arcs = this.dataVM().network().arcs()
+			tobeDeleted = []
+			for(var i in arcs) {
+				if(arcs[i].selected()) {
+					tobeDeleted.push(arcs[i]);
+				}
+			}
+			for(var i in tobeDeleted) {
+				this.dataVM().network().arcs.remove(tobeDeleted[i]);
+			}
+			arcs = this.dataVM().network().leasableArcs()
+			tobeDeleted = []
+			for(var i in arcs) {
+				if(arcs[i].selected()) {
+					tobeDeleted.push(arcs[i]);
+				}
+			}
+			for(var i in tobeDeleted) {
+				this.dataVM().network().leasableArcs.remove(tobeDeleted[i]);
+			}
+		}
+	}
+	
+	window.onkeyup = function(e) {
+	   var key = e.keyCode ? e.keyCode : e.which;
+
+	   self.handleKeypress(key);
+	}
 }
 
 // Data generation config viewmodel
@@ -151,8 +196,19 @@ function NetworkViewModel() {
     );
 }
 
+function Selectable() {
+	this.selected = ko.observable(false);
+	
+	this.toggleSelect = function() {
+		this.selected(!this.selected());
+		return false;
+	}
+}
+
 // Network node viewmodel class
 function NodeViewModel(network, x, y, level, type) {
+	Selectable.call(this);
+	
     this.network = network;
 
     this.x = ko.observable(x);
@@ -174,9 +230,12 @@ function NodeViewModel(network, x, y, level, type) {
 		}
     }, this);
 }
+NodeViewModel.prototype = new Selectable();
 
 // Network arc viewmodel class
 function ArcViewModel(nodeTo, nodeFrom, latency, bandwidthCap, bandwidthPrice, availability) {
+	Selectable.call(this);
+	
     this.nodeTo = ko.observable(nodeTo);
     this.nodeFrom = ko.observable(nodeFrom);
     this.latency = ko.observable(latency);
@@ -184,6 +243,7 @@ function ArcViewModel(nodeTo, nodeFrom, latency, bandwidthCap, bandwidthPrice, a
     this.bandwidthPrice = ko.observable(bandwidthPrice);
     this.expectedAvailability = ko.observable(availability);
 }
+ArcViewModel.prototype = new Selectable( );
 
 // Provider viewmodel class
 function ProviderViewModel(main) {
