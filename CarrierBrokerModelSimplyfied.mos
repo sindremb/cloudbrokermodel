@@ -15,14 +15,11 @@ model BrokerCarrierOptimization
 options explterm
 options noimplicit
 
-
-
-
 uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'smallA.txt';
+	Data = 'bigA.txt';
 	! Use thightened restrictions (v2) or not (v1)
 	TightenLP = false;
 end-parameters
@@ -183,8 +180,11 @@ if(Symmetric) then
 			create(D_AvailabilityExp(mm,nn));
 			D_AvailabilityExp(mm,nn) :=D_AvailabilityExp(nn,mm);
 		end-if
+		
+		
 	end-do
 end-if
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Variables
@@ -264,11 +264,11 @@ declarations
 	TotalLeasedCapacity:			dynamic array(Nodes,Nodes)					of linctr;
 	UserSideBandwidth:				dynamic array(Services)						of linctr;
 	UserSideBandwidthDown:			dynamic array(Services)						of linctr;
-	AvailabilityBoundD:			dynamic array(Services)						of linctr;
-	AvailabilityBoundU:			dynamic array(Services)						of linctr;
+	AvailabilityBoundD:				dynamic array(Services)						of linctr;
+	AvailabilityBoundU:				dynamic array(Services)						of linctr;
 	AvailabilityRequirement:		dynamic array(Services)						of linctr;
-	
-	temp:	real;
+!	temp2:	real;
+!	temp:	real;
 end-declarations
 
 ! OBJECTIVE FUNCTION
@@ -393,9 +393,9 @@ forall (nn in Nodes, mm in Nodes, ss in Services) do
 		v_UseLink(nn,mm,ss) - u_CapacityDown(nn,mm,ss) >=0);
 end-do
 
-forall (ss in Services) do
+forall (ss in Services) do	
 	AvailabilityRequirement(ss) := (
-		sum( nn in Nodes, mm in Nodes) v_UseLink(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm)) >= ln(Y_AvailabilityReq(ss)));
+		sum( nn in Nodes, mm in Nodes | exists(D_AvailabilityExp(nn,mm))) v_UseLink(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm)) >= ln(Y_AvailabilityReq(ss)));
 end-do
 	
 
@@ -480,9 +480,10 @@ forall(cc in Customers) do
 			
 					! output network routing for service
 					! - up-link
-					writeln("   - UPLINK:\n      - latency <= ,\n      - bandwidth: ", (sum(nn in Nodes) 
+					writeln("   - UPLINK:\n      - owned bandwidth: ", (sum(nn in Nodes) 
 							B_BandwidthReq(ss)*getsol(u_Capacity(nn,(n_Nodes-n_Providers+pp),ss))),
-						"   (Req. ",B_BandwidthReq(ss),")\n      - links usage:");
+						", leased bandwidth: ",(sum(nn in Nodes) 
+							B_BandwidthReq(ss)*getsol(w_LeaseRes(nn,(n_Nodes-n_Providers+pp),ss))),"   (Req. ",B_BandwidthReq(ss),")\n      - links usage:");
 					forall(nn in Nodes, mm in Nodes) do
 						if ((getsol(u_Capacity(nn,mm,ss)) >0 or getsol(w_LeaseRes(nn,mm,ss)) >0)) then
 							writeln("        - (", nn, ",", mm, ") : ", B_BandwidthReq(ss)*(getsol(u_Capacity(nn,mm,ss))+getsol(w_LeaseRes(nn,mm,ss))), 
@@ -491,18 +492,21 @@ forall(cc in Customers) do
 								+ L_LeasedPrice(nn,mm)*B_BandwidthReq(ss)*getsol(w_LeaseRes(nn,mm,ss)) );
 						end-if
 					end-do
-					writeln("      - leased capacity for links:");
-					forall(nn in Nodes, mm in Nodes) do
-						if (getsol(w_LeaseRes(nn,mm,ss)) >0) then
-								writeln("        - (",nn,",",mm,"): ",B_BandwidthReq(ss)*getsol(w_LeaseRes(nn,mm,ss)),
-									" - Cost: ", ((L_LeasedPrice(nn,mm)*B_BandwidthReq(ss))
-									*getsol(w_LeaseRes(nn,mm,ss))));
-						end-if
-					end-do
+					if ((sum(nn in Nodes, mm in Nodes) getsol(w_LeaseRes(nn,mm,ss))) > 0) then
+						writeln("      - leased capacity for links:");
+						forall(nn in Nodes, mm in Nodes) do
+							if (getsol(w_LeaseRes(nn,mm,ss)) >0) then
+									writeln("        - (",nn,",",mm,"): ",B_BandwidthReq(ss)*getsol(w_LeaseRes(nn,mm,ss)),
+										" - Cost: ", ((L_LeasedPrice(nn,mm)*B_BandwidthReq(ss))
+										*getsol(w_LeaseRes(nn,mm,ss))));
+							end-if
+						end-do
+					end-if
 					! - down-link
-					writeln("   - DOWNLINK:\n      - latency <=  \n      - bandwidth: ", (sum(nn in Nodes) 
-							B_BandwidthReq(ss)*getsol(u_CapacityDown(nn,(n_Nodes-n_Providers+pp),ss))),
-						"   (Req. ",B_BandwidthReqD(ss),")\n      - links usage:");
+					writeln("   - DOWNLINK:\n      - owned bandwidth: ", (sum(nn in Nodes) 
+							B_BandwidthReqD(ss)*getsol(u_CapacityDown((n_Nodes-n_Providers+pp),nn,ss))),
+						", leased bandwidth: ",(sum(nn in Nodes) 
+							B_BandwidthReqD(ss)*getsol(w_LeaseResDown((n_Nodes-n_Providers+pp),nn,ss))),"   (Req. ",B_BandwidthReqD(ss),")\n      - links usage:");
 					forall(nn in Nodes, mm in Nodes) do
 						if ((getsol(u_CapacityDown(nn,mm,ss)) >0 or getsol(w_LeaseResDown(nn,mm,ss)) >0)) then
 							writeln("        - (", nn, ",", mm, ") : ", B_BandwidthReq(ss)*(getsol(u_CapacityDown(nn,mm,ss))+getsol(w_LeaseResDown(nn,mm,ss))), 
@@ -511,14 +515,16 @@ forall(cc in Customers) do
 								+ L_LeasedPrice(nn,mm)*B_BandwidthReqD(ss)*getsol(w_LeaseResDown(nn,mm,ss)));
 						end-if
 					end-do
-					writeln("      - leased capacity for links:");
-					forall(nn in Nodes, mm in Nodes) do
-						if (getsol(w_LeaseResDown(nn,mm,ss)) >0) then
-								writeln("        - (",nn,",",mm,"): ",B_BandwidthReqD(ss)*getsol(w_LeaseResDown(nn,mm,ss)),
-									" - Cost: ", ((L_LeasedPrice(nn,mm)*B_BandwidthReqD(ss))
-									*getsol(w_LeaseResDown(nn,mm,ss))));
-						end-if
-					end-do!)
+					if ((sum(nn in Nodes, mm in Nodes) getsol(w_LeaseResDown(nn,mm,ss))) >0) then
+						writeln("      - leased capacity for links:");
+						forall(nn in Nodes, mm in Nodes) do
+							if (getsol(w_LeaseResDown(nn,mm,ss)) >0) then
+									writeln("        - (",nn,",",mm,"): ",B_BandwidthReqD(ss)*getsol(w_LeaseResDown(nn,mm,ss)),
+										" - Cost: ", ((L_LeasedPrice(nn,mm)*B_BandwidthReqD(ss))
+										*getsol(w_LeaseResDown(nn,mm,ss))));
+							end-if
+						end-do
+					end-if
 				end-if
 			end-do
 		end-do
