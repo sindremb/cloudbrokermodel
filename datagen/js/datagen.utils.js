@@ -147,6 +147,17 @@ Datagen.utils.toMoselData = function (dataVM) {
     return data
 };
 
+Datagen.utils._arcForNodes = function(nodeA, nodeB, config) {
+	return new ArcViewModel(
+					nodeA,
+					nodeB,
+					Math.floor((Math.random() * 40)) + 10,
+					Math.floor((Math.random() * 180)) + 20,
+					Math.floor((Math.random() * 4)) + 1,
+					Math.random() * 0.01 + 0.99
+				);;
+}
+
 Datagen.utils._generateNodeLevelRecursive = function (cx, cy, parent, network, config, levelCount) {
 	if(levelCount > config.numNodeLevels()) {
 		return;
@@ -155,17 +166,10 @@ Datagen.utils._generateNodeLevelRecursive = function (cx, cy, parent, network, c
 	var step = (Math.PI * 2) / config.numNodesPerCluster();
 	// create nodes in cluster (and arc to parent if present)
 	for (var i = 0; i < config.numNodesPerCluster(); i++){
-		var node = new NodeViewModel(network, cx + (100/levelCount)*Math.sin(step*i), cy + (100/levelCount)*Math.cos(step*i), levelCount);
+		var node = new NodeViewModel(network, cx + (100/levelCount)*Math.sin(step*i), cy + (100/levelCount)*Math.cos(step*i), levelCount, 'internal');
 		network.nodes.push(node);
 		if(parent != null) {
-			network.arcs.push(new ArcViewModel(
-					parent,
-					node,
-					Math.floor((Math.random() * 40)) + 10,
-					Math.floor((Math.random() * 180)) + 20,
-					Math.floor((Math.random() * 4)) + 1,
-					Math.random() * 0.01 + 0.99
-				));
+			network.arcs.push(Datagen.utils._arcForNodes(parent, node, config));
 		}
 	}
 	// add cluster arcs
@@ -173,14 +177,7 @@ Datagen.utils._generateNodeLevelRecursive = function (cx, cy, parent, network, c
 	for (var i = 0; i < config.numNodesPerCluster(); i++){
 		var a = firstIndex+i;
 		var b = firstIndex + ((i+1) % (config.numNodesPerCluster()));
-		network.arcs.push(new ArcViewModel(
-					network.nodes()[a],
-					network.nodes()[b],
-					Math.floor((Math.random() * 40)) + 10,
-					Math.floor((Math.random() * 180)) + 20,
-					Math.floor((Math.random() * 4)) + 1,
-					Math.random() * 0.01 + 0.99
-				));
+		network.arcs.push(Datagen.utils._arcForNodes(network.nodes()[a], network.nodes()[b], config));
 	}
 	// recurse for each node in cluster
 	for (var i = 0; i < config.numNodesPerCluster(); i++){
@@ -196,21 +193,28 @@ Datagen.utils.generateData = function (genConfig) {
     var network = new NetworkViewModel()
 	Datagen.utils._generateNodeLevelRecursive(400, 250, null, network, genConfig, 1)
     
+	/*
     // generate random leasable arcs
-    //for (var i = 0; i < network.nodes().length; i++) {
-    //    network.leasableArcs.push(new ArcViewModel(
-    //            network.nodes()[(Math.floor((Math.random() * 10)))],
-    //            network.nodes()[(Math.floor((Math.random() * 10)))],
-    //            Math.floor((Math.random() * 50)) + 20,
-    //            Math.floor((Math.random() * 1000)) + 200,
-    //            Math.floor((Math.random() * 6)) + 2,
-	//			Math.random()
-    //        ));
-    //}
-    dataVM.network(network);
-
+    for (var i = 0; i < genConfig.numLeasableArcs(); i++) {
+        network.leasableArcs.push(new ArcViewModel(
+                network.nodes()[(Math.floor((Math.random() * network.nodes().length)))],
+                network.nodes()[(Math.floor((Math.random() * network.nodes().length)))],
+                Math.floor((Math.random() * 50)) + 20,
+                Math.floor((Math.random() * 1000)) + 200,
+                Math.floor((Math.random() * 6)) + 2,
+				Math.random()
+            ));
+    }*/
+    
     // STEP 2: Generate customers and services
+	
+	var numLeafNodes = Math.pow(genConfig.numNodesPerCluster(), genConfig.numNodeLevels());
+	var firstIndex = network.nodes().length - numLeafNodes;
     for (var i = 0; i < genConfig.numberOfCustomers(); i++) {
+		var neighbour = network.nodes()[firstIndex+i+(Math.floor((Math.random() * numLeafNodes)))];
+		var node = new NodeViewModel(network, neighbour.x() -25 + Math.floor(Math.random()*50), neighbour.y() -25 + Math.floor(Math.random()*50), genConfig.numNodeLevels()+1, 'customer');
+		network.nodes.unshift(node);
+		network.arcs.push(Datagen.utils._arcForNodes(neighbour, node, genConfig));
         var customer = new CustomerViewModel(dataVM, Math.floor((Math.random() * 1000)) + 500)
         numServices = Math.floor((Math.random() * genConfig.maxNumberOfServicesPerCustomer())) + 1
         for (var j = 0; j < numServices; j++) {
@@ -226,6 +230,10 @@ Datagen.utils.generateData = function (genConfig) {
     // STEP 3: Generate providers
     for (var i = 0; i < genConfig.numberOfProviders(); i++) {
         dataVM.providers.push(new ProviderViewModel(dataVM));
+		var neighbour = network.nodes()[genConfig.numberOfCustomers() + Math.floor(Math.random() * genConfig.numNodesPerCluster())];
+		var node = new NodeViewModel(network, neighbour.x() -25 + Math.floor(Math.random()*50), neighbour.y() -25 + Math.floor(Math.random()*50), genConfig.numNodeLevels()+1, 'provider');
+		network.nodes.push(node);
+		network.leasableArcs.push(Datagen.utils._arcForNodes(neighbour, node, genConfig));
     }
 
     // STEP 4: Map services to eligible providers
@@ -240,6 +248,8 @@ Datagen.utils.generateData = function (genConfig) {
             }
         }
     }
-
+	
+	// add network to data viewmodel
+	dataVM.network(network);
     return dataVM
 };
