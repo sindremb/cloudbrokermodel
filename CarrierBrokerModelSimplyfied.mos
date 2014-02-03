@@ -19,7 +19,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'bigA.txt';
+	Data = 'smallA.txt';
 	! Use thightened restrictions (v2) or not (v1)
 	TightenLP = false;
 end-parameters
@@ -204,8 +204,13 @@ declarations
 	w_LeaseRes:			dynamic array (Nodes,Nodes,Services)			of mpvar;
 	! - w (down): continuous, use of leased arc between nodes for a service (downlink)
 	w_LeaseResDown:		dynamic array (Nodes,Nodes,Services)			of mpvar;
-	! - u : binary, use of own arc for service either uplink or downlink
+	! - v : binary, use of own arc for service either uplink or downlink
 	v_UseLink:			dynamic array (Nodes,Nodes,Services)			of mpvar;
+	! - b : binary, use of own arc for backup (uplink and downlink)
+	b_UseBackup:		dynamic array (Nodes,Nodes,Services)			of mpvar;
+	b_UseBackupDown:	dynamic array (Nodes,Nodes,Services)			of mpvar;
+	! - l : continuous, bandwidth reserved for backup on a (owned) link
+	l_BackupRes:		dynamic array (Nodes,Nodes)						of mpvar; 
 end-declarations	
 
 ! - for all valid combinations of service and provider
@@ -224,6 +229,10 @@ forall(nn in Nodes, mm in Nodes, ss in Services | exists(F_BandwidthCap(nn,mm)))
 	u_CapacityDown(nn,mm,ss) <=1;
 	create(v_UseLink(nn,mm,ss));
 	v_UseLink(nn,mm,ss) is_binary;
+	create(b_UseBackup(nn,mm,ss));
+	b_UseBackup(nn,mm,ss) is_binary;
+	create(b_UseBackupDown(nn,mm,ss));
+	b_UseBackupDown(nn,mm,ss) is_binary;
 end-do
 
 ! - for all existing LEASABLE arcs
@@ -243,6 +252,12 @@ forall(cc in Customers) do
 	y_Serve(cc) is_binary;
 end-do
 
+forall (nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) do
+	create(l_BackupRes(nn,mm));
+	l_BackupRes(nn,mm) is_binary;
+end-do
+
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! CONSTRAINTS
@@ -257,16 +272,25 @@ declarations
 	ArcCapacity:					dynamic array(Nodes,Nodes)					of linctr;	
 	BandwidthFlow:					dynamic array(Services,I_Nodes)				of linctr;
 	BandwidthFlowDown:				dynamic array(Services,I_Nodes)				of linctr;
+	BackupFlow:						dynamic array(Services,I_Nodes)				of linctr;
+	BackupFlowDown:					dynamic array(Services,I_Nodes)				of linctr;
 	BandwidthRequirement:			dynamic array(Services,Providers)			of linctr;
 	BandwidthRequirementDown:		dynamic array(Services,Providers)			of linctr;
+	BackupRequirement:				dynamic array(Services,Providers)			of linctr;
+	BackupRequirementDown:			dynamic array(Services,Providers)			of linctr;
 	LatencyRequirement:				dynamic array(Services,Providers)			of linctr;
 	LatencyRequirementDown:			dynamic array(Services)						of linctr;
 	TotalLeasedCapacity:			dynamic array(Nodes,Nodes)					of linctr;
 	UserSideBandwidth:				dynamic array(Services)						of linctr;
 	UserSideBandwidthDown:			dynamic array(Services)						of linctr;
+	UserSideBackup:					dynamic array(Services)						of linctr;
 	AvailabilityBoundD:				dynamic array(Services)						of linctr;
 	AvailabilityBoundU:				dynamic array(Services)						of linctr;
 	AvailabilityRequirement:		dynamic array(Services)						of linctr;
+	TotalBackup:					dynamic array(Nodes,Nodes)					of linctr;
+	MaximumBackupUp:				dynamic array(Nodes,Nodes,Services)			of linctr;
+	MaximumBackupDown:				dynamic array(Nodes,Nodes,Services)			of linctr;
+	
 !	temp2:	real;
 !	temp:	real;
 end-declarations
@@ -295,7 +319,10 @@ Total_Profits := sum (cc in Customers)
 									(L_LeasedPrice(nn,mm)
 									*(w_LeaseRes(nn,mm,ss)*B_BandwidthReq(ss)+w_LeaseResDown(nn,mm,ss)*B_BandwidthReqD(ss)))
 							)
-					);
+					)
+					+ 
+					sum (nn in Nodes, mm in Nodes) (K_CapPrice(nn,mm)*l_BackupRes(nn,mm))
+				;
 
 ! SERVE CUSTOMER CONSTRAINT
 ! Customers can only be served if all services for customer is provided
@@ -310,8 +337,8 @@ end-do
 forall (nn in Nodes, mm in Nodes
 	| (exists(F_BandwidthCap(nn,mm)) or exists(O_LeasedBandwidthCap(nn,mm))))do
 	ArcCapacity(nn,mm) := sum (ss in Services) (
-			u_Capacity(nn,mm,ss)*B_BandwidthReq(ss) +u_CapacityDown(nn,mm,ss)*B_BandwidthReqD(ss)
-		) <=F_BandwidthCap(nn,mm);
+			u_Capacity(nn,mm,ss)*B_BandwidthReq(ss) +u_CapacityDown(nn,mm,ss)*B_BandwidthReqD(ss)) + l_BackupRes(nn,mm)
+		 <=F_BandwidthCap(nn,mm);
 end-do
 
 
@@ -328,6 +355,14 @@ forall (cc in Customers, ss in S_ServiceForCustomer(cc), nn in I_Nodes | nn<>cc 
 	 		sum (mm in Nodes) (u_CapacityDown(nn,mm,ss)+w_LeaseResDown(nn,mm,ss))
 	 		- sum(mm in Nodes) (u_CapacityDown(mm,nn,ss)+w_LeaseResDown(mm,nn,ss))
  		) = 0;
+ 	BackupFlow(ss,nn) := (
+	 		sum (mm in Nodes) b_UseBackup(nn,mm,ss)
+	 		- sum(mm in Nodes) b_UseBackup(mm,nn,ss)
+ 		) = 0;
+ 	BackupFlowDown(ss,nn) := (
+	 		sum (mm in Nodes) b_UseBackupDown(nn,mm,ss)
+	 		- sum(mm in Nodes) b_UseBackupDown(mm,nn,ss)
+ 		) = 0;
 end-do
 
 ! PLACEMENT SIDE BANDWIDTH REQUIREMENT CONSTRAINTS
@@ -343,6 +378,16 @@ forall (ss in Services,pp in Providers) do
 			- sum(mm in Nodes | mm<>E_ProviderNode(pp)) (u_CapacityDown(mm,E_ProviderNode(pp),ss) + w_LeaseResDown(mm,E_ProviderNode(pp),ss))
 			-x_Placement(ss,pp)
 		) = 0;
+	BackupRequirement(ss,pp) := (
+			sum (nn in Nodes | nn<>E_ProviderNode(pp)) b_UseBackup(nn, E_ProviderNode(pp),ss)
+			- sum(mm in Nodes | mm<>E_ProviderNode(pp)) b_UseBackup(E_ProviderNode(pp),mm,ss)
+			-x_Placement(ss,pp)
+		) = 0;
+	BackupRequirementDown(ss,pp) := (
+			sum (nn in Nodes | nn<>E_ProviderNode(pp)) b_UseBackupDown(E_ProviderNode(pp),nn,ss)
+			- sum(mm in Nodes | mm<>E_ProviderNode(pp)) b_UseBackupDown(mm,E_ProviderNode(pp),ss) 
+			-x_Placement(ss,pp)
+		) = 0;
 end-do
 
 ! LATENCY REQUIREMENT CONSTRAINTS
@@ -355,7 +400,7 @@ forall (ss in Services, pp in Providers) do
 end-do
 ! - placement->user: for each service, latency for any path from placement to customer must meet reqs.
 forall(cc in Customers, ss in S_ServiceForCustomer(cc)) do
-LatencyRequirementDown(ss) := 
+	LatencyRequirementDown(ss) := 
 			sum(nn in Nodes, mm in Nodes) ( T_LinkLatency(nn,mm)*u_CapacityDown(nn,mm,ss) 
 			+ V_LeaseLatency(nn,mm)*w_LeaseResDown(nn,mm,ss)) 
 		<=  G_LatencyReqD(ss);
@@ -383,9 +428,14 @@ forall (cc in Customers, ss in S_ServiceForCustomer(cc)) do
 			sum(mm in Nodes | mm<>cc) (u_CapacityDown(mm,cc,ss) + w_LeaseResDown(mm,cc,ss))
 			- 
 			sum(nn in Nodes | nn<>cc) (u_CapacityDown(cc,nn,ss)+w_LeaseResDown(cc,nn,ss)) - y_Serve(cc)	
-		)= 0;
-end-do
+	)= 0;
+	UserSideBandwidth(ss) := (
+			sum(mm in Nodes | mm<>cc) b_UseBackup(cc,mm,ss) 
+			- sum(mm in Nodes | mm<>cc) b_UseBackupDown(mm,cc,ss) 
+		)= 0;	
+	end-do
 
+!AVAILABILITY CONSTRAINTS
 forall (nn in Nodes, mm in Nodes, ss in Services) do
 	AvailabilityBoundD(ss) := (
 		v_UseLink(nn,mm,ss) - u_Capacity(nn,mm,ss) >= 0);
@@ -395,11 +445,20 @@ end-do
 
 forall (ss in Services) do	
 	AvailabilityRequirement(ss) := (
-		sum( nn in Nodes, mm in Nodes | exists(D_AvailabilityExp(nn,mm))) v_UseLink(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm)) >= ln(Y_AvailabilityReq(ss)));
+		sum( nn in Nodes, mm in Nodes | exists(D_AvailabilityExp(nn,mm))) v_UseLink(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm))
+		 + sum(nn in Nodes, mm in Nodes) b_UseBackup(nn,mm,ss) >= ln(Y_AvailabilityReq(ss)));
 end-do
 	
+forall (nn in Nodes, mm in Nodes) do
+	TotalBackup(nn,mm) := (
+		sum(ss in Services) 0.3*(b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)+ b_UseBackupDown(nn,mm,ss)*B_BandwidthReqD(ss)) - l_BackupRes(nn,mm) )>= 0;
+end-do
 
-
+forall (nn in Nodes, mm in Nodes, ss in Services) do
+	MaximumBackupUp(nn,mm,ss) := b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)-l_BackupRes(nn,mm) >= 0;
+	MaximumBackupDown(nn,mm,ss) := b_UseBackupDown(nn,mm,ss)*B_BandwidthReqD(ss)-l_BackupRes(nn,mm) >= 0;
+end-do
+		
 
 
 writeln("Model building completed in ", timestamp - timetracker, " seconds");
