@@ -6,9 +6,35 @@
     <script type="text/javascript" language="javascript" src="js/knockout-3.0.0.js"></script>
     <script type="text/javascript" language="javascript" src="js/datagen.core.js"></script>
     <script type="text/javascript" language="javascript" src="js/datagen.utils.js"></script>
+	<script type="text/javascript" language="javascript" src="js/datagen.viewmodels.js"></script>
     <script type="text/javascript" language="javascript" src="js/main.js"></script>
 </head>
 <body>
+<script id="ArcViewModelTemplate" type="text/html">
+<div class="ArcViewModel">
+	Bandwidth Capacity = <input type="text" data-bind="value: bandwidthCap" /><br />
+	Latency = <input type="text" data-bind="value: latency" /><br />
+	Bandwidth Price = <input type="text" data-bind="value: bandwidthPrice" /><br />
+	Exp. Availability = <input type="text" data-bind="value: expectedAvailability" /><br />
+</div>
+</script>
+<script id="NodeViewModelTemplate" type="text/html">
+<div class="NodeViewModel">
+	Level = <input type="text" data-bind="value: level" /><br />
+	Type = <input type="text" data-bind="value: nodeType" /><br />
+</div>
+</script>
+<script id="UnknownTemplate" type="text/html">
+<div class="Unknown">
+	Unknown selected object
+</div>
+</script>
+<script id="addnode-mode-desc" type="text/html">
+Click location to add new node
+</script>
+<script id="view-mode-desc" type="text/html">
+Click to select network elements
+</script>
 <div id="genConfigs">
 	# node levels = <input type="text" data-bind="value: generationConfig().numNodeLevels" /><br />
 	# nodes per cluster = <input type="text" data-bind="value: generationConfig().numNodesPerCluster" /><br />
@@ -25,21 +51,40 @@
 <div>
     <button data-bind="click: function() {generateRandomNetwork('dataOutputBox')}">Generate network</button>
 </div>
+<table>
+<tr>
+<td>
 <div>
     <h3>Network data visualisation: </h3>
-    <svg height="500" width="800">
+	<button data-bind="click: function() {$data.togglemode('addnode')}, style : {'border-style' : $data.mode() == 'addnode' ? 'inset' : ''}">Add Node</button>
+	<button data-bind="click: function() {$data.dataVM().network().addArc()}">Add Arc</button>
+</div>
+<div height="20px" data-bind="template: {name: $data.mode()+'-mode-desc', data: $data}">
+</div>
+<div>
+    <svg height="500" width="800" data-bind="click : function(d, e) {$data.mapclick(e);}">
 		<g data-bind="foreach: dataVM().network().arcs">
-			<line data-bind="attr: { x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y, stroke : selected() ? 'aqua' : 'black'}, click: function() {toggleSelect();}" style="stroke-width:2" />
+			<line data-bind="attr: { x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y, stroke : selected() ? 'aqua' : 'black'}, click: function(d, e) {toggleSelect(e);}" style="stroke-width:4" />
 		</g>
 		<g data-bind="foreach: dataVM().network().leasableArcs">
-			<line data-bind="attr: { x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y, stroke : selected() ? 'aqua' : 'blue'}, click: function() {toggleSelect();}" style="stroke-width:2" />
+			<line data-bind="attr: { x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y, stroke : selected() ? 'aqua' : 'blue'}, click: function(d, e) {toggleSelect(e);}" style="stroke-width:4" />
 		</g>
 		<g data-bind="foreach: dataVM().network().nodes">
-			<circle data-bind="attr: { cx: x, cy: y, r: (15 / level()), fill: colour(), stroke : selected() ? 'aqua' : 'black'}, click: function() {toggleSelect();}" stroke="black" stroke-width="3" />
+			<circle data-bind="attr: { cx: x, cy: y, r: (15 / level()), fill: colour(), stroke : selected() ? 'aqua' : 'black'}, click: function(d, e) {toggleSelect(e);}" stroke="black" stroke-width="3" />
 		</g>
 		Sorry, your browser does not support inline SVG.  
 	</svg> 
 </div>
+</td>
+<td data-bind="if: dataVM().network().selectedObjects().length > 0">
+	<div data-bind="template: {name: dataVM().network().selectedObjects()[0].getTemplate(), data: dataVM().network().selectedObjects()[0]}">
+	</div>
+</td>
+<td data-bind="if: dataVM().network().selectedObjects().length == 0">
+	Click To select objects
+</td>
+</tr>
+</table>
 <div>
     <button data-bind="click: function() {outputToMoselData('dataOutputBox')}">Output data file</button>
 </div>

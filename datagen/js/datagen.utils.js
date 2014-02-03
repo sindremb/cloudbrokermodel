@@ -193,19 +193,6 @@ Datagen.utils.generateData = function (genConfig) {
     var network = new NetworkViewModel()
 	Datagen.utils._generateNodeLevelRecursive(400, 250, null, network, genConfig, 1)
     
-	/*
-    // generate random leasable arcs
-    for (var i = 0; i < genConfig.numLeasableArcs(); i++) {
-        network.leasableArcs.push(new ArcViewModel(
-                network.nodes()[(Math.floor((Math.random() * network.nodes().length)))],
-                network.nodes()[(Math.floor((Math.random() * network.nodes().length)))],
-                Math.floor((Math.random() * 50)) + 20,
-                Math.floor((Math.random() * 1000)) + 200,
-                Math.floor((Math.random() * 6)) + 2,
-				Math.random()
-            ));
-    }*/
-    
     // STEP 2: Generate customers and services
 	
 	var numLeafNodes = Math.pow(genConfig.numNodesPerCluster(), genConfig.numNodeLevels());
