@@ -9,6 +9,11 @@ function MainViewModel() {
     this.outputToMoselData = function (containerId) {
         $('#' + containerId).val(Datagen.utils.toMoselData(this.dataVM()));
     };
+	
+	this.parseMoselData = function (data) {
+		var dataObj = Datagen.utils.parseMoselData(data);
+		console.log(dataObj);
+	}
 
     this.generateRandomNetwork = function (containerId) {
         this.dataVM(Datagen.utils.generateData(this.generationConfig()));

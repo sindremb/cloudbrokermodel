@@ -1,5 +1,218 @@
 ﻿Datagen.utils = {};
 
+/*
+	Takes mosel data string as input and parses to dictionary of parameter names
+	as keys with their respective data.
+*/
+Datagen.utils.parseMoselData = function (data) {
+	var lines = data.split('\n');
+	var dataValues = {};
+	var currentParamName; // name of current unfinished data parameter
+	var parsingMode = 'paramname'; // type of current unfinished data parameter
+	var currentParamData; // data parsed so far for current data parameter
+	var currentParamIndex; // current index for data
+	
+	var issueWarning = function (symbol, mode) {
+		console.log('WARNING: encountered unexpected word ', symbol,
+			' when parsing data in mode ', mode, ' - IGNORING');
+	}
+	for (var lkey in lines) {
+		var line = lines[lkey];
+		console.log('parsing line: ', line);
+		// all words before comment symbol
+		var words = line.split('!')[0].trim().split(/\s+/g); // \s should include all whitespaces as delimiter
+		for (var wkey in words) {
+			var subwords = Datagen.utils._extractSubwords(words[wkey]);
+			for (var skey in subwords) {
+				var subword = subwords[skey];
+				console.log(' - subword', subword);
+				
+				// continue on empty word
+				if(subword.length < 1) continue;
+				
+				// parse depending on mode
+				switch(parsingMode) {
+					case "paramname":
+						if(/^[a-zA-Z_]/.test(subword)) {
+							// look for new param declaration
+							currentParamName = subword;
+							parsingMode = 'assignsymbol';
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "assignsymbol":
+						if (subword == ':') {
+							parsingMode = 'paramdata';
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "paramdata":
+						if(subword == '[') {
+							// start parsing list
+							parsingMode = "listdata";
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)[.][0-9]+$/.test(subword)) {
+							// assign float value to current param
+							var val = parseFloat(subword);
+							dataValues[currentParamName] = val;
+							parsingMode = "paramname";
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// assign int value to current param
+							var val = parseInt(subword);
+							dataValues[currentParamName] = val;
+							parsingMode = "paramname";
+						} else if (/^(true|false)$/.test(subword)) {
+							// assign int value to current param
+							var val = subword == 'true';
+							dataValues[currentParamName] = val;
+							parsingMode = "paramname";
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "listdata":
+						if(subword == '(') {
+							// start parsing index -> set to dynamic array
+							currentParamIndex = [];
+							currentParamData = {};
+							parsingMode = 'index';
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)[.][0-9]+$/.test(subword)) {
+							// assign float value to current param
+							var val = parseFloat(subword);
+							currentParamData = [val];
+							parsingMode = "arraydata";
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// assign int value to current param
+							var val = parseInt(subword);
+							currentParamData = [val];
+							parsingMode = "arraydata";
+						} else if (/^(true|false)$/.test(subword)) {
+							// assign int value to current param
+							var val = subword == 'true';
+							currentParamData = [val];
+							parsingMode = "arraydata";
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "arraydata":
+						if(subword == ']') {
+							dataValues[currentParamName] = currentParamData;
+							parsingMode = 'paramname'
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)[.][0-9]+$/.test(subword)) {
+							// assign float value to current param
+							var val = parseFloat(subword);
+							currentParamData.push(val);
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// assign int value to current param
+							var val = parseInt(subword);
+							currentParamData.push(val);
+						} else if (/^(true|false)$/.test(subword)) {
+							// assign int value to current param
+							var val = subword == 'true';
+							currentParamData.push(val);
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "index":
+						if(subword == ')') {
+							// start parsing index -> set to dynamic array
+							parsingMode = 'darraydata';
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// push int value to current index
+							var val = parseInt(subword);
+							currentParamIndex.push(val);
+						}else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "darraydata":
+						if (/^-{0,1}([0-9]|[1-9][0-9]*)[.][0-9]+$/.test(subword)) {
+							// assign float value to current param
+							var val = parseFloat(subword);
+							var dict = currentParamData;
+							for(var i = 0; i < currentParamIndex.length-1; i++) {
+								if(!((currentParamIndex[i]) in dict)) {
+									dict[currentParamIndex[i]] = {};
+								} 
+								dict = dict[currentParamIndex[i]];
+							}
+							dict[currentParamIndex[currentParamIndex.length-1]] = val;
+							parsingMode = "darrayindex";
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// assign int value to current param
+							var val = parseInt(subword);
+							var dict = currentParamData;
+							for(var i = 0; i < currentParamIndex.length-1; i++) {
+								if(!((currentParamIndex[i]) in dict)) {
+									dict[currentParamIndex[i]] = {};
+									console.log('added to dict',dict);
+								} 
+								dict = dict[currentParamIndex[i]];
+							}
+							dict[currentParamIndex[currentParamIndex.length-1]] = val;
+							parsingMode = "darrayindex";
+						} else if (/^(true|false)$/.test(subword)) {
+							// assign int value to current param
+							var val = subword == 'true';
+							var dict = currentParamData;
+							for(var i = 0; i < currentParamIndex.length-1; i++) {
+								if(!((currentParamIndex[i]) in dict)) {
+									dict[currentParamIndex[i]] = {};
+								} 
+								dict = dict[currentParamIndex[i]];
+							}
+							dict[currentParamIndex[currentParamIndex.length-1]] = val;
+							parsingMode = "darrayindex";
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "darrayindex":
+						if(subword == ']') {
+							dataValues[currentParamName] = currentParamData;
+							parsingMode = 'paramname'
+						} else if(subword == '(') {
+							// start parsing index -> set to dynamic array
+							currentParamIndex = [];
+							parsingMode = 'index';
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					default:
+						console.log('WARNING: unexpected parsing mode: ', parsingMode);
+						
+				}
+			}
+		}
+	}
+	
+	return dataValues;
+}
+
+Datagen.utils._extractSubwords = function(word) {
+	subwords = [];
+	startIndex = 0;
+	for(var i = 0; i < word.length; i++) {
+		var c = word[i];
+		if(/^[()\[\]:]/.test(c)) {
+			var prevWord = word.substring(startIndex, i);
+			if(prevWord.length > 0) subwords.push(prevWord);
+			
+			subwords.push(c);
+			
+			startIndex = i+1;
+		}
+	}
+	if(startIndex < word.length) {
+		subwords.push(word.substring(startIndex));
+	}
+	return subwords;
+}
+
 Datagen.utils.toMoselData = function (dataVM) {
     data = '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n' +
             '! Data set: #' + Math.floor((Math.random() * 100)) + '\n' +

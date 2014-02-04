@@ -87,10 +87,10 @@ Click to select network elements
 </table>
 <div>
     <button data-bind="click: function() {outputToMoselData('dataOutputBox')}">Output data file</button>
+	<button data-bind="click: function() {parseMoselData($('#dataOutputBox').val())}">Load data file</button>
 </div>
 <div>
-    <textarea id="dataOutputBox" rows="30" cols="150">
-    </textarea>
+    <textarea id="dataOutputBox" rows="30" cols="150"></textarea>
 </div>
 </body>
 </html>
