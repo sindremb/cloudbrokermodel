@@ -1,4 +1,6 @@
 ﻿$(window).load(function () {
-    var main = new MainViewModel();
+    main = new MainViewModel();
     ko.applyBindings(main);
 });
+
+var main;
