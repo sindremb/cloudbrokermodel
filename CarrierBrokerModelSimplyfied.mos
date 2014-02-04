@@ -254,7 +254,6 @@ end-do
 
 forall (nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) do
 	create(l_BackupRes(nn,mm));
-	l_BackupRes(nn,mm) is_binary;
 end-do
 
 
@@ -429,7 +428,7 @@ forall (cc in Customers, ss in S_ServiceForCustomer(cc)) do
 			- 
 			sum(nn in Nodes | nn<>cc) (u_CapacityDown(cc,nn,ss)+w_LeaseResDown(cc,nn,ss)) - y_Serve(cc)	
 	)= 0;
-	UserSideBandwidth(ss) := (
+	UserSideBackup(ss) := (
 			sum(mm in Nodes | mm<>cc) b_UseBackup(cc,mm,ss) 
 			- sum(mm in Nodes | mm<>cc) b_UseBackupDown(mm,cc,ss) 
 		)= 0;	
@@ -454,9 +453,9 @@ forall (nn in Nodes, mm in Nodes) do
 		sum(ss in Services) 0.3*(b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)+ b_UseBackupDown(nn,mm,ss)*B_BandwidthReqD(ss)) - l_BackupRes(nn,mm) )>= 0;
 end-do
 
-forall (nn in Nodes, mm in Nodes, ss in Services) do
-	MaximumBackupUp(nn,mm,ss) := b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)-l_BackupRes(nn,mm) >= 0;
-	MaximumBackupDown(nn,mm,ss) := b_UseBackupDown(nn,mm,ss)*B_BandwidthReqD(ss)-l_BackupRes(nn,mm) >= 0;
+forall (nn in Nodes, mm in Nodes, ss in Services ) do
+	MaximumBackupUp(nn,mm,ss) := b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)-l_BackupRes(nn,mm) <= 0;
+	MaximumBackupDown(nn,mm,ss) := b_UseBackupDown(nn,mm,ss)*B_BandwidthReqD(ss)-l_BackupRes(nn,mm) <= 0;
 end-do
 		
 
@@ -485,6 +484,7 @@ end-if
 
 
 writeln("\nTotal Profits: ", getobjval);
+writeln("\nBackup Costs: ", sum(nn in Nodes, mm in Nodes) getsol(l_BackupRes(nn,mm))*K_CapPrice(nn,mm));
 
 ! for all customers
 forall(cc in Customers) do
@@ -561,6 +561,15 @@ forall(cc in Customers) do
 							end-if
 						end-do
 					end-if
+					if ( sum(nn in Nodes, mm in Nodes) (getsol(b_UseBackup(nn,mm,ss))) >=1) then
+						writeln("      - backup links:");
+							forall (nn in Nodes, mm in Nodes) do
+							if (getsol(b_UseBackup(nn,mm,ss))=1) then
+								writeln("        - (",nn,",",mm,"): ", getsol(l_BackupRes(nn,mm)));
+							end-if
+							end-do
+					end-if
+					
 					! - down-link
 					writeln("   - DOWNLINK:\n      - owned bandwidth: ", (sum(nn in Nodes) 
 							B_BandwidthReqD(ss)*getsol(u_CapacityDown((n_Nodes-n_Providers+pp),nn,ss))),
@@ -568,7 +577,7 @@ forall(cc in Customers) do
 							B_BandwidthReqD(ss)*getsol(w_LeaseResDown((n_Nodes-n_Providers+pp),nn,ss))),"   (Req. ",B_BandwidthReqD(ss),")\n      - links usage:");
 					forall(nn in Nodes, mm in Nodes) do
 						if ((getsol(u_CapacityDown(nn,mm,ss)) >0 or getsol(w_LeaseResDown(nn,mm,ss)) >0)) then
-							writeln("        - (", nn, ",", mm, ") : ", B_BandwidthReq(ss)*(getsol(u_CapacityDown(nn,mm,ss))+getsol(w_LeaseResDown(nn,mm,ss))), 
+							writeln("        - (", nn, ",", mm, ") : ", B_BandwidthReqD(ss)*(getsol(u_CapacityDown(nn,mm,ss))+getsol(w_LeaseResDown(nn,mm,ss))), 
 								"    (", getsol(w_LeaseResDown(nn,mm,ss)), " leased) - Cost: ",
 								K_CapPrice(nn,mm)*B_BandwidthReqD(ss)*getsol(u_CapacityDown(nn,mm,ss))
 								+ L_LeasedPrice(nn,mm)*B_BandwidthReqD(ss)*getsol(w_LeaseResDown(nn,mm,ss)));
@@ -583,6 +592,14 @@ forall(cc in Customers) do
 										*getsol(w_LeaseResDown(nn,mm,ss))));
 							end-if
 						end-do
+					end-if
+					if ( sum(nn in Nodes, mm in Nodes) (getsol(b_UseBackupDown(nn,mm,ss))) >=1) then
+						writeln("      - backup links:");
+							forall (nn in Nodes, mm in Nodes) do
+							if (getsol(b_UseBackupDown(nn,mm,ss))=1) then
+								writeln("        - (",nn,",",mm,"): ", getsol(l_BackupRes(nn,mm)));
+							end-if
+							end-do
 					end-if
 				end-if
 			end-do
