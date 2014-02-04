@@ -19,7 +19,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'smallA.txt';
+	Data = 'bigA.txt';
 	! Use thightened restrictions (v2) or not (v1)
 	TightenLP = false;
 end-parameters
@@ -435,6 +435,9 @@ forall (cc in Customers, ss in S_ServiceForCustomer(cc)) do
 	end-do
 
 !AVAILABILITY CONSTRAINTS
+!Må legge til en restriksjon som sikrer at vi ikke får looper i backup-pathene
+
+
 forall (nn in Nodes, mm in Nodes, ss in Services) do
 	AvailabilityBoundD(ss) := (
 		v_UseLink(nn,mm,ss) - u_Capacity(nn,mm,ss) >= 0);
