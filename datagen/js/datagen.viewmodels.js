@@ -12,7 +12,7 @@ function MainViewModel() {
 	
 	this.parseMoselData = function (data) {
 		var dataObj = Datagen.utils.parseMoselData(data);
-		console.log(dataObj);
+		this.dataVM(Datagen.utils.networkFromDataObject(dataObj));
 	}
 
     this.generateRandomNetwork = function (containerId) {
