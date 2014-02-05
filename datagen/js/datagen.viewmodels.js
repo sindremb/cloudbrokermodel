@@ -1,82 +1,135 @@
 function MainViewModel() {
 	self = this;
-    this.dataVM = ko.observable(new DataViewModel());
+	
+	// view model for all core data
+    this.dataVM = ko.observable(new DataViewModel(this));
 
+	// view model for random data generation configuration
     this.generationConfig = ko.observable(new GenerationConfigViewModel());
 	
+	// current mode for editor view of data
 	this.mode = ko.observable('view');
+	
+	// current selected objects in editor view
+	this.selectedObjects = ko.observableArray();
 
+	// outputs the dataVM content as text to container of provided id
     this.outputToMoselData = function (containerId) {
         $('#' + containerId).val(Datagen.utils.toMoselData(this.dataVM()));
     };
 	
+	// creates a new dataVM from the provided mosel data string
 	this.parseMoselData = function (data) {
 		var dataObj = Datagen.utils.parseMoselData(data);
-		this.dataVM(Datagen.utils.networkFromDataObject(dataObj));
+		this.dataVM(Datagen.utils.networkFromDataObject(dataObj, this));
 	}
 
+	// generates a new random dataVM according to current configuration
     this.generateRandomNetwork = function (containerId) {
-        this.dataVM(Datagen.utils.generateData(this.generationConfig()));
+        this.dataVM(Datagen.utils.generateData(this.generationConfig(), this));
         this.outputToMoselData(containerId);
     };
 	
-	this.togglemode = function(mode) {
-		if(this.mode() == mode) {
-			this.mode('view'); // go to default mode (view mode)
-		} else {
+	this.setMode = function(mode) {
+		if(mode != this.mode()) {
 			this.mode(mode);
+			this.selectedObjects.removeAll();
 		}
 	}
 	
+	// keypress handler
 	this.handleKeypress = function(keycode) {
-		if(this.mode() == 'view'){
+		if(this.mode() == 'edit' || this.mode() == 'view'){
 			if(keycode == 46) { // delete key
-				var nodes = this.dataVM().network().nodes()
-				var tobeDeleted = []
-				for(var i in nodes) {
-					if(nodes[i].selected()) {
-						tobeDeleted.push(nodes[i]);
-					}
-				}
-				for(var i in tobeDeleted) {
-					this.dataVM().network().nodes.remove(tobeDeleted[i]);
-				}
-				var arcs = this.dataVM().network().arcs()
-				tobeDeleted = []
-				for(var i in arcs) {
-					if(arcs[i].selected()) {
-						tobeDeleted.push(arcs[i]);
-					}
-				}
-				for(var i in tobeDeleted) {
-					this.dataVM().network().arcs.remove(tobeDeleted[i]);
-				}
-				arcs = this.dataVM().network().leasableArcs()
-				tobeDeleted = []
-				for(var i in arcs) {
-					if(arcs[i].selected()) {
-						tobeDeleted.push(arcs[i]);
-					}
-				}
-				for(var i in tobeDeleted) {
-					this.dataVM().network().leasableArcs.remove(tobeDeleted[i]);
-				}
-				this.dataVM().network().clearSelection();
+				this.deleteSelection();
 			}
 		}
 	}
 	
-	this.mapclick = function(e) {
-		if(this.mode() == 'view') {
-			this.dataVM().network().clearSelection(e)
-		} else if(this.mode() == 'addnode') {
-			this.dataVM().network().addNodeForLocation(e.offsetX, e.offsetY);
+	this.deleteSelection = function() {
+		// delete all objects
+		console.log('! DELETING OBJECTS!')
+		for (var i in this.selectedObjects()) {
+			console.log('! - DELETING:', obj)
+			var obj = this.selectedObjects()[i];
+			if(obj instanceof NodeViewModel) {
+				this.dataVM().network().nodes.remove(obj);
+			} else if(obj instanceof ArcViewModel) {
+				this.dataVM().network().arcs.remove(obj);
+				this.dataVM().network().leasableArcs.remove(obj);
+			}
 		}
+		
+		console.log('! - STARTING CLEANUP:')
+		// cleanup (remove arc not attached to nodes in both ends
+		var arcsToCleanup = [];
+		for (var i in this.dataVM().network().arcs()) {
+			var arc = this.dataVM().network().arcs()[i];
+			if(this.dataVM().network().nodes.indexOf(arc.nodeTo()) < 0 ||
+				this.dataVM().network().nodes.indexOf(arc.nodeFrom()) < 0) {
+				arcsToCleanup.push(arc);
+			}
+		}
+		for(var i in arcsToCleanup) {
+			this.dataVM().network().arcs.remove(arcsToCleanup[i])
+		}
+		
+		arcsToCleanup = [];
+		for (var i in this.dataVM().network().leasableArcs()) {
+			var arc = this.dataVM().network().leasableArcs()[i];
+			if(this.dataVM().network().nodes.indexOf(arc.nodeTo()) < 0 ||
+				this.dataVM().network().nodes.indexOf(arc.nodeFrom()) < 0) {
+				arcsToCleanup.push(arc);
+			}
+		}
+		for(var i in arcsToCleanup) {
+			this.dataVM().network().leasableArcs.remove(arcsToCleanup[i])
+		}
+		
+		// clear selected objects list
+		this.selectedObjects.removeAll();
+	}
+	
+	this.mapclick = function(e) {
+		if(this.mode() == 'view' || this.mode() == 'edit' || this.mode() == 'addarc') {
+			this.selectedObjects.removeAll();
+		} else if(this.mode() == 'addnode') {
+			this.dataVM().network().addInternalNodeForLocation(e.offsetX, e.offsetY);
+		}
+		e.cancelBubble = true;
+			if (e.stopPropagation) e.stopPropagation();
+	}
+	
+	this.objectSelected = function(obj) {
+		switch(this.mode()) {
+			case "addnode":
+				break;
+			case "addarc":
+				if(obj instanceof NodeViewModel) {
+					this.selectedObjects.push(obj);
+					if(this.selectedObjects().length >= 2) {
+						this.dataVM().network().addArcForNodes(
+							this.selectedObjects()[0],
+							this.selectedObjects()[1]
+						);
+						this.selectedObjects.removeAll();
+					}
+				}
+				break;
+			case "view":
+				this.selectedObjects.removeAll();
+			case "edit":
+				this.selectedObjects.push(obj);
+				break;
+		}
+	}
+	
+	this.objectDeselected = function(obj) {
+		this.selectedObjects.remove(obj);
 	}
 	
 	window.onkeyup = function(e) {
 	   var key = e.keyCode ? e.keyCode : e.which;
-
 	   self.handleKeypress(key);
 	}
 }
@@ -189,24 +242,26 @@ function GenerationConfigViewModel() {
 }
 
 // Main viewmodel class
-function DataViewModel() {
+function DataViewModel(main) {
+	this.main = main;
+	
     this.customers = ko.observableArray();
     this.services = ko.observableArray();
     this.providers = ko.observableArray();
     this.numCustomers = ko.computed(function () { return this.customers().length }, this);
     this.numServices = ko.computed(function () { return this.services().length }, this);
     this.numProviders = ko.computed(function () { return this.providers().length }, this);
-    this.network = ko.observable(new NetworkViewModel());
+    this.network = ko.observable(new NetworkViewModel(this));
 }
 
 // network viewmodel class
-function NetworkViewModel() {
+function NetworkViewModel(datavm) {
+	this.datavm = datavm;
+
     this.nodes = ko.observableArray();
     this.arcs = ko.observableArray();
     this.leasableArcs = ko.observableArray();
     this.isSymmetric = ko.observable(true);
-	
-	this.selectedObjects = ko.observableArray();
 
     this.numberOfNodes = ko.computed(function () {
             return this.nodes().length;
@@ -218,56 +273,35 @@ function NetworkViewModel() {
         }, this
     );
 	
-	this.clearSelection = function(e) {
-		this.selectedObjects.removeAll();
-		if(e != null) {
-			e.cancelBubble = true;
-			if (e.stopPropagation) e.stopPropagation();
-		}
-	};
-	
-	this.addNodeForLocation = function(x, y) {
-		this.nodes.push(new NodeViewModel(this, x, y, 2, 'internal'));
+	this.addInternalNodeForLocation = function(x, y) {
+		this.nodes.splice(this.nodes().length - this.datavm.providers().length,
+			0, new NodeViewModel(this, x, y, 2));
 	}
 	
-	this.addArc = function() {
-		var nodes = [];
-		for(var i in this.selectedObjects()) {
-			if(this.selectedObjects()[i] instanceof NodeViewModel) {
-				nodes.push(this.selectedObjects()[i]);
-				if(nodes.length > 1) {
-					break;
-				}
-			}
-		}
-		if(nodes.length < 2) {
-			alert('select two nodes before adding arc!');
-		} else {
-			this.arcs.push(Datagen.utils._arcForNodes(nodes[0], nodes[1]));
-		}
+	this.addArcForNodes = function(nodeFrom, nodeTo) {
+		this.arcs.push(Datagen.utils._arcForNodes(nodeFrom, nodeTo));
 	}
 }
 
-function Selectable() {
-
-	this.dummy = ko.observable();
+function Selectable(tracker) {
+	this.tracker = ko.observable(tracker);
 
 	this.selected = ko.computed(function () {
-			this.dummy();
-			if(this.network != null) {
-				return this.network.selectedObjects.indexOf(this) > -1;
+			if(this.tracker() != null) {
+				return this.tracker().selectedObjects.indexOf(this) > -1;
 			}
-			return false;
 		}, this
 	);
 	
 	this.toggleSelect = function(e) {
-		if(this.selected()) {
-			this.network.selectedObjects.remove(this);
-		} else {
-			this.network.selectedObjects.push(this);
+		if(this.tracker() != null) {
+			if(this.selected()) {
+				this.tracker().objectDeselected(this);
+			}
+			else {
+				this.tracker().objectSelected(this);
+			}
 		}
-		this.dummy.notifySubscribers(); // force update of selected computed
 		if(e != null) {
 			e.cancelBubble = true;
 			if (e.stopPropagation) e.stopPropagation();
@@ -280,40 +314,50 @@ function Selectable() {
 }
 
 // Network node viewmodel class
-function NodeViewModel(network, x, y, level, type) {
-	Selectable.apply(this, network);
+function NodeViewModel(network, x, y, level) {
+	Selectable.call(this, network.datavm.main);
+	// alt: Selectable.apply(this, [network.datavm.main]);
 	
     this.network = network;
 
     this.x = ko.observable(x);
     this.y = ko.observable(y);
 	this.level = ko.observable(level);
-	this.nodeType = ko.observable(type);
 
     this.nodeNumber = ko.computed(function () {
         return this.network.nodes.indexOf(this) + 1;
     }, this);
 	
-	this.colour = ko.computed(function () {
-		if(this.nodeType()=='provider'){
-			return 'green';
-		} else if (this.nodeType()=='customer') {
-			return 'red';
-		} else {
-			return 'gray';
-		}
-    }, this);
-	
 	this.getTemplate = function() {
 		return 'NodeViewModelTemplate';
 	}
+	
+	this.nodeType = ko.computed(function () {
+		var index = this.network.nodes.indexOf(this);
+		if(index < this.network.datavm.customers().length) {
+			return 'customer';
+		} else if (index >= (this.network.nodes().length - this.network.datavm.providers().length)){
+			return 'provider';
+		}
+		return 'internal';
+	}, this);
+	
+	this.content = ko.computed(function() {
+		var index = this.network.nodes.indexOf(this);
+		if(index < this.network.datavm.customers().length) {
+			return this.network.datavm.customers()[index];
+		} else if (index >= (this.network.nodes().length - this.network.datavm.providers().length)){
+			return this.network.datavm.providers()[index - (this.network.nodes().length- this.network.datavm.providers().length)];
+		}
+		return null;
+	}, this);
 }
 NodeViewModel.prototype = new Selectable();
 
 // Network arc viewmodel class
 function ArcViewModel(nodeTo, nodeFrom, latency, bandwidthCap, bandwidthPrice, availability) {
 	this.network = nodeTo.network;
-	Selectable.apply(this, nodeTo.network);
+	Selectable.call(this, nodeTo.network.datavm.main);
 	
     this.nodeTo = ko.observable(nodeTo);
     this.nodeFrom = ko.observable(nodeFrom);
@@ -335,6 +379,10 @@ function ProviderViewModel(main) {
     this.providerNumber = ko.computed(function () {
         return this.main.providers.indexOf(this) + 1;
     }, this);
+	
+	this.getTemplate = function() {
+		return 'ProviderViewModelTemplate';
+	}
 }
 
 // Customer viewmodel class
@@ -346,6 +394,10 @@ function CustomerViewModel(main, revenue) {
     this.customerNumber = ko.computed(function () {
         return this.main.customers.indexOf(this) + 1;
     }, this);
+	
+	this.getTemplate = function() {
+		return 'CustomerViewModelTemplate';
+	}
 }
 
 // Service viewmodel class

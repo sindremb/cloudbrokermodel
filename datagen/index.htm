@@ -22,6 +22,11 @@
 <div class="NodeViewModel">
 	Level = <input type="text" data-bind="value: level" /><br />
 	Type = <input type="text" data-bind="value: nodeType" /><br />
+	X-coord = <input type="text" data-bind="value: x" /><br />
+	Y-coord = <input type="text" data-bind="value: y" /><br />
+	<div data-bind="with: content()">
+		<div data-bind="template: {name: getTemplate(), data: $data}"></div>
+	</div>
 </div>
 </script>
 <script id="UnknownTemplate" type="text/html">
@@ -29,11 +34,30 @@
 	Unknown selected object
 </div>
 </script>
+<script id="CustomerViewModelTemplate" type="text/html">
+<div class="CustomerViewModel">
+	Customer #<span data-bind="text: customerNumber"></span>:<br>
+	<div data-bind="foreach: services">
+		- Service # <span data-bind="text: serviceNumber"></span><br>
+	</div>
+</div>
+</script>
+<script id="ProviderViewModelTemplate" type="text/html">
+<div class="ProviderViewModel">
+	Provider #<span data-bind="text: providerNumber"></span>:<br>
+</div>
+</script>
 <script id="addnode-mode-desc" type="text/html">
-Click location to add new node
+Click location to add a new node.
 </script>
 <script id="view-mode-desc" type="text/html">
-Click to select network elements
+Click elements to view and edit their contents.
+</script>
+<script id="edit-mode-desc" type="text/html">
+Select elements to drag and drop or delete.
+</script>
+<script id="addarc-mode-desc" type="text/html">
+Select two nodes to add an arc between.
 </script>
 <div id="genConfigs">
 	# node levels = <input type="text" data-bind="value: generationConfig().numNodeLevels" /><br />
@@ -54,34 +78,64 @@ Click to select network elements
 <table>
 <tr>
 <td>
-<div>
-    <h3>Network data visualisation: </h3>
-	<button data-bind="click: function() {$data.togglemode('addnode')}, style : {'border-style' : $data.mode() == 'addnode' ? 'inset' : ''}">Add Node</button>
-	<button data-bind="click: function() {$data.dataVM().network().addArc()}">Add Arc</button>
-</div>
-<div height="20px" data-bind="template: {name: $data.mode()+'-mode-desc', data: $data}">
+<h3>Network data visualisation: </h3>
+<div data-bind="with: mode">
+	<button data-bind="click: function() {$parent.setMode('view')}, style : {'border-style' : $data == 'view' ? 'inset' : ''}">View</button>
+	<button data-bind="click: function() {$parent.setMode('edit')}, style : {'border-style' : $data == 'edit' ? 'inset' : ''}">Edit</button>
+	<button data-bind="click: function() {$parent.setMode('addnode')}, style : {'border-style' : $data == 'addnode' ? 'inset' : ''}">Add Node</button>
+	<button data-bind="click: function() {$parent.setMode('addarc')}, style : {'border-style' : $data == 'addarc' ? 'inset' : ''}">Add Arc</button>
+
+	<div height="20px" data-bind="template: {name: $data + '-mode-desc', data: $data}">
+	</div>
 </div>
 <div>
     <svg height="500" width="800" data-bind="click : function(d, e) {$data.mapclick(e);}">
 		<g data-bind="foreach: dataVM().network().arcs">
-			<line data-bind="attr: { x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y, stroke : selected() ? 'aqua' : 'black'}, click: function(d, e) {toggleSelect(e);}" style="stroke-width:4" />
+			<line 
+				data-bind="
+					attr: { 
+						x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y,
+						stroke : selected() ? 'aqua' : 'black'
+					},
+					click: function(d, e) {toggleSelect(e);}
+				"
+				style="stroke-width:4" />
 		</g>
 		<g data-bind="foreach: dataVM().network().leasableArcs">
-			<line data-bind="attr: { x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y, stroke : selected() ? 'aqua' : 'blue'}, click: function(d, e) {toggleSelect(e);}" style="stroke-width:4" />
+			<line 
+				data-bind="
+					attr: { 
+						x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y,
+						stroke : selected() ? 'aqua' : 'blue'
+					},
+					click: function(d, e) {toggleSelect(e);}
+				" 
+				style="stroke-width:4" />
 		</g>
 		<g data-bind="foreach: dataVM().network().nodes">
-			<circle data-bind="attr: { cx: x, cy: y, r: (15 / level()), fill: colour(), stroke : selected() ? 'aqua' : 'black'}, click: function(d, e) {toggleSelect(e);}" stroke="black" stroke-width="3" />
+			<circle 
+				data-bind="
+					attr: { 
+						cx: x, cy: y, r: (15 / level()), 
+						fill: (nodeType() == 'customer' ? 'red' : (nodeType() == 'provider' ? 'green' : 'gray')), 
+						stroke : selected() ? 'aqua' : 'black'
+					},
+					click: function(d, e) {toggleSelect(e);}
+				" 
+				stroke="black" stroke-width="3" />
 		</g>
 		Sorry, your browser does not support inline SVG.  
 	</svg> 
 </div>
 </td>
-<td data-bind="if: dataVM().network().selectedObjects().length > 0">
-	<div data-bind="template: {name: dataVM().network().selectedObjects()[0].getTemplate(), data: dataVM().network().selectedObjects()[0]}">
+<td data-bind="if: selectedObjects().length > 0">
+	<div style="height:600px;overflow-y:scroll;" data-bind="foreach: selectedObjects">
+		<div data-bind="template: {name: $data.getTemplate(), data: $data}">
+		</div>
 	</div>
 </td>
-<td data-bind="if: dataVM().network().selectedObjects().length == 0">
-	Click To select objects
+<td data-bind="if: selectedObjects().length == 0">
+	No objects selected..
 </td>
 </tr>
 </table>
