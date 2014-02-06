@@ -1,5 +1,340 @@
 ﻿Datagen.utils = {};
 
+/*
+	Takes mosel data string as input and parses to dictionary of parameter names
+	as keys with their respective data.
+	
+	NOTE: does not currently support dynamic arrays containing dynamic arrays or arrays (needed?)
+*/
+Datagen.utils.parseMoselData = function (data) {
+	
+	// parsing state
+	var dataValues = {}; // the parsed data
+	var currentParamName; // name of current unfinished data parameter
+	var parsingMode = 'paramname'; // current mode of parsing (what is being looked for)
+	var currentParamData; // data parsed so far for current data parameter
+	var dataStack = [] // used for nested lists (arrays / dynamic arrays)
+	var currentParamIndex; // parsed index for next data value (dynamic arrays)
+	
+	// helper function
+	var issueWarning = function (symbol, mode) {
+		console.log('WARNING: encountered unexpected word ', symbol,
+			' when parsing data in mode ', mode, ' - IGNORING');
+	}
+	
+	// parse line by line
+	var lines = data.split('\n');
+	for (var lkey in lines) {
+		// extract next line
+		var line = lines[lkey];
+		//console.log('parsing line: ', line);
+		// all words before comment symbol
+		var words = line.split('!')[0].trim().split(/\s+/g); // \s should include all whitespaces as delimiter
+		for (var wkey in words) {
+			// split words like '[(1' .. into '[', '(', '1', ...
+			var subwords = Datagen.utils._extractSubwords(words[wkey]);
+			for (var skey in subwords) {
+				var subword = subwords[skey];
+				
+				// continue to next on empty word
+				if(subword.length < 1) continue;
+				
+				// parse subword depending on mode
+				switch(parsingMode) {
+					case "paramname":
+						if(/^[a-zA-Z_]/.test(subword)) {
+							// look for new param declaration
+							currentParamName = subword;
+							parsingMode = 'assignsymbol';
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "assignsymbol":
+						if (subword == ':') {
+							parsingMode = 'paramdata';
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "paramdata":
+						if(subword == '[') {
+							// start parsing list (array or dynamic array)
+							parsingMode = "listdata";
+							currentParamData = [];
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)[.][0-9]+$/.test(subword)) {
+							// assign float value to current param
+							var val = parseFloat(subword);
+							dataValues[currentParamName] = val;
+							parsingMode = "paramname";
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// assign int value to current param
+							var val = parseInt(subword);
+							dataValues[currentParamName] = val;
+							parsingMode = "paramname";
+						} else if (/^(true|false)$/.test(subword)) {
+							// assign bool value to current param
+							var val = subword == 'true';
+							dataValues[currentParamName] = val;
+							parsingMode = "paramname";
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "listdata":
+						if(subword == '(') {
+							// start parsing index -> set to dynamic array
+							currentParamIndex = [];
+							currentParamData = {};
+							parsingMode = 'index';
+						} else if(subword == '[') {
+							// nested list -> add current to stack and go again
+							dataStack.push(currentParamData);
+							currentParamData = [];
+						} else if(subword == ']') {
+							// finish current array 
+							//- pop back to parent array or
+							if(dataStack.length > 0) {
+								var temp = dataStack.pop(currentParamData);
+								temp.push(currentParamData);
+								currentParamData = temp;
+								parsingMode = 'arraydata';
+							// or set param in main data structure
+							} else {
+								dataValues[currentParamName] = currentParamData;
+								parsingMode = 'paramname'
+							}
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)[.][0-9]+$/.test(subword)) {
+							// assign float value to current param
+							var val = parseFloat(subword);
+							currentParamData = [val];
+							parsingMode = "arraydata";
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// assign int value to current param
+							var val = parseInt(subword);
+							currentParamData = [val];
+							parsingMode = "arraydata";
+						} else if (/^(true|false)$/.test(subword)) {
+							// assign bool value to current param
+							var val = subword == 'true';
+							currentParamData = [val];
+							parsingMode = "arraydata";
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "arraydata":
+						if(subword == ']') {
+							// finish current array 
+							//- pop back to parent array or
+							if(dataStack.length > 0) {
+								var temp = dataStack.pop(currentParamData);
+								temp.push(currentParamData);
+								currentParamData = temp;
+								parsingMode = 'arraydata';
+							// or set param in main data structure
+							} else {
+								dataValues[currentParamName] = currentParamData;
+								parsingMode = 'paramname'
+							}
+						} else if(subword == '[') {
+							// start parsing index -> set to dynamic array
+							dataStack.push(currentParamData);
+							currentParamData = [];
+							parsingMode = 'listdata';
+						}  else if (/^-{0,1}([0-9]|[1-9][0-9]*)[.][0-9]+$/.test(subword)) {
+							// assign float value to current param
+							var val = parseFloat(subword);
+							currentParamData.push(val);
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// assign int value to current param
+							var val = parseInt(subword);
+							currentParamData.push(val);
+						} else if (/^(true|false)$/.test(subword)) {
+							// assign bool value to current param
+							var val = subword == 'true';
+							currentParamData.push(val);
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "index":
+						if(subword == ')') {
+							// start parsing index -> set to dynamic array
+							parsingMode = 'darraydata';
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// push int value to current index
+							var val = parseInt(subword);
+							currentParamIndex.push(val);
+						}else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "darraydata":
+						if (/^-{0,1}([0-9]|[1-9][0-9]*)[.][0-9]+$/.test(subword)) {
+							// assign float value to current param
+							var val = parseFloat(subword);
+							var dict = currentParamData;
+							for(var i = 0; i < currentParamIndex.length-1; i++) {
+								if(!((currentParamIndex[i]) in dict)) {
+									dict[currentParamIndex[i]] = {};
+								} 
+								dict = dict[currentParamIndex[i]];
+							}
+							dict[currentParamIndex[currentParamIndex.length-1]] = val;
+							parsingMode = "darrayindex";
+						} else if (/^-{0,1}([0-9]|[1-9][0-9]*)+$/.test(subword)) {
+							// assign int value to current param
+							var val = parseInt(subword);
+							var dict = currentParamData;
+							for(var i = 0; i < currentParamIndex.length-1; i++) {
+								if(!((currentParamIndex[i]) in dict)) {
+									dict[currentParamIndex[i]] = {};
+								} 
+								dict = dict[currentParamIndex[i]];
+							}
+							dict[currentParamIndex[currentParamIndex.length-1]] = val;
+							parsingMode = "darrayindex";
+						} else if (/^(true|false)$/.test(subword)) {
+							// assign int value to current param
+							var val = subword == 'true';
+							var dict = currentParamData;
+							for(var i = 0; i < currentParamIndex.length-1; i++) {
+								if(!((currentParamIndex[i]) in dict)) {
+									dict[currentParamIndex[i]] = {};
+								} 
+								dict = dict[currentParamIndex[i]];
+							}
+							dict[currentParamIndex[currentParamIndex.length-1]] = val;
+							parsingMode = "darrayindex";
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					case "darrayindex":
+						if(subword == ']') {
+							// finish current array 
+							//- pop back to parent array or
+							if(dataStack.length > 0) {
+								var temp = dataStack.pop(currentParamData);
+								temp.push(currentParamData);
+								currentParamData = temp;
+								parsingMode = 'arraydata';
+							// or set param in main data structure
+							} else {
+								dataValues[currentParamName] = currentParamData;
+								parsingMode = 'paramname'
+							}
+						} else if(subword == '(') {
+							// start parsing index -> set to dynamic array
+							currentParamIndex = [];
+							parsingMode = 'index';
+						} else {
+							issueWarning(subword, parsingMode)
+						}
+						break;
+					default:
+						console.log('WARNING: unexpected parsing mode: ', parsingMode);
+						
+				}
+			}
+		}
+	}
+	
+	return dataValues;
+}
+
+Datagen.utils._extractSubwords = function(word) {
+	subwords = [];
+	startIndex = 0;
+	for(var i = 0; i < word.length; i++) {
+		var c = word[i];
+		if(/^[()\[\]:]/.test(c)) {
+			var prevWord = word.substring(startIndex, i);
+			if(prevWord.length > 0) subwords.push(prevWord);
+			
+			subwords.push(c);
+			
+			startIndex = i+1;
+		}
+	}
+	if(startIndex < word.length) {
+		subwords.push(word.substring(startIndex));
+	}
+	return subwords;
+}
+
+Datagen.utils.networkFromDataObject = function(dataObj, main) {
+	var dataVM = new DataViewModel(main)
+
+    // STEP 1: Generate network
+    var network = new NetworkViewModel(dataVM)
+	
+	// generate nodes from data obj (using given number and locations)
+	for(var i = 0; i < dataObj.n_Nodes; i++) {
+		network.nodes.push(new NodeViewModel(network,
+			dataObj.datagen_x_coords[i] != null ? dataObj.datagen_x_coords[i] : Math.floor((Math.random() * 250)),
+			dataObj.datagen_y_coords[i] != null ? dataObj.datagen_y_coords[i] : Math.floor((Math.random() * 250)),
+			2
+		));
+	}
+	
+	// add owned arcs according to data object
+	for(var i in dataObj.F_BandwidthCap) {
+		for(var j in dataObj.F_BandwidthCap[i]) {
+			network.arcs.push(new ArcViewModel(
+				network.nodes()[i-1], network.nodes()[j-1], // -1 because 1-indexed -> 0-indexed
+				dataObj.T_LinkLatency[i][j], dataObj.F_BandwidthCap[i][j],
+				dataObj.K_CapPrice[i][j], dataObj.D_AvailabilityExp[i][j]
+			));
+		}
+	}
+	
+	// add leasable arcs according to data object
+	for(var i in dataObj.O_LeasedBandwidthCap) {
+		for(var j in dataObj.O_LeasedBandwidthCap[i]) {
+			network.leasableArcs.push(new ArcViewModel(
+				network.nodes()[i-1], network.nodes()[j-1], // -1 because 1-indexed -> 0-indexed
+				dataObj.V_LeaseLatency[i][j], dataObj.O_LeasedBandwidthCap[i][j],
+				dataObj.L_LeasedPrice[i][j], 1.0
+			));
+		}
+	}
+    
+    // STEP 2: Generate customers and services
+    for (var i = 0; i < dataObj.n_Customers; i++) {
+        var customer = new CustomerViewModel(dataVM, dataObj.R_Revenue[i])
+        for (var j in dataObj.S_ServiceForCustomer[i]) {
+            customer.services.push(new ServiceViewModel(
+                    dataVM, dataObj.B_BandwidthReq[j], dataObj.G_LatencyReq[j],
+					dataObj.B_BandwidthReqD[j], dataObj.G_LatencyReqD[j],
+					dataObj.Y_AvailabilityReq[j]
+                ));
+        }
+        dataVM.customers.push(customer);
+    }
+
+    // STEP 3: Generate providers
+    for (var i = 0; i < dataObj.n_Provider; i++) {
+        dataVM.providers.push(new ProviderViewModel(dataVM));
+    }
+
+    // STEP 4: Map services to eligible providers
+    for (var i in dataObj.H_PlacePrice) {
+		var service = dataVM.services()[i-1];
+        for (var j in dataObj.H_PlacePrice[i]) {
+			service.placements.push(new ServicePlacementViewModel(
+				service, dataVM.providers[j-1], dataObj.H_PlacePrice[i][j]
+			));
+        }
+    }
+	
+	// add network to data viewmodel
+	dataVM.network(network);
+	
+    return dataVM
+} 
+
 Datagen.utils.toMoselData = function (dataVM) {
     data = '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n' +
             '! Data set: #' + Math.floor((Math.random() * 100)) + '\n' +
@@ -143,7 +478,22 @@ Datagen.utils.toMoselData = function (dataVM) {
         data = data + ' (' + arc.nodeTo().nodeNumber() + ' ' + arc.nodeFrom().nodeNumber() + ') ' + arc.bandwidthCap();
     }
     data = data + ']\n';
-
+	
+	data = data + '\n!!! Following data used purely by \'datagen\': keep in file to allow easy editing\n';
+	data = data + '\n! X-coordinates of nodes\n';
+	data = data + 'datagen_x_coords: [';
+	for (var i in dataVM.network().nodes()) {
+		var node = dataVM.network().nodes()[i];
+		data = data + node.x() + ' ';
+	}
+	data = data + ']\n';
+	data = data + '\n! Y-coordinates of nodes\n';
+	data = data + 'datagen_y_coords: [';
+	for (var i in dataVM.network().nodes()) {
+		var node = dataVM.network().nodes()[i];
+		data = data + node.y() + ' ';
+	}
+	data = data + ']\n';
     return data
 };
 
@@ -166,7 +516,7 @@ Datagen.utils._generateNodeLevelRecursive = function (cx, cy, parent, network, c
 	var step = (Math.PI * 2) / config.numNodesPerCluster();
 	// create nodes in cluster (and arc to parent if present)
 	for (var i = 0; i < config.numNodesPerCluster(); i++){
-		var node = new NodeViewModel(network, cx + (100/levelCount)*Math.sin(step*i), cy + (100/levelCount)*Math.cos(step*i), levelCount, 'internal');
+		var node = new NodeViewModel(network, cx + (100/levelCount)*Math.sin(step*i), cy + (100/levelCount)*Math.cos(step*i), levelCount);
 		network.nodes.push(node);
 		if(parent != null) {
 			network.arcs.push(Datagen.utils._arcForNodes(parent, node, config));
@@ -186,20 +536,20 @@ Datagen.utils._generateNodeLevelRecursive = function (cx, cy, parent, network, c
 	}
 }
 
-Datagen.utils.generateData = function (genConfig) {
-    var dataVM = new DataViewModel()
+Datagen.utils.generateData = function (genConfig, main) {
+    var dataVM = new DataViewModel(main)
 
-    // STEP 1: Generate network
-    var network = new NetworkViewModel()
+    // STEP 1: Generate core network
+    var network = new NetworkViewModel(dataVM)
 	Datagen.utils._generateNodeLevelRecursive(400, 250, null, network, genConfig, 1)
     
-    // STEP 2: Generate customers and services
-	
+    // STEP 2: Generate customers (with customer node and arc) and services
 	var numLeafNodes = Math.pow(genConfig.numNodesPerCluster(), genConfig.numNodeLevels());
 	var firstIndex = network.nodes().length - numLeafNodes;
     for (var i = 0; i < genConfig.numberOfCustomers(); i++) {
 		var neighbour = network.nodes()[firstIndex+i+(Math.floor((Math.random() * numLeafNodes)))];
-		var node = new NodeViewModel(network, neighbour.x() -25 + Math.floor(Math.random()*50), neighbour.y() -25 + Math.floor(Math.random()*50), genConfig.numNodeLevels()+1, 'customer');
+		var node = new NodeViewModel(network, neighbour.x() -25 + Math.floor(Math.random()*50),
+			neighbour.y() -25 + Math.floor(Math.random()*50), genConfig.numNodeLevels()+1);
 		network.nodes.unshift(node);
 		network.arcs.push(Datagen.utils._arcForNodes(neighbour, node, genConfig));
         var customer = new CustomerViewModel(dataVM, Math.floor((Math.random() * 1000)) + 500)
@@ -214,11 +564,12 @@ Datagen.utils.generateData = function (genConfig) {
         dataVM.customers.push(customer);
     }
 
-    // STEP 3: Generate providers
+    // STEP 3: Generate providers (with nodes and arcs)
     for (var i = 0; i < genConfig.numberOfProviders(); i++) {
         dataVM.providers.push(new ProviderViewModel(dataVM));
 		var neighbour = network.nodes()[genConfig.numberOfCustomers() + Math.floor(Math.random() * genConfig.numNodesPerCluster())];
-		var node = new NodeViewModel(network, neighbour.x() -25 + Math.floor(Math.random()*50), neighbour.y() -25 + Math.floor(Math.random()*50), genConfig.numNodeLevels()+1, 'provider');
+		var node = new NodeViewModel(network, neighbour.x() -25 + Math.floor(Math.random()*50),
+			neighbour.y() -25 + Math.floor(Math.random()*50), genConfig.numNodeLevels()+1);
 		network.nodes.push(node);
 		network.leasableArcs.push(Datagen.utils._arcForNodes(neighbour, node, genConfig));
     }
