@@ -283,8 +283,8 @@ declarations
 	UserSideBandwidth:				dynamic array(Services)						of linctr;
 	UserSideBandwidthDown:			dynamic array(Services)						of linctr;
 	UserSideBackup:					dynamic array(Services)						of linctr;
-	AvailabilityBoundD:				dynamic array(Services)						of linctr;
-	AvailabilityBoundU:				dynamic array(Services)						of linctr;
+	AvailabilityBoundD:				dynamic array(Nodes,Nodes,Services)			of linctr;
+	AvailabilityBoundU:				dynamic array(Nodes,Nodes,Services)			of linctr;
 	AvailabilityRequirement:		dynamic array(Services)						of linctr;
 	TotalBackup:					dynamic array(Nodes,Nodes)					of linctr;
 	MaximumBackupUp:				dynamic array(Nodes,Nodes,Services)			of linctr;
@@ -317,9 +317,11 @@ Total_Profits := sum (cc in Customers)
 								sum (nn in Nodes, mm in Nodes)
 									(L_LeasedPrice(nn,mm)
 									*(w_LeaseRes(nn,mm,ss)*B_BandwidthReq(ss)+w_LeaseResDown(nn,mm,ss)*B_BandwidthReqD(ss)))
-							)
+								!+
+								!sum (nn in Nodes, mm in Nodes) (10*b_UseBackup(nn,mm,ss)+ 10*b_UseBackupDown(nn,mm,ss)
+								)							
 					)
-					+ 
+					-
 					sum (nn in Nodes, mm in Nodes) (K_CapPrice(nn,mm)*l_BackupRes(nn,mm))
 				;
 
@@ -439,9 +441,9 @@ forall (cc in Customers, ss in S_ServiceForCustomer(cc)) do
 
 
 forall (nn in Nodes, mm in Nodes, ss in Services) do
-	AvailabilityBoundD(ss) := (
-		v_UseLink(nn,mm,ss) - u_Capacity(nn,mm,ss) >= 0);
-	AvailabilityBoundU(ss) := (
+	AvailabilityBoundD(nn,mm,ss) := (
+		v_UseLink(nn,mm,ss)-u_Capacity(nn,mm,ss)  >= 0 );
+	AvailabilityBoundU(nn,mm,ss) := (
 		v_UseLink(nn,mm,ss) - u_CapacityDown(nn,mm,ss) >=0);
 end-do
 
@@ -492,7 +494,7 @@ writeln("\nBackup Costs: ", sum(nn in Nodes, mm in Nodes) getsol(l_BackupRes(nn,
 ! for all customers
 forall(cc in Customers) do
 	! Check if customer is served
-	if (getsol(y_Serve(cc)) = 1) then
+	if (getsol(y_Serve(cc)) > 0.1) then
 		! output served customer and generated profits for customer
 		writeln("\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
 			R_Revenue(cc)*getsol(y_Serve(cc)),"\n - profits: ",(
@@ -524,7 +526,7 @@ forall(cc in Customers) do
 			! find and output provider placement for service
 			forall(pp in Providers) do
 				! find provider used for service
-				if (getsol(x_Placement(ss,pp)) = 1) then
+				if (getsol(x_Placement(ss,pp)) > 0.1) then
 					writeln("\n - Service ",ss,":\n  - Costs: ", (
 						! Calculate costs for this specific service
 						H_PlacePrice(ss,pp)*getsol(x_Placement(ss,pp))
@@ -539,7 +541,9 @@ forall(cc in Customers) do
 							*( (getsol(w_LeaseRes(nn,mm,ss))*B_BandwidthReq(ss)) + (getsol(w_LeaseResDown(nn,mm,ss))*B_BandwidthReq(ss)) )
 						)), "\n  - placement: provider #", pp, " (node ",(n_Nodes-n_Providers+pp),
 						") - Cost: ",H_PlacePrice(ss,pp));
-			
+						writeln("    -Availability without backup: ", sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(v_UseLink(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm))));
+						writeln("    -Availability requirement: ", ln(getsol(Y_AvailabilityReq(ss)))); 
+						
 					! output network routing for service
 					! - up-link
 					writeln("   - UPLINK:\n      - owned bandwidth: ", (sum(nn in Nodes) 
@@ -564,7 +568,8 @@ forall(cc in Customers) do
 							end-if
 						end-do
 					end-if
-					if ( sum(nn in Nodes, mm in Nodes) (getsol(b_UseBackup(nn,mm,ss))) >=1) then
+				
+					if ( sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(v_UseLink(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm)))< ln(getsol(Y_AvailabilityReq(ss))) ) then
 						writeln("      - backup links:");
 							forall (nn in Nodes, mm in Nodes) do
 							if (getsol(b_UseBackup(nn,mm,ss))=1) then
@@ -596,7 +601,7 @@ forall(cc in Customers) do
 							end-if
 						end-do
 					end-if
-					if ( sum(nn in Nodes, mm in Nodes) (getsol(b_UseBackupDown(nn,mm,ss))) >=1) then
+					if (  sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(v_UseLink(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm)))< ln(getsol(Y_AvailabilityReq(ss))) ) then
 						writeln("      - backup links:");
 							forall (nn in Nodes, mm in Nodes) do
 							if (getsol(b_UseBackupDown(nn,mm,ss))=1) then
