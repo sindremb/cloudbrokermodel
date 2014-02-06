@@ -183,9 +183,9 @@ Select two nodes to add an arc between.
 <div>
     <button data-bind="click: function() {outputToMoselData('dataOutputBox')}">Output data file</button>
 	<button data-bind="click: function() {parseMoselData($('#dataOutputBox').val())}">Load data file</button>
-	<button data-bind="click: function() {
+<!--	<button data-bind="click: function() {
 		window.open('data:text/txt;charset=utf-8,' + escape($('#dataOutputBox').val()));
-	}">Download file</button>
+	}">Download file</button>-->
 </div>
 <div>
     <textarea id="dataOutputBox" rows="30" cols="150"></textarea>
