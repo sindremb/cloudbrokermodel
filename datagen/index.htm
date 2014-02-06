@@ -8,24 +8,30 @@
     <script type="text/javascript" language="javascript" src="js/datagen.utils.js"></script>
 	<script type="text/javascript" language="javascript" src="js/datagen.viewmodels.js"></script>
     <script type="text/javascript" language="javascript" src="js/main.js"></script>
+	<link rel="stylesheet" type="text/css" href="css/style.css">
 </head>
 <body>
 <script id="ArcViewModelTemplate" type="text/html">
 <div class="ArcViewModel">
-	Bandwidth Capacity = <input type="text" data-bind="value: bandwidthCap" /><br />
-	Latency = <input type="text" data-bind="value: latency" /><br />
-	Bandwidth Price = <input type="text" data-bind="value: bandwidthPrice" /><br />
-	Exp. Availability = <input type="text" data-bind="value: expectedAvailability" /><br />
+	Bandwidth Capacity : <input type="text" data-bind="value: bandwidthCap" /><br />
+	Latency : <input type="text" data-bind="value: latency" /><br />
+	Bandwidth Price : <input type="text" data-bind="value: bandwidthPrice" /><br />
+	Exp. Availability : <input type="text" data-bind="value: expectedAvailability" /><br />
 </div>
 </script>
 <script id="NodeViewModelTemplate" type="text/html">
 <div class="NodeViewModel">
-	Level = <input type="text" data-bind="value: level" /><br />
-	Type = <input type="text" data-bind="value: nodeType" /><br />
-	X-coord = <input type="text" data-bind="value: x" /><br />
-	Y-coord = <input type="text" data-bind="value: y" /><br />
+	Level : <input type="text" data-bind="value: level" /><br />
+	Type : <input type="text" data-bind="value: nodeType" /><br />
+	X-coord : <input type="text" data-bind="value: x" /><br />
+	Y-coord : <input type="text" data-bind="value: y" /><br />
 	<div data-bind="with: content()">
 		<div data-bind="template: {name: getTemplate(), data: $data}"></div>
+	</div>
+	<div data-bind="if: content() == null">
+		<button data-bind="click: function() {addCustomer()}">Add Customer</button><br>
+		OR <br />
+		<button data-bind="click: function() {addProvider()}">Add Provider</button><br>
 	</div>
 </div>
 </script>
@@ -36,15 +42,37 @@
 </script>
 <script id="CustomerViewModelTemplate" type="text/html">
 <div class="CustomerViewModel">
-	Customer #<span data-bind="text: customerNumber"></span>:<br>
+	Customer #<span data-bind="text: customerNumber"></span>
+	<button data-bind="click: function() {owner().removeCustomer($data)}">Delete</button><br>
 	<div data-bind="foreach: services">
-		- Service # <span data-bind="text: serviceNumber"></span><br>
+		<div data-bind="template: {name: 'ServiceViewModelTemplate', data: $data}"></div>
+	</div>
+</div>
+</script>
+<script id="ServiceViewModelTemplate" type="text/html">
+<div class="ServiceViewModel">
+	<div>
+		- Service
+		<button data-bind="click: function() {owner().removeService($data)}">Delete</button><br>
+		- Requirements <br />
+		-- Bandwidth  (UPLINK) : <input type="text" data-bind="value: bandwidthRequirementUp" /><br />
+		-- Bandwidth  (DOWNLINK) : <input type="text" data-bind="value: bandwidthRequirementDown" /><br />
+		-- Latency (UPLINK) : <input type="text" data-bind="value: latencyRequirementUp" /><br />
+		-- Latency (DOWNLINK) : <input type="text" data-bind="value: latencyRequirementDown" /><br />
+		-- Availability : <input type="text" data-bind="value: availabilityRequirement" /><br />
+	</div>
+	-- Placements:
+	<div data-bind="foreach: placements">
+		--- provider #<span data-bind="text: provider().providerNumber()"></span>
+		Price: <input type="text" data-bind="value: price()" />
+		<button data-bind="click: function() {$parent.removePlacement($data)}">Delete</button><br>
 	</div>
 </div>
 </script>
 <script id="ProviderViewModelTemplate" type="text/html">
 <div class="ProviderViewModel">
-	Provider #<span data-bind="text: providerNumber"></span>:<br>
+	Provider #<span data-bind="text: providerNumber"></span>
+	<button data-bind="click: function() {owner().removeProvider($data)}">Delete</button><br>
 </div>
 </script>
 <script id="addnode-mode-desc" type="text/html">
@@ -78,8 +106,8 @@ Select two nodes to add an arc between.
 <table>
 <tr>
 <td>
-<h3>Network data visualisation: </h3>
-<div data-bind="with: mode">
+<div class="toolbarContainer" data-bind="with: mode">
+	<h3>Network data visualisation: </h3>
 	<button data-bind="click: function() {$parent.setMode('view')}, style : {'border-style' : $data == 'view' ? 'inset' : ''}">View</button>
 	<button data-bind="click: function() {$parent.setMode('edit')}, style : {'border-style' : $data == 'edit' ? 'inset' : ''}">Edit</button>
 	<button data-bind="click: function() {$parent.setMode('addnode')}, style : {'border-style' : $data == 'addnode' ? 'inset' : ''}">Add Node</button>
@@ -88,7 +116,7 @@ Select two nodes to add an arc between.
 	<div height="20px" data-bind="template: {name: $data + '-mode-desc', data: $data}">
 	</div>
 </div>
-<div>
+<div class="visualisationContainer">
     <svg height="500" width="800" data-bind="click : function(d, e) {$data.mapclick(e);}">
 		<g data-bind="foreach: dataVM().network().arcs">
 			<line 
@@ -128,15 +156,20 @@ Select two nodes to add an arc between.
 	</svg> 
 </div>
 </td>
-<td data-bind="if: selectedObjects().length > 0">
-	<div style="height:600px;overflow-y:scroll;" data-bind="foreach: selectedObjects">
-		<div data-bind="template: {name: $data.getTemplate(), data: $data}">
+<td>
+	<div data-bind="if: selectedObjects().length > 0">
+		<div class="selectedObjectsContainer" data-bind="foreach: selectedObjects">
+			<div data-bind="template: {name: $data.getTemplate(), data: $data}">
+			</div>
+		</div>
+	</div>
+	<div data-bind="if: selectedObjects().length <= 0">
+		<div class="selectedObjectsContainer">
+			No objects selected..
 		</div>
 	</div>
 </td>
-<td data-bind="if: selectedObjects().length == 0">
-	No objects selected..
-</td>
+	
 </tr>
 </table>
 <div>

@@ -50,8 +50,8 @@ function MainViewModel() {
 		// delete all objects
 		console.log('! DELETING OBJECTS!')
 		for (var i in this.selectedObjects()) {
-			console.log('! - DELETING:', obj)
 			var obj = this.selectedObjects()[i];
+			console.log('! - DELETING:', obj)
 			if(obj instanceof NodeViewModel) {
 				this.dataVM().network().nodes.remove(obj);
 			} else if(obj instanceof ArcViewModel) {
@@ -255,8 +255,8 @@ function DataViewModel(main) {
 }
 
 // network viewmodel class
-function NetworkViewModel(datavm) {
-	this.datavm = datavm;
+function NetworkViewModel(dataVM) {
+	this.dataVM = dataVM;
 
     this.nodes = ko.observableArray();
     this.arcs = ko.observableArray();
@@ -274,12 +274,22 @@ function NetworkViewModel(datavm) {
     );
 	
 	this.addInternalNodeForLocation = function(x, y) {
-		this.nodes.splice(this.nodes().length - this.datavm.providers().length,
+		this.nodes.splice(this.nodes().length - this.dataVM.providers().length,
 			0, new NodeViewModel(this, x, y, 2));
 	}
 	
 	this.addArcForNodes = function(nodeFrom, nodeTo) {
 		this.arcs.push(Datagen.utils._arcForNodes(nodeFrom, nodeTo));
+	}
+	
+	this.insertNodeAsInternal = function (node) {
+		this.nodes.splice(this.nodes().length - this.dataVM.providers().length,
+			0, node);
+	}
+	
+	this.insertNodeAsFirstInternal = function (node) {
+		this.nodes.splice(this.dataVM.customers().length,
+			0, node);
 	}
 }
 
@@ -315,8 +325,8 @@ function Selectable(tracker) {
 
 // Network node viewmodel class
 function NodeViewModel(network, x, y, level) {
-	Selectable.call(this, network.datavm.main);
-	// alt: Selectable.apply(this, [network.datavm.main]);
+	Selectable.call(this, network.dataVM.main);
+	// alt: Selectable.apply(this, [network.dataVM.main]);
 	
     this.network = network;
 
@@ -334,9 +344,9 @@ function NodeViewModel(network, x, y, level) {
 	
 	this.nodeType = ko.computed(function () {
 		var index = this.network.nodes.indexOf(this);
-		if(index < this.network.datavm.customers().length) {
+		if(index < this.network.dataVM.customers().length) {
 			return 'customer';
-		} else if (index >= (this.network.nodes().length - this.network.datavm.providers().length)){
+		} else if (index >= (this.network.nodes().length - this.network.dataVM.providers().length)){
 			return 'provider';
 		}
 		return 'internal';
@@ -344,20 +354,68 @@ function NodeViewModel(network, x, y, level) {
 	
 	this.content = ko.computed(function() {
 		var index = this.network.nodes.indexOf(this);
-		if(index < this.network.datavm.customers().length) {
-			return this.network.datavm.customers()[index];
-		} else if (index >= (this.network.nodes().length - this.network.datavm.providers().length)){
-			return this.network.datavm.providers()[index - (this.network.nodes().length- this.network.datavm.providers().length)];
+		if(index < this.network.dataVM.customers().length) {
+			return this.network.dataVM.customers()[index];
+		} else if (index >= (this.network.nodes().length - this.network.dataVM.providers().length)){
+			return this.network.dataVM.providers()[index - (this.network.nodes().length- this.network.dataVM.providers().length)];
 		}
 		return null;
 	}, this);
+	
+	
+	this.removeCustomer = function(customer) {
+		var ownerNode = this.network.nodes()[customer.customerNumber()-1]
+		if(ownerNode != null) {
+			// remove node, customer and customer's services
+			this.network.nodes.remove(ownerNode);
+			this.network.dataVM.customers.remove(customer);
+			for(var i in customer.services()) {
+				this.network.dataVM.services.remove(customer.services()[i]);
+			}
+			// reinsert node as internal node
+			this.network.insertNodeAsInternal(ownerNode);
+		}
+	}
+	
+	this.removeProvider = function(provider) {
+		var ownerNode = this.network.nodes()[this.network.nodes().length - this.network.dataVM.providers().length + provider.providerNumber()-1]
+		if(ownerNode != null) {
+			// remove node and customer
+			this.network.nodes.remove(ownerNode);
+			console.log(this.network);
+			console.log(this.network.dataVM);
+			this.network.dataVM.providers.remove(provider);
+			// reinsert node as internal node
+			this.network.insertNodeAsInternal(ownerNode);
+		}
+	}
+	
+	this.addCustomer = function() {
+		if(this.nodeType == 'customer' || this.nodeType == 'provider') {
+			console.log('tried adding customer to node already containing customer/provider - aborting..');
+			return;
+		}
+		this.network.nodes.remove(this);
+		this.network.insertNodeAsFirstInternal(this);
+		this.network.dataVM.customers.push(new CustomerViewModel(this.network.dataVM, 1000));
+	}
+	
+	this.addProvider = function() {
+		if(this.nodeType == 'customer' || this.nodeType == 'provider') {
+			console.log('tried adding provider to node already containing customer/provider - aborting..');
+			return;
+		}
+		this.network.nodes.remove(this);
+		this.network.nodes.push(this);
+		this.network.dataVM.providers.push(new ProviderViewModel(this.network.dataVM));
+	}
 }
 NodeViewModel.prototype = new Selectable();
 
 // Network arc viewmodel class
 function ArcViewModel(nodeTo, nodeFrom, latency, bandwidthCap, bandwidthPrice, availability) {
 	this.network = nodeTo.network;
-	Selectable.call(this, nodeTo.network.datavm.main);
+	Selectable.call(this, nodeTo.network.dataVM.main);
 	
     this.nodeTo = ko.observable(nodeTo);
     this.nodeFrom = ko.observable(nodeFrom);
@@ -373,37 +431,50 @@ function ArcViewModel(nodeTo, nodeFrom, latency, bandwidthCap, bandwidthPrice, a
 ArcViewModel.prototype = new Selectable( );
 
 // Provider viewmodel class
-function ProviderViewModel(main) {
-    this.main = main
+function ProviderViewModel(dataVM) {
+    this.dataVM = dataVM
 
     this.providerNumber = ko.computed(function () {
-        return this.main.providers.indexOf(this) + 1;
+        return this.dataVM.providers.indexOf(this) + 1;
     }, this);
 	
 	this.getTemplate = function() {
 		return 'ProviderViewModelTemplate';
 	}
+	
+	this.owner = function() {
+		return this.dataVM.network().nodes()[this.dataVM.network().nodes().length - this.dataVM.providers().length + this.providerNumber()-1]
+	}
 }
 
 // Customer viewmodel class
-function CustomerViewModel(main, revenue) {
-    this.main = main;
+function CustomerViewModel(dataVM, revenue) {
+    this.dataVM = dataVM;
     this.revenue = ko.observable(revenue)
     this.services = ko.observableArray();
 
     this.customerNumber = ko.computed(function () {
-        return this.main.customers.indexOf(this) + 1;
+        return this.dataVM.customers.indexOf(this) + 1;
     }, this);
 	
 	this.getTemplate = function() {
 		return 'CustomerViewModelTemplate';
 	}
+	
+	this.removeService = function(service) {
+		this.services.remove(service);
+		this.dataVM.services.remove(service);
+	}
+	
+	this.owner = function() {
+		return this.dataVM.network().nodes()[this.customerNumber()-1]
+	}
 }
 
 // Service viewmodel class
-function ServiceViewModel(main, bandwidthReq, latencyReq, bandwidthReqDown, latencyReqDown, availabilityReq) {
-    this.main = main;
-    this.main.services.push(this);
+function ServiceViewModel(dataVM, bandwidthReq, latencyReq, bandwidthReqDown, latencyReqDown, availabilityReq) {
+    this.dataVM = dataVM;
+    this.dataVM.services.push(this);
 
     this.bandwidthRequirementUp = ko.observable(bandwidthReq);
     this.latencyRequirementUp = ko.observable(latencyReq);
@@ -414,8 +485,20 @@ function ServiceViewModel(main, bandwidthReq, latencyReq, bandwidthReqDown, late
     this.placements = ko.observableArray();
 
     this.serviceNumber = ko.computed(function () {
-        return this.main.services.indexOf(this) + 1;
+        return this.dataVM.services.indexOf(this) + 1;
     }, this);
+	
+	this.removePlacement = function(placement) {
+		this.placements.remove(placement);
+	}
+	
+	this.owner = function() {
+		for(var i in this.dataVM.customers()) {
+			if(this.dataVM.customers()[i].services.indexOf(this) >= 0) {
+				return this.dataVM.customers()[i];
+			}
+		}
+	}
 }
 
 function ServicePlacementViewModel(service, provider, price) {
