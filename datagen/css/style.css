@@ -1,7 +1,15 @@
 div.toolbarContainer, div.selectedObjectsContainer{
-	background-color: #BBBBBB;
+	
 }
 div.selectedObjectsContainer{
-	height:580px;
+	height: 606px;
+	width: 370px;
 	overflow-y:scroll;
+	background-color:white;
+}
+table.editorTable {
+	background-color: #BBBBBB;
+}
+div.visualisationContainer {
+	background-color: white;
 }

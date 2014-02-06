@@ -21,11 +21,13 @@
 </script>
 <script id="NodeViewModelTemplate" type="text/html">
 <div class="NodeViewModel">
-	Level : <input type="text" data-bind="value: level" /><br />
-	Type : <input type="text" data-bind="value: nodeType" /><br />
-	X-coord : <input type="text" data-bind="value: x" /><br />
-	Y-coord : <input type="text" data-bind="value: y" /><br />
+	<b>Node</b><br />
+	Type : <span data-bind="text: nodeType" /><br />
+	Level : <input type="text" data-bind="value: level" size="5"/><br />
+	X-coord : <input type="text" data-bind="value: x" size="5" /><br />
+	Y-coord : <input type="text" data-bind="value: y" size="5" /><br />
 	<div data-bind="with: content()">
+		<b>Content:</b><br />
 		<div data-bind="template: {name: getTemplate(), data: $data}"></div>
 	</div>
 	<div data-bind="if: content() == null">
@@ -44,6 +46,7 @@
 <div class="CustomerViewModel">
 	Customer #<span data-bind="text: customerNumber"></span>
 	<button data-bind="click: function() {owner().removeCustomer($data)}">Delete</button><br>
+	<button data-bind="click: function() {addService()}">Add Service</button><br>
 	<div data-bind="foreach: services">
 		<div data-bind="template: {name: 'ServiceViewModelTemplate', data: $data}"></div>
 	</div>
@@ -55,17 +58,22 @@
 		- Service
 		<button data-bind="click: function() {owner().removeService($data)}">Delete</button><br>
 		- Requirements <br />
-		-- Bandwidth  (UPLINK) : <input type="text" data-bind="value: bandwidthRequirementUp" /><br />
-		-- Bandwidth  (DOWNLINK) : <input type="text" data-bind="value: bandwidthRequirementDown" /><br />
-		-- Latency (UPLINK) : <input type="text" data-bind="value: latencyRequirementUp" /><br />
-		-- Latency (DOWNLINK) : <input type="text" data-bind="value: latencyRequirementDown" /><br />
-		-- Availability : <input type="text" data-bind="value: availabilityRequirement" /><br />
+		-- Bandwidth  (UPLINK) : <input type="text" data-bind="value: bandwidthRequirementUp" size="5" /><br />
+		-- Bandwidth  (DOWNLINK) : <input type="text" data-bind="value: bandwidthRequirementDown" size="5" /><br />
+		-- Latency (UPLINK) : <input type="text" data-bind="value: latencyRequirementUp" size="5" /><br />
+		-- Latency (DOWNLINK) : <input type="text" data-bind="value: latencyRequirementDown" size="5" /><br />
+		-- Availability : <input type="text" data-bind="value: availabilityRequirement" size="5" /><br />
 	</div>
-	-- Placements:
+	-- Possible Placements:
 	<div data-bind="foreach: placements">
 		--- provider #<span data-bind="text: provider().providerNumber()"></span>
-		Price: <input type="text" data-bind="value: price()" />
+		Price: <input type="text" data-bind="value: price()"  size="5"/>
 		<button data-bind="click: function() {$parent.removePlacement($data)}">Delete</button><br>
+	</div>
+	-- Additional providers:
+	<div data-bind="foreach: nonPlaceableProviders">
+		--- provider #<span data-bind="text: providerNumber()"></span>
+		<button data-bind="click: function() {$parent.addPlacement($data, 100)}">Add</button><br>
 	</div>
 </div>
 </script>
@@ -103,7 +111,7 @@ Select two nodes to add an arc between.
 <div>
     <button data-bind="click: function() {generateRandomNetwork('dataOutputBox')}">Generate network</button>
 </div>
-<table>
+<table class="editorTable">
 <tr>
 <td>
 <div class="toolbarContainer" data-bind="with: mode">
@@ -175,6 +183,9 @@ Select two nodes to add an arc between.
 <div>
     <button data-bind="click: function() {outputToMoselData('dataOutputBox')}">Output data file</button>
 	<button data-bind="click: function() {parseMoselData($('#dataOutputBox').val())}">Load data file</button>
+	<button data-bind="click: function() {
+		window.open('data:text/txt;charset=utf-8,' + escape($('#dataOutputBox').val()));
+	}">Download file</button>
 </div>
 <div>
     <textarea id="dataOutputBox" rows="30" cols="150"></textarea>

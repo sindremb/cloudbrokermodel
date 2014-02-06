@@ -315,7 +315,7 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
     }
 
     // STEP 3: Generate providers
-    for (var i = 0; i < dataObj.n_Provider; i++) {
+    for (var i = 0; i < dataObj.n_Providers; i++) {
         dataVM.providers.push(new ProviderViewModel(dataVM));
     }
 
@@ -324,7 +324,7 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
 		var service = dataVM.services()[i-1];
         for (var j in dataObj.H_PlacePrice[i]) {
 			service.placements.push(new ServicePlacementViewModel(
-				service, dataVM.providers[j-1], dataObj.H_PlacePrice[i][j]
+				service, dataVM.providers()[j-1], dataObj.H_PlacePrice[i][j]
 			));
         }
     }

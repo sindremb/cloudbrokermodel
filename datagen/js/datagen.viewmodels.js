@@ -252,6 +252,25 @@ function DataViewModel(main) {
     this.numServices = ko.computed(function () { return this.services().length }, this);
     this.numProviders = ko.computed(function () { return this.providers().length }, this);
     this.network = ko.observable(new NetworkViewModel(this));
+	
+	this.removePlacementsForProvider = function(provider) {
+		for(var i in this.customers()) {
+			var customer = this.customer()[i];
+			for(var j in customer.services()) {
+				var service = customer.services()[j];
+				var toRemove = [];
+				for(var k in service.placements()){
+					var placement = service.placements()[k];
+					if(placement.provider() == provider) {
+						toRemove.push(placement);
+					}
+				}
+				for(var k in toRemove) {
+					service.placements.remove(toRemove[k]);
+				}
+			}
+		}
+	}
 }
 
 // network viewmodel class
@@ -387,6 +406,7 @@ function NodeViewModel(network, x, y, level) {
 			this.network.dataVM.providers.remove(provider);
 			// reinsert node as internal node
 			this.network.insertNodeAsInternal(ownerNode);
+			this.network.dataVM.removePlacementsForProvider(provider);
 		}
 	}
 	
@@ -469,6 +489,12 @@ function CustomerViewModel(dataVM, revenue) {
 	this.owner = function() {
 		return this.dataVM.network().nodes()[this.customerNumber()-1]
 	}
+	
+	this.addService = function() {
+		this.services.push(new ServiceViewModel(
+			this.dataVM, 20, 100, 20, 100, 0.95
+		));
+	}
 }
 
 // Service viewmodel class
@@ -499,6 +525,27 @@ function ServiceViewModel(dataVM, bandwidthReq, latencyReq, bandwidthReqDown, la
 			}
 		}
 	}
+	
+	this.addPlacement = function(provider, price) {
+		this.placements.push(new ServicePlacementViewModel(this, provider, price));
+	}
+	
+	this.nonPlaceableProviders = ko.computed(function() {
+		var nonPlaceable = [];
+		for(var i in this.dataVM.providers()) {
+			var provider = this.dataVM.providers()[i];
+			var placeable = false;
+			for(var j in this.placements()) {
+				if(provider == this.placements()[j].provider()) {
+					placeable = true;
+				}
+			}
+			if(!placeable) {
+				nonPlaceable.push(provider);
+			}
+		}
+		return nonPlaceable;
+	}, this);
 }
 
 function ServicePlacementViewModel(service, provider, price) {
