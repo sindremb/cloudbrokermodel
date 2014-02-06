@@ -317,8 +317,9 @@ Total_Profits := sum (cc in Customers)
 								sum (nn in Nodes, mm in Nodes)
 									(L_LeasedPrice(nn,mm)
 									*(w_LeaseRes(nn,mm,ss)*B_BandwidthReq(ss)+w_LeaseResDown(nn,mm,ss)*B_BandwidthReqD(ss)))
-								+
-								sum (nn in Nodes, mm in Nodes) (10*b_UseBackup(nn,mm,ss)+ 10*b_UseBackupDown(nn,mm,ss))							)
+								!+
+								!sum (nn in Nodes, mm in Nodes) (10*b_UseBackup(nn,mm,ss)+ 10*b_UseBackupDown(nn,mm,ss)
+								)							
 					)
 					-
 					sum (nn in Nodes, mm in Nodes) (K_CapPrice(nn,mm)*l_BackupRes(nn,mm))
@@ -568,7 +569,7 @@ forall(cc in Customers) do
 						end-do
 					end-if
 				
-					if ( sum(nn in Nodes, mm in Nodes) (getsol(b_UseBackup(nn,mm,ss))) >=1) then
+					if ( sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(v_UseLink(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm)))< ln(getsol(Y_AvailabilityReq(ss))) ) then
 						writeln("      - backup links:");
 							forall (nn in Nodes, mm in Nodes) do
 							if (getsol(b_UseBackup(nn,mm,ss))=1) then
@@ -600,7 +601,7 @@ forall(cc in Customers) do
 							end-if
 						end-do
 					end-if
-					if ( sum(nn in Nodes, mm in Nodes) (getsol(b_UseBackupDown(nn,mm,ss))) >=1) then
+					if (  sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(v_UseLink(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm)))< ln(getsol(Y_AvailabilityReq(ss))) ) then
 						writeln("      - backup links:");
 							forall (nn in Nodes, mm in Nodes) do
 							if (getsol(b_UseBackupDown(nn,mm,ss))=1) then
