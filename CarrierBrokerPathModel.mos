@@ -1,0 +1,195 @@
+model CarrierBrokerPathModel
+uses "mmxprs"; !gain access to the Xpress-Optimizer solver
+
+options explterm
+options noimplicit
+
+uses "mmxprs", "mmsystem";
+
+parameters
+	! Data file to read from
+	Data = 'bigA.txt';
+end-parameters
+
+declarations
+	timetracker:	real; ! used to log timestamps for time consumption output
+end-declarations
+
+writeln("Building model...");
+timetracker := timestamp;
+
+!setparam("XPRS_presolve", 0);	! uncomment to turn of presolve
+setparam("XPRS_maxtime", 3600); ! maximum number of seconds for optimisation
+
+!!!!!!!!!!!!!!!!!!!!!!!!
+! Sets
+!!!!!!!!!!!!!!!!!!!!!!!!
+
+declarations
+! Set sizes
+	n_Customers: 			integer; ! number of customers
+	n_Services:				integer; ! number of services
+	n_Providers:			integer; ! number of providers
+	n_Nodes:				integer; ! number of nodes in total
+	n_Paths:				integer; ! number of paths
+	
+! Sets	
+	Customers:				set of integer; 
+	Providers:				set of integer;
+	! Used as shorthand for 'cc in Customers, ss in S_ServiceForCustomer(cc)' when cc is not needed 
+	Services:				set of integer;
+	! Set of nodes in the network. 
+	! - First we have the customer nodes, then the internal nodes, the the provider nodes.
+	Nodes:					set of integer;
+	Paths:					set of integer; 
+	
+end-declarations
+
+initializations from Data
+	n_Customers;
+	n_Services;
+	n_Providers;
+	n_Nodes;
+	n_Paths;
+end-initializations
+	
+Customers:= 1..n_Customers;
+Services:= 1..n_Services;  
+Providers:= 1..n_Providers;
+Nodes:= 1..n_Nodes;
+Paths := 1..n_Paths;
+
+finalize(Customers);
+finalize(Services);
+finalize(Providers);
+finalize(Nodes);
+finalize(Paths);
+
+!!!!!!!!!!!!!!!!!!!!!!!
+! Parameters
+!!!!!!!!!!!!!!!!!!!!!!!
+
+declarations
+	!R_Revenue from serving each customer
+	R_Revenue:					dynamic array(Customers)	 of real;
+	!Bandwidth capacity between each pair of nodes
+	F_BandwidthCap:				dynamic array(Nodes,Nodes)	 of real;
+	!Possible paths fir each pair of service and provider
+	K_Paths:					dynamic array(Services,Providers) of set of integer;
+	K_PathsDown:				dynamic array(Services,Providers) of set of integer;
+	!set of paths  using each link
+	L_PathsUsingLink:			dynamic array(Nodes,Nodes) of set	of integer;
+	!bandwidth usage for path
+	U_PathBandwidthUsage:		dynamic array(Paths)				of real;
+	! cost of using path k
+	C_PathCost:					dynamic array(Paths)				of real;
+	
+	S_ServiceForCustomer:		set of set of integer; 
+	
+	Symmetric:				boolean;
+
+end-declarations
+
+
+initialisations from Data	
+	R_Revenue;
+	F_BandwidthCap;	
+	K_Paths;
+	K_PathsDown;
+	L_PathsUsingLink;
+	U_PathBandwidthUsage;
+	C_PathCost;
+	S_ServiceForCustomer;
+end-initialisations
+
+if(Symmetric) then
+forall(nn in Nodes, mm in Nodes) do
+	if(exists(F_BandwidthCap(nn,mm)) and not exists(F_BandwidthCap(mm,nn))) then
+			create(F_BandwidthCap(mm,nn));
+			F_BandwidthCap(mm,nn):=F_BandwidthCap(nn,mm);
+	end-if
+end-do
+end-if
+
+declarations	
+	!Variables
+	! - x: binary, placement of service at provider
+	x_Placement: 		dynamic array (Services, Providers) 			of mpvar;
+	! - y: binary, serving of a customer
+	y_Serve:			dynamic array (Customers)						of mpvar;
+	! - u: binary, indicates which paths are used
+	u_UsePath:			dynamic array (Paths)							of mpvar; 
+end-declarations
+
+! - for all combinations of service and provider
+forall (ss in Services, pp in Providers) do
+	create (x_Placement(ss,pp));
+	x_Placement(ss,pp) is_binary;
+end-do
+
+! - for all customers
+forall(cc in Customers) do
+	create(y_Serve(cc));
+	y_Serve(cc) is_binary;
+end-do
+
+forall(pp in Paths) do
+	create(u_UsePath(pp));
+	u_UsePath(pp) is_binary;
+end-do
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! CONSTRAINTS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+declarations
+! Objective function
+	Total_Profits:																linctr;
+
+! Constraints
+	ServeCustomer:					dynamic array(Services)						of linctr;
+	UsePath:						dynamic array(Services,Providers)			of linctr;
+	UsePathDown:					dynamic array(Services,Providers)			of linctr;
+	PathArcBandwidth:				dynamic array(Nodes,Nodes)					of linctr;
+end-declarations
+
+
+! OBJECTIVE FUNCTION
+! - total profits from serving customers
+Total_Profits := sum (cc in Customers) 
+					! R_Revenue from serving customer (if served)
+					R_Revenue(cc)*y_Serve(cc)
+				- 
+				sum(pp in Paths)
+					!cost for using a path
+					C_PathCost(pp)*u_UsePath(pp);
+					
+! SERVE CUSTOMER CONSTRAINT
+! Customers can only be served if all services for customer is provided
+forall(cc in Customers) do
+	forall(ss in S_ServiceForCustomer(cc)) do
+		ServeCustomer(ss) := sum (pp in Providers) x_Placement(ss,pp) - y_Serve(cc) = 0;
+	end-do
+end-do
+
+! USE PATH CONSTRAINTS
+forall(cc in Customers) do
+	forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+		UsePath(ss,pp) := sum(kk in K_Paths(ss,pp)) u_UsePath(kk) - x_Placement(ss,pp) =0;
+		UsePathDown(ss,pp) := sum(kk in K_PathsDown(ss,pp)) u_UsePath(kk) - x_Placement(ss,pp) =0;
+	end-do
+end-do
+
+forall(nn in Nodes, mm in Nodes) do
+	PathArcBandwidth(nn,mm) := sum(kk in L_PathsUsingLink(nn,mm)) U_PathBandwidthUsage(kk)*u_UsePath(kk);
+end-do
+
+
+
+					
+writeln("Begin running model")
+!...
+writeln("End running model")
+
+end-model
