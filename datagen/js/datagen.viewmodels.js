@@ -18,6 +18,11 @@ function MainViewModel() {
         $('#' + containerId).val(Datagen.utils.toMoselData(this.dataVM()));
     };
 	
+	// outputs the dataVM content as text to container of provided id
+    this.outputToJSON = function (containerId) {
+        $('#' + containerId).val(JSON.stringify(new DataModel(this.dataVM())));
+    };
+	
 	// creates a new dataVM from the provided mosel data string
 	this.parseMoselData = function (data) {
 		var dataObj = Datagen.utils.parseMoselData(data);
