@@ -265,16 +265,19 @@ Datagen.utils._extractSubwords = function(word) {
 }
 
 Datagen.utils.networkFromDataObject = function(dataObj, main) {
+
+	console.log(dataObj);
 	var dataVM = new DataViewModel(main)
 
     // STEP 1: Generate network
     var network = new NetworkViewModel(dataVM)
 	
 	// generate nodes from data obj (using given number and locations)
+	var step = (Math.PI * 2) / dataObj.n_Nodes; // used if no x- and y-coords are defined for nodes
 	for(var i = 0; i < dataObj.n_Nodes; i++) {
 		network.nodes.push(new NodeViewModel(network,
-			dataObj.datagen_x_coords[i] != null ? dataObj.datagen_x_coords[i] : Math.floor((Math.random() * 250)),
-			dataObj.datagen_y_coords[i] != null ? dataObj.datagen_y_coords[i] : Math.floor((Math.random() * 250)),
+			dataObj.datagen_x_coords != null ? dataObj.datagen_x_coords[i] : 200*Math.sin(step*i)+400,
+			dataObj.datagen_y_coords != null ? dataObj.datagen_y_coords[i] : 200*Math.cos(step*i)+250,
 			2
 		));
 	}
