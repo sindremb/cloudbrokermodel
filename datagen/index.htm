@@ -21,7 +21,7 @@
 </script>
 <script id="NodeViewModelTemplate" type="text/html">
 <div class="NodeViewModel">
-	<b>Node</b><br />
+	<b>Node #<span data-bind="text: nodeNumber"></span></b><br />
 	Type : <span data-bind="text: nodeType" /><br />
 	Level : <input type="text" data-bind="value: level" size="5"/><br />
 	X-coord : <input type="text" data-bind="value: x" size="5" /><br />
@@ -44,7 +44,7 @@
 </script>
 <script id="CustomerViewModelTemplate" type="text/html">
 <div class="CustomerViewModel">
-	Customer #<span data-bind="text: customerNumber"></span>
+	<b>Customer #<span data-bind="text: customerNumber"></span></b>
 	<button data-bind="click: function() {owner().removeCustomer($data)}">Delete</button><br>
 	<button data-bind="click: function() {addService()}">Add Service</button><br>
 	<div data-bind="foreach: services">
@@ -55,7 +55,7 @@
 <script id="ServiceViewModelTemplate" type="text/html">
 <div class="ServiceViewModel">
 	<div>
-		- Service
+		- <b>Service #<span data-bind="text: serviceNumber"></span></b>
 		<button data-bind="click: function() {owner().removeService($data)}">Delete</button><br>
 		- Requirements <br />
 		-- Bandwidth  (UPLINK) : <input type="text" data-bind="value: bandwidthRequirementUp" size="5" /><br />

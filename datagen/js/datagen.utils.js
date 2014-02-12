@@ -266,7 +266,6 @@ Datagen.utils._extractSubwords = function(word) {
 
 Datagen.utils.networkFromDataObject = function(dataObj, main) {
 
-	console.log(dataObj);
 	var dataVM = new DataViewModel(main)
 
     // STEP 1: Generate network

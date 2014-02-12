@@ -255,7 +255,7 @@ function DataViewModel(main) {
 	
 	this.removePlacementsForProvider = function(provider) {
 		for(var i in this.customers()) {
-			var customer = this.customer()[i];
+			var customer = this.customers()[i];
 			for(var j in customer.services()) {
 				var service = customer.services()[j];
 				var toRemove = [];
@@ -401,8 +401,6 @@ function NodeViewModel(network, x, y, level) {
 		if(ownerNode != null) {
 			// remove node and customer
 			this.network.nodes.remove(ownerNode);
-			console.log(this.network);
-			console.log(this.network.dataVM);
 			this.network.dataVM.providers.remove(provider);
 			// reinsert node as internal node
 			this.network.insertNodeAsInternal(ownerNode);
