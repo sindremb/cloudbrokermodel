@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'bigA.txt';
+	Data = 'smallpathA.txt';
 end-parameters
 
 declarations
@@ -41,6 +41,7 @@ declarations
 	! Set of nodes in the network. 
 	! - First we have the customer nodes, then the internal nodes, the the provider nodes.
 	Nodes:					set of integer;
+	
 	Paths:					set of integer; 
 	
 end-declarations
@@ -74,7 +75,7 @@ declarations
 	R_Revenue:					dynamic array(Customers)	 of real;
 	!Bandwidth capacity between each pair of nodes
 	F_BandwidthCap:				dynamic array(Nodes,Nodes)	 of real;
-	!Possible paths fir each pair of service and provider
+	!Possible paths for each pair of service and provider
 	K_Paths:					dynamic array(Services,Providers) of set of integer;
 	K_PathsDown:				dynamic array(Services,Providers) of set of integer;
 	!set of paths  using each link
@@ -161,9 +162,9 @@ Total_Profits := sum (cc in Customers)
 					! R_Revenue from serving customer (if served)
 					R_Revenue(cc)*y_Serve(cc)
 				- 
-				sum(pp in Paths)
+				sum(kk in Paths)
 					!cost for using a path
-					C_PathCost(pp)*u_UsePath(pp);
+					C_PathCost(kk)*u_UsePath(kk);
 					
 ! SERVE CUSTOMER CONSTRAINT
 ! Customers can only be served if all services for customer is provided
@@ -177,19 +178,58 @@ end-do
 forall(cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
 		UsePath(ss,pp) := sum(kk in K_Paths(ss,pp)) u_UsePath(kk) - x_Placement(ss,pp) =0;
-		UsePathDown(ss,pp) := sum(kk in K_PathsDown(ss,pp)) u_UsePath(kk) - x_Placement(ss,pp) =0;
+		UsePathDown(ss,pp) := sum(kk in K_PathsDown(ss,pp) ) u_UsePath(kk) - x_Placement(ss,pp) =0;
 	end-do
 end-do
 
-forall(nn in Nodes, mm in Nodes) do
+forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 	PathArcBandwidth(nn,mm) := sum(kk in L_PathsUsingLink(nn,mm)) U_PathBandwidthUsage(kk)*u_UsePath(kk);
 end-do
 
+writeln("Model building completed in ", timestamp - timetracker, " seconds");
 
+writeln("Solving model...");
+timetracker := timestamp;
+maximize(Total_Profits);
 
-					
-writeln("Begin running model")
-!...
-writeln("End running model")
+if (getprobstat=XPRS_OPT) then
+	writeln("Model solved in ", timestamp - timetracker," seconds");
+else
+	writeln("Model was not solved after ", timestamp - timetracker," seconds");
+end-if
+
+writeln("\nTotal Profits: ", getobjval);
+
+! for all customers
+forall(cc in Customers) do
+	! Check if customer is served
+	if (getsol(y_Serve(cc)) > 0.1) then
+		! output served customer and generated profits for customer
+		writeln("\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
+			R_Revenue(cc)*getsol(y_Serve(cc)));
+		forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+			if(getsol(x_Placement(ss,pp)) > 0.1) then
+			writeln("  - Service ",ss," is placed at provider ",pp);
+			write("	  - Path up: ");
+				forall(kk in K_Paths(ss,pp)) do
+					if (getsol(u_UsePath(kk)) > 0.1) then
+					writeln(kk," , cost: ",C_PathCost(kk));
+					end-if
+				end-do
+			write("	  - Path down: ");
+				forall(kk in K_PathsDown(ss,pp)) do
+					if (getsol(u_UsePath(kk)) > 0.1) then
+					writeln(kk," , cost: ",C_PathCost(kk));
+					end-if
+				end-do
+			end-if
+		end-do
+	end-if
+end-do
+
+				
+				
+				
+				
 
 end-model
