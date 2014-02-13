@@ -6,6 +6,7 @@
     <script type="text/javascript" language="javascript" src="js/knockout-3.0.0.js"></script>
     <script type="text/javascript" language="javascript" src="js/datagen.core.js"></script>
     <script type="text/javascript" language="javascript" src="js/datagen.utils.js"></script>
+	<script type="text/javascript" language="javascript" src="js/datagen.models.js"></script>
 	<script type="text/javascript" language="javascript" src="js/datagen.viewmodels.js"></script>
     <script type="text/javascript" language="javascript" src="js/main.js"></script>
 	<link rel="stylesheet" type="text/css" href="css/style.css">
@@ -95,22 +96,20 @@ Select elements to drag and drop or delete.
 <script id="addarc-mode-desc" type="text/html">
 Select two nodes to add an arc between.
 </script>
-<div id="genConfigs">
+<div>
+    <button data-bind="click: function() {generateRandomNetwork('dataOutputBox')}">Generate network</button><span id="showconfigbutton" data-bind="click: function(){$('#genConfigs, #showconfigbutton').toggle()}">v settings v</span>
+</div>
+<div id="genConfigs" style="display: none;">
 	# node levels = <input type="text" data-bind="value: generationConfig().numNodeLevels" /><br />
 	# nodes per cluster = <input type="text" data-bind="value: generationConfig().numNodesPerCluster" /><br />
-	<!--# avg. arcs per node = <input type="text" data-bind="value: generationConfig().avgArcsPerNode" /><br />
-    Number of nodes: <input type="text" data-bind="value: generationConfig().numberOfNodes" /><br />
-    Number of arcs: <input type="text" data-bind="value: generationConfig().numberOfArcs" /><br />
-	-->
     Number of leasable arcs: <input type="text" data-bind="value: generationConfig().numLeasableArcs" /><br />
     Number of customers: <input type="text" data-bind="value: generationConfig().numberOfCustomers" /><br />
     Number of providers: <input type="text" data-bind="value: generationConfig().numberOfProviders" /><br />
     Max number of services per customer: <input type="text" data-bind="value: generationConfig().maxNumberOfServicesPerCustomer" /><br />
     Proportion of eligible providers: <input type="text" data-bind="value: generationConfig().proportionEligibleProviders" /><br />
+	<span data-bind="click: function(){$('#genConfigs, #showconfigbutton').toggle()}">^ hide ^</span>
 </div>
-<div>
-    <button data-bind="click: function() {generateRandomNetwork('dataOutputBox')}">Generate network</button>
-</div>
+
 <table class="editorTable">
 <tr>
 <td>
@@ -183,6 +182,7 @@ Select two nodes to add an arc between.
 <div>
     <button data-bind="click: function() {outputToMoselData('dataOutputBox')}">Output data file</button>
 	<button data-bind="click: function() {parseMoselData($('#dataOutputBox').val())}">Load data file</button>
+	<button data-bind="click: function() {outputToJSON('dataOutputBox')}">Export to JSON</button>
 <!--	<button data-bind="click: function() {
 		window.open('data:text/txt;charset=utf-8,' + escape($('#dataOutputBox').val()));
 	}">Download file</button>-->
