@@ -87,6 +87,10 @@ declarations
 	
 	S_ServiceForCustomer:		set of set of integer; 
 	
+	J_PathLatency:				dynamic array(Paths)				of real;
+	
+	G_LatencyReq:				dynamic array(Services)				of real;
+	
 	Symmetric:				boolean;
 
 end-declarations
@@ -101,6 +105,8 @@ initialisations from Data
 	U_PathBandwidthUsage;
 	C_PathCost;
 	S_ServiceForCustomer;
+	J_PathLatency;
+	G_LatencyReq;
 end-initialisations
 
 if(Symmetric) then
@@ -153,6 +159,7 @@ declarations
 	UsePath:						dynamic array(Services,Providers)			of linctr;
 	UsePathDown:					dynamic array(Services,Providers)			of linctr;
 	PathArcBandwidth:				dynamic array(Nodes,Nodes)					of linctr;
+	PathLatency:					dynamic array(Services,Providers)			of linctr;
 end-declarations
 
 
@@ -186,6 +193,22 @@ forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 	PathArcBandwidth(nn,mm) := sum(kk in L_PathsUsingLink(nn,mm)) U_PathBandwidthUsage(kk)*u_UsePath(kk);
 end-do
 
+
+forall(cc in Customers) do
+	forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+	PathLatency(ss,pp) := sum(kk in K_Paths(ss,pp)) u_UsePath(kk)*J_PathLatency(kk) + sum(kk in K_PathsDown(ss,pp)) u_UsePath(kk)*J_PathLatency(kk) <=G_LatencyReq(ss);
+	end-do
+end-do
+
+
+
+
+
+
+
+
+
+
 writeln("Model building completed in ", timestamp - timetracker, " seconds");
 
 writeln("Solving model...");
@@ -209,17 +232,17 @@ forall(cc in Customers) do
 			R_Revenue(cc)*getsol(y_Serve(cc)));
 		forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
 			if(getsol(x_Placement(ss,pp)) > 0.1) then
-			writeln("  - Service ",ss," is placed at provider ",pp);
+			writeln("  - Service ",ss," is placed at provider ",pp,"	(latency req: ",G_LatencyReq(ss),")");
 			write("	  - Path up: ");
 				forall(kk in K_Paths(ss,pp)) do
 					if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln(kk," , cost: ",C_PathCost(kk));
+					writeln(kk," , cost: ",C_PathCost(kk)," , latency: ",J_PathLatency(kk));
 					end-if
 				end-do
 			write("	  - Path down: ");
 				forall(kk in K_PathsDown(ss,pp)) do
 					if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln(kk," , cost: ",C_PathCost(kk));
+					writeln(kk," , cost: ",C_PathCost(kk)," , latency: ",J_PathLatency(kk));
 					end-if
 				end-do
 			end-if
