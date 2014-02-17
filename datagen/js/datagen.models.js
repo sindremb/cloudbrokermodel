@@ -59,9 +59,8 @@ function CustomerModel(customervm) {
 function ServiceModel(servicevm) {
 
     this.bandwidthRequirementUp = servicevm.bandwidthRequirementUp();
-    this.latencyRequirementUp = servicevm.latencyRequirementUp();
     this.bandwidthRequirementDown = servicevm.bandwidthRequirementDown();
-    this.latencyRequirementDown = servicevm.latencyRequirementDown();
+    this.latencyRequirement = servicevm.latencyRequirement();
 	
 	this.availabilityRequirement = servicevm.availabilityRequirement();
 

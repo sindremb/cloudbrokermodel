@@ -501,14 +501,13 @@ function CustomerViewModel(dataVM, revenue) {
 }
 
 // Service viewmodel class
-function ServiceViewModel(dataVM, bandwidthReq, latencyReq, bandwidthReqDown, latencyReqDown, availabilityReq) {
+function ServiceViewModel(dataVM, bandwidthReq, bandwidthReqDown, latencyReq, availabilityReq) {
     this.dataVM = dataVM;
     this.dataVM.services.push(this);
 
     this.bandwidthRequirementUp = ko.observable(bandwidthReq);
-    this.latencyRequirementUp = ko.observable(latencyReq);
     this.bandwidthRequirementDown = ko.observable(bandwidthReqDown);
-    this.latencyRequirementDown = ko.observable(latencyReqDown);
+    this.latencyRequirement = ko.observable(latencyReq);
 	this.availabilityRequirement = ko.observable(availabilityReq)
 
     this.placements = ko.observableArray();

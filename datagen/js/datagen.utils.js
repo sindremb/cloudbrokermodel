@@ -308,8 +308,9 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
         var customer = new CustomerViewModel(dataVM, dataObj.R_Revenue[i])
         for (var j in dataObj.S_ServiceForCustomer[i]) {
             customer.services.push(new ServiceViewModel(
-                    dataVM, dataObj.B_BandwidthReq[j], dataObj.G_LatencyReq[j],
-					dataObj.B_BandwidthReqD[j], dataObj.G_LatencyReqD[j],
+                    dataVM, dataObj.B_BandwidthReq[j],
+					dataObj.B_BandwidthReqD[j],
+					dataObj.G_LatencyReq[j],
 					dataObj.Y_AvailabilityReq[j]
                 ));
         }
@@ -372,17 +373,18 @@ Datagen.utils.toMoselData = function (dataVM) {
     }
     data = data + ']\n'
 
-    data = data + '\n! (s) Required maximum latency for service s from customer to provider (UPLINK)\n'
+    data = data + '\n! (s) Required maximum latency for service s [old: from customer to provider (UPLINK)]\n'
     data = data + 'G_LatencyReq: ['
     for (var i in dataVM.services()) {
-        data = data + dataVM.services()[i].latencyRequirementUp() + ' ';
+        data = data + dataVM.services()[i].latencyRequirement() + ' ';
     }
     data = data + ']\n'
 
-    data = data + '\n! (s) Required maximum latency for service s from provider to customer (DOWNLINK)\n'
+	data = data + '\n! NOTE: DEPRECATED - no longer used, but kept for now for compatability\n'
+    data = data + '! (s) Required maximum latency for service s from provider to customer (DOWNLINK)\n'
     data = data + 'G_LatencyReqD: ['
     for (var i in dataVM.services()) {
-        data = data + dataVM.services()[i].latencyRequirementDown() + ' ';
+        data = data + dataVM.services()[i].latencyRequirement() + ' ';
     }
     data = data + ']\n'
 
@@ -558,8 +560,8 @@ Datagen.utils.generateData = function (genConfig, main) {
         numServices = Math.floor((Math.random() * genConfig.maxNumberOfServicesPerCustomer())) + 1
         for (var j = 0; j < numServices; j++) {
             customer.services.push(new ServiceViewModel(
-                    dataVM, Math.floor((Math.random() * 15)) + 5, Math.floor((Math.random() * 250)) + 50,
-                    Math.floor((Math.random() * 15)) + 5, Math.floor((Math.random() * 250)) + 50,
+                    dataVM, Math.floor((Math.random() * 15)) + 5, Math.floor((Math.random() * 15)) + 5,
+                    Math.floor((Math.random() * 250)) + 50,
 					(Math.random() * 0.025) + 0.97
                 ));
         }
