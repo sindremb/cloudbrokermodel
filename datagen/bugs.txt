@@ -2,4 +2,5 @@
 !! Known Bugs
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-- Deleting a provider does not delete the corresponding placements
+- Most viewmodels does not have proper getters and setters of observables to ensure types.
+- firefox does not include offsetX, offsetY for click events, nor properly handled by code yet.

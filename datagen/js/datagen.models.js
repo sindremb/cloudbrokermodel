@@ -2,8 +2,8 @@
 function DataModel(datavm) {
 
 	this.numCustomers = datavm.numCustomers();
-    this.numServices = datavm.numCustomers();
-    this.numProviders = datavm.numCustomers();
+    this.numServices = datavm.numServices();
+    this.numProviders = datavm.numProviders();
 	
     this.network = new NetworkModel(datavm.network());
 	

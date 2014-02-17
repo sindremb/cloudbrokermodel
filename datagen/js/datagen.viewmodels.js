@@ -95,11 +95,15 @@ function MainViewModel() {
 		this.selectedObjects.removeAll();
 	}
 	
-	this.mapclick = function(e) {
+	this.mapclick = function(e, containerId) {
 		if(this.mode() == 'view' || this.mode() == 'edit' || this.mode() == 'addarc') {
 			this.selectedObjects.removeAll();
 		} else if(this.mode() == 'addnode') {
-			this.dataVM().network().addInternalNodeForLocation(e.offsetX, e.offsetY);
+			console.log(e, $(e.target).offset().left, $(e.target).offset().top);
+			this.dataVM().network().addInternalNodeForLocation(
+				(e.offsetX !== undefined) ? e.offsetX : (e.pageX-$(e.target).offset().left),
+				(e.offsetY !== undefined) ? e.offsetY : (e.pageY-$(e.target).offset().top)
+			);
 		}
 		e.cancelBubble = true;
 			if (e.stopPropagation) e.stopPropagation();
@@ -330,7 +334,7 @@ function NetworkViewModel(dataVM) {
 	}
 	
 	this.addArcForNodes = function(nodeFrom, nodeTo) {
-		this.arcs.push(Datagen.utils._arcForNodes(nodeFrom, nodeTo));
+		this.arcs.push(Datagen.utils._arcForNodes(nodeFrom, nodeTo, dataVM.main.generationConfig()));
 	}
 	
 	this.insertNodeAsInternal = function (node) {
@@ -522,7 +526,7 @@ function CustomerViewModel(dataVM, revenue) {
 	
 	this.addService = function() {
 		this.services.push(new ServiceViewModel(
-			this.dataVM, 20, 100, 20, 100, 0.95
+			this.dataVM, 20, 20, 100, 0.95
 		));
 	}
 }
