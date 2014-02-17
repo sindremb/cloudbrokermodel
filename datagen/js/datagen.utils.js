@@ -505,9 +505,9 @@ Datagen.utils._arcForNodes = function(nodeA, nodeB, config) {
 	return new ArcViewModel(
 					nodeA,
 					nodeB,
-					Math.floor((Math.random() * 40)) + 10,
-					Math.floor((Math.random() * 180)) + 20,
-					Math.floor((Math.random() * 4)) + 1,
+					Math.floor((Math.random() * config.avgArcLatency()) + (0.5 * config.avgArcLatency())),
+					Math.floor(Math.random() * 100) + 50,
+					Math.floor(Math.random() * 4) + 1,
 					Math.random() * 0.01 + 0.99
 				);;
 }
@@ -561,7 +561,7 @@ Datagen.utils.generateData = function (genConfig, main) {
         for (var j = 0; j < numServices; j++) {
             customer.services.push(new ServiceViewModel(
                     dataVM, Math.floor((Math.random() * 15)) + 5, Math.floor((Math.random() * 15)) + 5,
-                    Math.floor((Math.random() * 250)) + 50,
+                    Math.floor((Math.random() * genConfig.avgServiceLatencyReq()) + 0.5*genConfig.avgServiceLatencyReq()),
 					(Math.random() * 0.025) + 0.97
                 ));
         }

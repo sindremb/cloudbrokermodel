@@ -106,6 +106,8 @@ Select two nodes to add an arc between.
     Number of providers: <input type="text" data-bind="value: generationConfig().numberOfProviders" /><br />
     Max number of services per customer: <input type="text" data-bind="value: generationConfig().maxNumberOfServicesPerCustomer" /><br />
     Proportion of eligible providers: <input type="text" data-bind="value: generationConfig().proportionEligibleProviders" /><br />
+	Avg arc latency: <input type="text" data-bind="value: generationConfig().avgArcLatency" /><br />
+	Avg. service latency requirement: <input type="text" data-bind="value: generationConfig().avgServiceLatencyReq" /><br />
 	<span data-bind="click: function(){$('#genConfigs, #showconfigbutton').toggle()}">^ hide ^</span>
 </div>
 
@@ -157,6 +159,12 @@ Select two nodes to add an arc between.
 					click: function(d, e) {toggleSelect(e);}
 				" 
 				stroke="black" stroke-width="3" />
+			<text data-bind="
+					attr: { 
+						x: x()+8, y: y()+8, 
+					},
+					text: nodeNumber()
+				" fill="black" style="font-size: 10px"></text>
 		</g>
 		Sorry, your browser does not support inline SVG.  
 	</svg> 

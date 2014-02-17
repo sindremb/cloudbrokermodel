@@ -148,6 +148,8 @@ function GenerationConfigViewModel() {
     this._maxNumberOfServicesPerCustomer = ko.observable(3);
     this._numberOfProviders = ko.observable(10);
     this._proportionEligibleProviders = ko.observable(0.5);
+	this._avgArcLatency = ko.observable(5);
+	this._avgServiceLatencyReq = ko.observable(70);
 	
 	this.numNodeLevels = ko.computed({
 		read : function() { return this._numNodeLevels(); },
@@ -237,6 +239,31 @@ function GenerationConfigViewModel() {
 		write : function(value) { var numval = parseFloat(value);
 				if(!isNaN(numval)) {
 					this._proportionEligibleProviders(numval)
+				}
+				else {
+					console.log('failed to set "proportionEligibleProviders" to', value);
+				}
+			},
+		owner : this
+	});
+	this.avgArcLatency = ko.computed({
+		read : function() { return this._avgArcLatency(); },
+		write : function(value) { var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._avgArcLatency(numval)
+				}
+				else {
+					console.log('failed to set "proportionEligibleProviders" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.avgServiceLatencyReq = ko.computed({
+		read : function() { return this._avgServiceLatencyReq(); },
+		write : function(value) { var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._avgServiceLatencyReq(numval)
 				}
 				else {
 					console.log('failed to set "proportionEligibleProviders" to', value);
