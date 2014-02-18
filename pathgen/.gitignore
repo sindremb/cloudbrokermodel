@@ -5,6 +5,9 @@
 *.filters
 *.user
 
+data.txt
+test.txt
+
 [Dd]ebug/
 [Rr]elease/
 ipch/

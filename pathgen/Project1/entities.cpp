@@ -111,8 +111,7 @@ namespace entities {
 	
 	}
 
-	network _parseJsonNetworkObj(const JSONNode & n) {
-		network network;
+	void _parseJsonNetworkObj(const JSONNode & n,  network * net) {
 
 		bool symmetric;
 
@@ -129,7 +128,7 @@ namespace entities {
 
 			// find out where to store the values
 			if (node_name == "numberOfNodes"){
-				network.n_nodes = i->as_int();
+				net->n_nodes = i->as_int();
 			}
 			else if (node_name == "isSymmetric") {
 				symmetric = i->as_bool();
@@ -170,7 +169,7 @@ namespace entities {
 						k++;
 					}
 
-					network.arcs.push_back(arc);
+					net->arcs.push_back(arc);
 
 					//increment the iterator
 					++j;
@@ -182,20 +181,31 @@ namespace entities {
 		}
 
 		if(symmetric) {
-			for(int a = 0, originalSize = network.arcs.size(); a < originalSize; ++a) {
-				arc sym = network.arcs[a];
-				sym.startNode = network.arcs[a].endNode;
-				sym.endNode = network.arcs[a].startNode;
-				network.arcs.push_back(sym);
+			int originalSize = net->arcs.size();
+			for(int a = 0; a < originalSize; ++a) {
+				arc sym = net->arcs[a];
+				sym.startNode = net->arcs[a].endNode;
+				sym.endNode = net->arcs[a].startNode;
+				net->arcs.push_back(sym);
+			}
+			for(int a = 0; a < originalSize; ++a) {
+				net->arcs[a].return_arc = &net->arcs[a+originalSize];
+				net->arcs[a+originalSize].return_arc = &net->arcs[a];
+			}
+		} else {
+			int originalSize = net->arcs.size();
+			for(int i = 0; i < originalSize; ++i) {
+				for(int j = 0; j < originalSize; ++j) {
+					if(net->arcs[i].startNode == net->arcs[j].endNode &&
+						net->arcs[j].startNode == net->arcs[i].endNode)
+						net->arcs[i].return_arc = &net->arcs[j];
+						net->arcs[j].return_arc = &net->arcs[i];
+				}
 			}
 		}
-
-		return network;
 	}
 
-	dataContent _parseJsonObject(const JSONNode & n) {
-
-		dataContent data;
+	void _parseJsonObject(const JSONNode & n, dataContent * data) {
 
 		JSONNode::const_iterator i = n.begin();
 
@@ -205,21 +215,21 @@ namespace entities {
 
 			// find out where to store the values
 			if (node_name == "numCustomers"){
-				data.n_customers = i->as_int();
+				data->n_customers = i->as_int();
 			}
 			else if (node_name == "numServices"){
-				data.n_services = i->as_int();
+				data->n_services = i->as_int();
 			}
 			else if (node_name == "numProviders") {
-				data.n_providers = i->as_int();
+				data->n_providers = i->as_int();
 			}
 			else if (node_name == "network") {
-				data.network = _parseJsonNetworkObj(*i);
+				 _parseJsonNetworkObj(*i, &data->network);
 			}
 			else if (node_name == "customers") {
 				JSONNode::const_iterator j = i->begin();
 				while(j != i->end()) {
-					data.customers.push_back(_parseJsonCustomerObj(*j));
+					data->customers.push_back(_parseJsonCustomerObj(*j));
 					j++;
 				}
 			}
@@ -227,16 +237,15 @@ namespace entities {
 			//increment the iterator
 			++i;
 		}
-		return data;
 	}
 
-	dataContent loadFromJSONFile(const char * filename) {
+	void loadFromJSONFile(const char * filename, dataContent * data) {
 
 		string json = _fileAsString(filename);
 
 		JSONNode n = libjson::parse(json);
 
-		return _parseJsonObject(n);
+		_parseJsonObject(n, data);
 	}
 
 	void toMoselDataFile(const char * filename, dataContent * data) {
@@ -269,126 +278,102 @@ namespace entities {
 		}
 		myfile << "\n]";
 
-		myfile << "\n\nK_Paths: [";
-		int pathNumber = 1;
+		myfile << "\n\nY_AvailabilityReq: [\n";
 		for (int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
 			for (int j = 0; j < c->services.size(); ++j) {
-				service * s = &c->services[j];
-				myfile << "\n";
-				for (int k = 0; k < s->possible_placements.size(); ++k) {
-					placement * p = &s->possible_placements[k];
-					myfile << " [";
-					for (int l = 0; l < p->paths_up.size(); ++l) {
-						myfile << pathNumber << " ";
-						p->paths_up[l].pathNumber = pathNumber;
-						++pathNumber;
-					}
-					myfile << "]";
-				}
+				myfile << c->services[j].availability_req << " ";
 			}
 		}
 		myfile << "\n]";
 
-		myfile << "\n\nK_PathsDown: [";
+		myfile << "\n\nK_Paths: [";
+		int pathNumber = 1;
+		serviceNumber = 1;
 		for (int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
 			for (int j = 0; j < c->services.size(); ++j) {
 				service * s = &c->services[j];
-				myfile << "\n";
 				for (int k = 0; k < s->possible_placements.size(); ++k) {
 					placement * p = &s->possible_placements[k];
+					myfile << "\n (" << serviceNumber << " " << p->provider_number + 1 << ")";
 					myfile << " [";
-					for (int l = 0; l < p->paths_down.size(); ++l) {
+					for (int l = 0; l < p->paths.size(); ++l) {
 						myfile << pathNumber << " ";
-						p->paths_down[l].pathNumber = pathNumber;
+						p->paths[l].pathNumber = pathNumber;
 						++pathNumber;
 					}
 					myfile << "]";
 				}
+				++serviceNumber;
 			}
 		}
 		myfile << "\n]";
+
+		myfile << "\n\nL_PathsUsingLink: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
+			for (int j = 0; j < a->up_paths.size(); ++j) {
+				myfile << a->up_paths[j]->pathNumber << " ";
+			}
+			for (int j = 0; j < a->down_paths.size(); ++j) {
+				myfile << a->down_paths[j]->pathNumber << " ";
+			}
+			myfile << "]\n";
+		}
+		myfile << "]";
+
+		myfile << "\n\nU_PathBandwidthUsage: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			for (int j = 0; j < a->up_paths.size(); ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					  a->up_paths[j]->pathNumber << ") " << " " << a->up_paths[j]->bandwidth_usage_up;
+			}
+			for (int j = 0; j < a->down_paths.size(); ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					  a->down_paths[j]->pathNumber << ") " << " " << a->down_paths[j]->bandwidth_usage_down;
+			}
+			if(a->up_paths.size() > 0)
+				myfile << "\n";
+		}
+		myfile << "]";
+
+		
+		myfile << "\n\nD_PathAvailability: [";
+		for (int i = 0; i < data->customers.size(); ++i) {
+			for (int j = 0; j < data->customers[i].services.size(); ++j) {
+				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
+					placement * p = &data->customers[i].services[j].possible_placements[k];
+					for (int l = 0; l < p->paths.size(); ++l) {
+						myfile << p->paths[l].exp_availability << " ";
+					}
+				}
+			}
+		}
+		myfile << "]";
 
 		myfile << "\n\nC_PathCost: [";
 		for (int i = 0; i < data->customers.size(); ++i) {
 			for (int j = 0; j < data->customers[i].services.size(); ++j) {
 				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
 					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths_up.size(); ++l) {
-						myfile << p->paths_up[l].cost << " ";
-					}
-				}
-			}
-		}
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
-					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths_down.size(); ++l) {
-						myfile << p->paths_down[l].cost << " ";
+					for (int l = 0; l < p->paths.size(); ++l) {
+						myfile << p->paths[l].cost << " ";
 					}
 				}
 			}
 		}
 		myfile << "]";
 
-		myfile << "\n\nL_PathsUsingLink: [";
-		for (int i = 0; i < data->network.arcs.size(); ++i) {
-			arc* a = &data->network.arcs[i];
-			myfile << "\n(" << a->startNode +1 << " " << a->endNode +1 << ") [";
-			for (int j = 0; j < a->paths.size(); ++j) {
-				myfile << a->paths[j]->pathNumber << " ";
-			}
-			myfile << "]";
+		myfile << "\n\nD_CombinationAvailability: [\n";
+		for (int i = 0; i < data->pathCombos.size(); ++i) {
+			pathCombo * combo = &data->pathCombos[i];
+			myfile << " ("  << combo->a->pathNumber << " " << combo->b->pathNumber << ") " << combo->exp_b_given_a;
 		}
-		myfile << "]";
+		myfile << "\n]";
 
-		myfile << "\n\nU_PathBandwidthUsage: [";
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
-					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths_up.size(); ++l) {
-						myfile << p->paths_up[l].bandwidth_usage << " ";
-					}
-				}
-			}
-		}
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
-					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths_down.size(); ++l) {
-						myfile << p->paths_down[l].bandwidth_usage << " ";
-					}
-				}
-			}
-		}
-		myfile << "]";
-
-		myfile << "\n\nJ_PathLatency: [";
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
-					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths_up.size(); ++l) {
-						myfile << p->paths_up[l].latency << " ";
-					}
-				}
-			}
-		}
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
-					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths_down.size(); ++l) {
-						myfile << p->paths_down[l].latency << " ";
-					}
-				}
-			}
-		}
-		myfile << "]";
 
 		myfile << "\n\nG_LatencyReq: [";
 		for (int i = 0; i < data->customers.size(); ++i) {
@@ -402,6 +387,13 @@ namespace entities {
 		for (int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			myfile << " (" << a->startNode +1 << " " << a->endNode + 1 << ") " << a->bandwidth_cap;
+		}
+		myfile << "]";
+
+		myfile << "\n\nC_BackupCost: [";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode + 1 << ") " << a->bandwidth_price;
 		}
 		myfile << "]";
 

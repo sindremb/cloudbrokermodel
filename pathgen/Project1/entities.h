@@ -9,7 +9,7 @@ namespace entities {
 	struct path;
 
 	typedef struct arc ARC;
-	typedef struct path PATH;
+	typedef struct returnPath RETURN_PATH;
 	
 	struct arc {
 		int startNode;
@@ -20,11 +20,15 @@ namespace entities {
 		int bandwidth_price;
 		double exp_availability;
 
-		std::vector<PATH*> paths;
+		arc * return_arc;
+
+		std::vector<RETURN_PATH*> up_paths;
+		std::vector<RETURN_PATH*> down_paths;
 	};
 
-	struct path {
-		int bandwidth_usage;
+	struct returnPath {
+		int bandwidth_usage_up;
+		int bandwidth_usage_down;
 		int latency;
 
 		int startNode;
@@ -32,11 +36,21 @@ namespace entities {
 
 		int cost;
 
+		double exp_availability;
+
 		int pathNumber;
 
 		std::vector<bool> visitedNodes;
 
-		std::vector<ARC*> arcs;
+		std::vector<ARC*> arcs_up;
+		std::vector<ARC*> arcs_down;
+	};
+
+	struct pathCombo {
+		returnPath * a;
+		returnPath * b;
+
+		double exp_b_given_a;
 	};
 
 	struct network {
@@ -49,8 +63,7 @@ namespace entities {
 	struct placement {
 		int price;
 		int provider_number;
-		std::vector<path> paths_up;
-		std::vector<path> paths_down;
+		std::vector<RETURN_PATH> paths;
 	};
 
 	struct service {
@@ -74,10 +87,12 @@ namespace entities {
 
 		network network;
 
+		std::vector<pathCombo> pathCombos;
+
 		std::vector<customer> customers;
 	};
 
-	dataContent loadFromJSONFile(const char *);
+	void loadFromJSONFile(const char *, dataContent *);
 
 	void toMoselDataFile(const char *, dataContent *);
 }

@@ -25,7 +25,8 @@ int main()
 			cin >> inputfilename;
 
 			// STEP 1: import data
-			dataContent data = loadFromJSONFile(inputfilename.c_str());
+			dataContent data;
+			loadFromJSONFile(inputfilename.c_str(), &data);
 
 			string outputfilename;
 			cout << "\nJSON data loaded..\n\nEnter filename for storing generated data and press enter to start path generation: ";

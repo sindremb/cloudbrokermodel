@@ -9,62 +9,73 @@ namespace pathgen {
 	using namespace entities;
 	using namespace std;
 
-	vector<path> _generatePathsForNodePair(int startNode, int endNode, int maxLatency, int bandwidth, vector<vector<arc*>> * nodeArcs, int start_cost = 0)
-	{
-		path initial;
-		initial.startNode = startNode;
-		initial.endNode = startNode;
-		initial.latency = 0;
-		initial.bandwidth_usage = bandwidth;
-		initial.cost = start_cost;
-		initial.visitedNodes.resize(nodeArcs->size(), false);
-		initial.visitedNodes[startNode] = true;
+	void _expandPathWithArc(returnPath * path, arc * a) {
+		path->endNode = a->endNode;
+		path->cost += a->bandwidth_price * path->bandwidth_usage_up 
+			+ a->return_arc->bandwidth_price * path->bandwidth_usage_down;
+		path->exp_availability *= a->exp_availability;
+		path->latency += a->latency + a->return_arc->latency;
+		path->arcs_up.push_back(a);
+		path->arcs_down.push_back(a->return_arc);
+		path->visitedNodes[a->endNode] = true;
+	}
 
-		vector<path> incomplete;
-		vector<path> complete;
+	vector<returnPath> _generateReturnPathsForNodePair(int start_node, int end_node, int max_latency, int bandwidth_up, int bandwidth_down, vector<vector<arc*>> * node_arcs, int start_cost = 0)
+	{
+		returnPath initial;
+		initial.startNode = start_node;
+		initial.endNode = start_node;
+		initial.latency = 0;
+		initial.exp_availability = 1;
+		initial.bandwidth_usage_up = bandwidth_up;
+		initial.bandwidth_usage_down = bandwidth_down;
+		initial.cost = start_cost;
+		initial.visitedNodes.resize(node_arcs->size(), false);
+		initial.visitedNodes[start_node] = true;
+
+		vector<returnPath> incomplete;
+		vector<returnPath> complete;
+
 		incomplete.push_back(initial);
 
 		int i = 0;
 		while(incomplete.size() > i) {
-			path * cpath = &incomplete[i];
+			// current: copy of first path in list
+			returnPath current = incomplete[i];
 
 			// current path has reached destination
-			if(cpath->endNode == endNode) {
-				complete.push_back(*cpath);
+			if(current.endNode == end_node) {
+				complete.push_back(current);
 				++i;
 				continue;
 			}
 
-			// arc data from current node
-			vector<arc*> * arcs = &nodeArcs->at(cpath->endNode);
+			// arcs starting from last node of current path
+			vector<arc*> * arcs = &node_arcs->at(current.endNode);
 
 			// for each arc, expand current path or spawn new paths (if more than one possibility for expansion)
 			bool path_expanded = false;
 			for(int j = 0; j < arcs->size(); ++j) {
-				arc * a = arcs->at(j);
-				// expansion feasibility check for arc
-				if( cpath->visitedNodes.at(a->endNode) || 
-					(a->latency > (maxLatency - cpath->latency)) ||
-					(a->bandwidth_cap <= cpath->bandwidth_usage))
+				// shorthands for current arc and its return arc
+				arc * a_up = arcs->at(j);
+				arc * a_down = a_up->return_arc;
+
+				// expansion non-feasibility check for arc
+				if( current.visitedNodes.at(a_up->endNode) ||								// arc leads to already visited node
+					(a_up->latency + a_down->latency > max_latency - current.latency) ||	// including path incurs to much latency
+					(a_up->bandwidth_cap <= current.bandwidth_usage_up) ||					// current arc does not have enough capacity for upstream
+					(a_down->bandwidth_cap <= current.bandwidth_usage_down))				// return arc does not have enough capacity for downstream
 					continue;
 				
-				// if current already expanded -> spawn new incomplete path from original
+				// if current already expanded once -> spawn new incomplete path from current copy
 				if(path_expanded) {
-					path newPath = *cpath;
-					newPath.endNode = a->endNode;
-					newPath.cost += a->bandwidth_price * newPath.bandwidth_usage;
-					newPath.arcs.push_back(a);
-					newPath.visitedNodes[newPath.endNode] = true;
-					incomplete.push_back(newPath);
-					cpath = &incomplete[i]; // push_back creates new array -> new mem location
+					returnPath newPath = current;	// copy of original
+					_expandPathWithArc(&newPath, a_up);	// expand new copy with arc
+					incomplete.push_back(newPath);	// add new path to incomplete list
 				}
-				// expand current
+				// expand current in place
 				else {
-					cpath->latency += a->latency;
-					cpath->endNode = a->endNode;
-					cpath->cost += a->bandwidth_price * cpath->bandwidth_usage;
-					cpath->visitedNodes[cpath->endNode] = true;
-					cpath->arcs.push_back(a);
+					_expandPathWithArc(&incomplete[i], a_up);
 					path_expanded = true;
 				}
 			}
@@ -73,9 +84,38 @@ namespace pathgen {
 				++i;
 			}
 		}
-		cout << "\n - # generated paths: " << complete.size();
-		cout << "\n - # skipped due to latency/loop req: " << incomplete.size() - complete.size();
+		cout << "\n - # generated (incomplete paths): " << complete.size() << " (" << incomplete.size() - complete.size() << ")";
 		return complete;
+	}
+
+	pathCombo _pathComboForPaths(returnPath * a, returnPath * b) {
+		pathCombo combo;
+		combo.a = a;
+		combo.b = b;
+		combo.exp_b_given_a = a->exp_availability;
+
+		// calculate prop b up given a up
+		vector<arc*> unique;
+
+		for(int i = 0; i < b->arcs_up.size(); ++i) {
+			arc * anarc = b->arcs_up[i];
+			bool found = false;
+			for(int j = 0; j < b->arcs_up.size(); ++j) {
+				if(anarc == b->arcs_up[j]) {
+					found = true;
+					break;
+				}
+			}
+			if(!found) {
+				unique.push_back(anarc);
+			}
+		}
+
+		for(int i = 0; i < unique.size(); ++i) {
+			combo.exp_b_given_a *= unique[i]->exp_availability;
+		}
+
+		return combo;
 	}
 
 	void generatePaths(dataContent * data) {
@@ -101,52 +141,33 @@ namespace pathgen {
 				for (int p = 0; p < se->possible_placements.size(); ++p)
 				{
 					placement * placement = &se->possible_placements[p];
-					cout << "\n Service #" << serviceNumber << ", provider #" << placement->provider_number;
+					cout << "\n- Service #" << serviceNumber << ", Provider #" << placement->provider_number;
 					int providerNode = data->network.n_nodes - data->n_providers + placement->provider_number;
 					
 					// --- generate all feasible paths
 					
 					// CUSTOMER -> PLACEMENT
 					// generate paths
-					cout << "\n -From node " << customerNode << " to " << providerNode;
-					placement->paths_up = _generatePathsForNodePair(customerNode, providerNode,
-						se->latency_req, se->bandwidth_req_up, &nodeArcs, placement->price);
-					// find min latency for up-paths (for max latency down paths)
-					int min_up_latency = se->latency_req;
-					for (int ipath = 0; ipath < placement->paths_up.size(); ++ipath)
-					{
-						if(placement->paths_up[ipath].latency < min_up_latency) {
-							min_up_latency = placement->paths_up[ipath].latency;
+					placement->paths = _generateReturnPathsForNodePair(
+						customerNode, providerNode, se->latency_req, 
+						se->bandwidth_req_up, se->bandwidth_req_down,
+						&nodeArcs, placement->price
+					);
+
+					// Register paths at their used arcs
+					for (int ipath = 0; ipath < placement->paths.size(); ++ipath) {
+						for (int iarc = 0; iarc < placement->paths[ipath].arcs_up.size(); ++iarc) {
+							placement->paths[ipath].arcs_up[iarc]->up_paths.push_back(&placement->paths[ipath]);
+						}
+						for (int iarc = 0; iarc < placement->paths[ipath].arcs_down.size(); ++iarc) {
+							placement->paths[ipath].arcs_down[iarc]->down_paths.push_back(&placement->paths[ipath]);
 						}
 					}
 
-					// PLACMENT -> CUSTOMER
-					// generate paths (with stricter latency req from above)
-					cout << "\n -From node " << providerNode << " to " << customerNode;
-					placement->paths_down = _generatePathsForNodePair(providerNode, customerNode, se->latency_req - min_up_latency,
-						se->bandwidth_req_down, &nodeArcs);
-
-					// PURGE: remove any infeasible up paths from new minimum down latency
-					// - find min down latency
-					int min_down_latency = se->latency_req - min_up_latency;
-					for (int ipath = 0; ipath < placement->paths_down.size(); ++ipath)
-					{
-						if (placement->paths_down[ipath].latency < min_down_latency) {
-							min_down_latency = placement->paths_down[ipath].latency;
-						}
-					}
-					// - perform purge
-					// TODO: implement infeasible up path purge
-
-					// Register remaining paths at their arcs used
-					for (int ipath = 0; ipath < placement->paths_up.size(); ++ipath) {
-						for (int iarc = 0; iarc < placement->paths_up[ipath].arcs.size(); ++iarc) {
-							placement->paths_up[ipath].arcs[iarc]->paths.push_back(&placement->paths_up[ipath]);
-						}
-					}
-					for (int ipath = 0; ipath < placement->paths_down.size(); ++ipath) {
-						for (int iarc = 0; iarc < placement->paths_down[ipath].arcs.size(); ++iarc) {
-							placement->paths_down[ipath].arcs[iarc]->paths.push_back(&placement->paths_down[ipath]);
+					// calculate combo availability
+					for (int apath = 0; apath < placement->paths.size(); ++apath) {
+						for (int bpath = 0; bpath < placement->paths.size(); ++bpath) {
+							data->pathCombos.push_back(_pathComboForPaths(&placement->paths[apath], &placement->paths[bpath]));
 						}
 					}
 				}
@@ -154,8 +175,6 @@ namespace pathgen {
 			}
 			++customerNode;
 		}
-		
-		
 		return;
 	}
 
