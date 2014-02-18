@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.21005.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Project1", "Project1\Project1.vcxproj", "{DA1494B5-6E5B-4687-88AC-F4929B80A045}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libjson", "libjson\libjson.vcxproj", "{1E4709E9-560B-4117-9EBD-5F8A4D8E05FC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DA1494B5-6E5B-4687-88AC-F4929B80A045}.Debug|Win32.ActiveCfg = Debug|Win32
+		{DA1494B5-6E5B-4687-88AC-F4929B80A045}.Debug|Win32.Build.0 = Debug|Win32
+		{DA1494B5-6E5B-4687-88AC-F4929B80A045}.Release|Win32.ActiveCfg = Release|Win32
+		{DA1494B5-6E5B-4687-88AC-F4929B80A045}.Release|Win32.Build.0 = Release|Win32
+		{1E4709E9-560B-4117-9EBD-5F8A4D8E05FC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{1E4709E9-560B-4117-9EBD-5F8A4D8E05FC}.Debug|Win32.Build.0 = Debug|Win32
+		{1E4709E9-560B-4117-9EBD-5F8A4D8E05FC}.Release|Win32.ActiveCfg = Release|Win32
+		{1E4709E9-560B-4117-9EBD-5F8A4D8E05FC}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

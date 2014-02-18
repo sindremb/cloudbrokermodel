@@ -1,0 +1,113 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="JSONOptions.h" />
+    <ClInclude Include="libjson.h" />
+    <ClInclude Include="_internal\Source\internalJSONNode.h" />
+    <ClInclude Include="_internal\Source\JSONAllocator.h" />
+    <ClInclude Include="_internal\Source\JSONChildren.h" />
+    <ClInclude Include="_internal\Source\JSONDebug.h" />
+    <ClInclude Include="_internal\Source\JSONDefs.h" />
+    <ClInclude Include="_internal\Source\JSONDefs\GNU_C.h" />
+    <ClInclude Include="_internal\Source\JSONDefs\Strings_Defs.h" />
+    <ClInclude Include="_internal\Source\JSONDefs\Unknown_C.h" />
+    <ClInclude Include="_internal\Source\JSONDefs\Visual_C.h" />
+    <ClInclude Include="_internal\Source\JSONGlobals.h" />
+    <ClInclude Include="_internal\Source\JSONMemory.h" />
+    <ClInclude Include="_internal\Source\JSONMemoryPool.h" />
+    <ClInclude Include="_internal\Source\JSONNode.h" />
+    <ClInclude Include="_internal\Source\JSONPreparse.h" />
+    <ClInclude Include="_internal\Source\JSONSharedString.h" />
+    <ClInclude Include="_internal\Source\JSONSingleton.h" />
+    <ClInclude Include="_internal\Source\JSONStats.h" />
+    <ClInclude Include="_internal\Source\JSONStream.h" />
+    <ClInclude Include="_internal\Source\JSONValidator.h" />
+    <ClInclude Include="_internal\Source\JSONWorker.h" />
+    <ClInclude Include="_internal\Source\JSON_Base64.h" />
+    <ClInclude Include="_internal\Source\NumberToString.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="_internal\Source\internalJSONNode.cpp" />
+    <ClCompile Include="_internal\Source\JSONAllocator.cpp" />
+    <ClCompile Include="_internal\Source\JSONChildren.cpp" />
+    <ClCompile Include="_internal\Source\JSONDebug.cpp" />
+    <ClCompile Include="_internal\Source\JSONIterators.cpp" />
+    <ClCompile Include="_internal\Source\JSONMemory.cpp" />
+    <ClCompile Include="_internal\Source\JSONNode.cpp" />
+    <ClCompile Include="_internal\Source\JSONNode_Mutex.cpp" />
+    <ClCompile Include="_internal\Source\JSONPreparse.cpp" />
+    <ClCompile Include="_internal\Source\JSONStream.cpp" />
+    <ClCompile Include="_internal\Source\JSONValidator.cpp" />
+    <ClCompile Include="_internal\Source\JSONWorker.cpp" />
+    <ClCompile Include="_internal\Source\JSONWriter.cpp" />
+    <ClCompile Include="_internal\Source\libjson.cpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{1E4709E9-560B-4117-9EBD-5F8A4D8E05FC}</ProjectGuid>
+    <RootNamespace>libjson</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v100</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v100</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

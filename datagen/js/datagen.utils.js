@@ -575,7 +575,7 @@ Datagen.utils.generateData = function (genConfig, main) {
 		var node = new NodeViewModel(network, neighbour.x() -25 + Math.floor(Math.random()*50),
 			neighbour.y() -25 + Math.floor(Math.random()*50), genConfig.numNodeLevels()+1);
 		network.nodes.push(node);
-		network.leasableArcs.push(Datagen.utils._arcForNodes(neighbour, node, genConfig));
+		network.arcs.push(Datagen.utils._arcForNodes(neighbour, node, genConfig));
     }
 
     // STEP 4: Map services to eligible providers
