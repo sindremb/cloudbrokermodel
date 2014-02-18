@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'smallpathA.txt';
+	Data = 'big.txt';
 end-parameters
 
 declarations
@@ -212,7 +212,7 @@ end-do
 
 ! USE PATH CONSTRAINTS
 forall(cc in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+	forall(ss in S_ServiceForCustomer(cc), pp in Providers | exists(K_Paths(ss,pp))) do
 		UsePath(ss,pp) := sum(kk in K_Paths(ss,pp)) u_UsePath(kk) - x_Placement(ss,pp) =0;
 	end-do
 end-do
@@ -229,7 +229,7 @@ end-do
 end-do!)
 
 forall(cc in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+	forall(ss in S_ServiceForCustomer(cc), pp in Providers | exists(K_Paths(ss,pp))) do
 	PathAvailability(ss,pp) := sum(kk in K_Paths(ss,pp)) (v_UseBackupPath(kk) + u_UsePath(kk))*D_PathAvailability(kk) 
 	- sum(kk in K_Paths(ss,pp), bb in K_Paths(ss,pp)) o_UseCombination(kk,bb)*D_CombinationAvailability(kk,bb)
 	>= Y_AvailabilityReq(ss)* y_Serve(cc);
@@ -237,18 +237,18 @@ forall(cc in Customers) do
 end-do
 
 
-forall( nn in Nodes, mm in Nodes) do
+forall( nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 	TotalBackup(nn,mm) := 0.3* sum(kk in L_PathsUsingLink(nn,mm))v_UseBackupPath(kk)*U_PathBandwidthUsage(nn,mm,kk) <= l_Lambda(nn,mm);
 end-do
 
-forall(nn in Nodes, mm in Nodes) do
+forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 	forall(kk in L_PathsUsingLink(nn,mm)) do
 		MaximumBackup(nn,mm,kk) := U_PathBandwidthUsage(nn,mm,kk)*v_UseBackupPath(kk) <= l_Lambda(nn,mm);
 	end-do
 end-do
 
 forall(cc in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+	forall(ss in S_ServiceForCustomer(cc), pp in Providers| exists(K_Paths(ss,pp))) do
 		forall(kk in K_Paths(ss,pp), bb in K_Paths(ss,pp)) do
 		BackupRequirement(ss,pp,kk,bb) := u_UsePath(kk) + v_UseBackupPath(bb) - 1 <= o_UseCombination(kk,bb);
 		end-do
@@ -256,7 +256,7 @@ forall(cc in Customers) do
 end-do
 
 forall(cc in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+	forall(ss in S_ServiceForCustomer(cc), pp in Providers| exists(K_Paths(ss,pp))) do
 		forall(bb in K_Paths(ss,pp)) do
 		BackupCombination(ss,pp,bb) := v_UseBackupPath(bb) = sum(kk in K_Paths(ss,pp)) o_UseCombination(kk,bb);
 		end-do
