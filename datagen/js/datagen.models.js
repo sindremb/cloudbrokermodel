@@ -2,8 +2,8 @@
 function DataModel(datavm) {
 
 	this.numCustomers = datavm.numCustomers();
-    this.numServices = datavm.numCustomers();
-    this.numProviders = datavm.numCustomers();
+    this.numServices = datavm.numServices();
+    this.numProviders = datavm.numProviders();
 	
     this.network = new NetworkModel(datavm.network());
 	
@@ -59,9 +59,8 @@ function CustomerModel(customervm) {
 function ServiceModel(servicevm) {
 
     this.bandwidthRequirementUp = servicevm.bandwidthRequirementUp();
-    this.latencyRequirementUp = servicevm.latencyRequirementUp();
     this.bandwidthRequirementDown = servicevm.bandwidthRequirementDown();
-    this.latencyRequirementDown = servicevm.latencyRequirementDown();
+    this.latencyRequirement = servicevm.latencyRequirement();
 	
 	this.availabilityRequirement = servicevm.availabilityRequirement();
 

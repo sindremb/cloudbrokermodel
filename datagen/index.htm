@@ -61,8 +61,7 @@
 		- Requirements <br />
 		-- Bandwidth  (UPLINK) : <input type="text" data-bind="value: bandwidthRequirementUp" size="5" /><br />
 		-- Bandwidth  (DOWNLINK) : <input type="text" data-bind="value: bandwidthRequirementDown" size="5" /><br />
-		-- Latency (UPLINK) : <input type="text" data-bind="value: latencyRequirementUp" size="5" /><br />
-		-- Latency (DOWNLINK) : <input type="text" data-bind="value: latencyRequirementDown" size="5" /><br />
+		-- Latency : <input type="text" data-bind="value: latencyRequirement" size="5" /><br />
 		-- Availability : <input type="text" data-bind="value: availabilityRequirement" size="5" /><br />
 	</div>
 	-- Possible Placements:
@@ -107,6 +106,8 @@ Select two nodes to add an arc between.
     Number of providers: <input type="text" data-bind="value: generationConfig().numberOfProviders" /><br />
     Max number of services per customer: <input type="text" data-bind="value: generationConfig().maxNumberOfServicesPerCustomer" /><br />
     Proportion of eligible providers: <input type="text" data-bind="value: generationConfig().proportionEligibleProviders" /><br />
+	Avg arc latency: <input type="text" data-bind="value: generationConfig().avgArcLatency" /><br />
+	Avg. service latency requirement: <input type="text" data-bind="value: generationConfig().avgServiceLatencyReq" /><br />
 	<span data-bind="click: function(){$('#genConfigs, #showconfigbutton').toggle()}">^ hide ^</span>
 </div>
 
@@ -124,7 +125,7 @@ Select two nodes to add an arc between.
 	</div>
 </div>
 <div class="visualisationContainer">
-    <svg height="500" width="800" data-bind="click : function(d, e) {$data.mapclick(e);}">
+    <svg id="networksvg" height="500" width="800" data-bind="click : function(d, e) {$data.mapclick(e);}">
 		<g data-bind="foreach: dataVM().network().arcs">
 			<line 
 				data-bind="
@@ -158,6 +159,12 @@ Select two nodes to add an arc between.
 					click: function(d, e) {toggleSelect(e);}
 				" 
 				stroke="black" stroke-width="3" />
+			<text data-bind="
+					attr: { 
+						x: x()+8, y: y()+8, 
+					},
+					text: nodeNumber()
+				" fill="black" style="font-size: 10px"></text>
 		</g>
 		Sorry, your browser does not support inline SVG.  
 	</svg> 

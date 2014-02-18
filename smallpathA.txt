@@ -9,6 +9,7 @@ n_Services: 5	! number of services in total
 n_Providers: 2	! number of providers
 n_Nodes: 10		! number of nodes in total (customer, internal and provider nodes)
 n_Paths: 54		! number of paths generated
+n_BackupPaths: 10	! number of generated backup paths
 
 Symmetric: false ! indicates wether or not arc provided in dataset goes both ways
 
@@ -62,6 +63,13 @@ U_PathBandwidthUsage: [
 	49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 29 39 49
 	]
 
+J_PathLatency: [10	20	3	4	10	10	7	80	10	10	10	20	3	6	5	4	10	2	3	4	5	60	7	8	10	10	10	20	30	6	5	4
+	10	2	3	4	5	6	7	10	10	10	10	20	30	6	5	4	5	5	5	5	5	5
+	]
+
+
+G_LatencyReq: [
+	100	20	50	80	10]
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Network data
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -83,3 +91,14 @@ F_BandwidthCap: [
 	(10 7) 50	(10 8) 50
 ]
 
+
+D_PathAvailability: [
+	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	
+	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+	]
+D_BackupPathAvailability:[
+	1	1	1	1	1	1	1	1	1	1	]
+
+Y_AvailabilityReq: [
+	0.89	0.97	0.99	0.9	0.99
+]

@@ -32,6 +32,7 @@ declarations
 	n_Providers:			integer; ! number of providers
 	n_Nodes:				integer; ! number of nodes in total
 	n_Paths:				integer; ! number of paths
+	n_BackupPaths:			integer; ! number of backup paths
 	
 ! Sets	
 	Customers:				set of integer; 
@@ -44,6 +45,8 @@ declarations
 	
 	Paths:					set of integer; 
 	
+	BackupPaths:			set of integer;
+	
 end-declarations
 
 initializations from Data
@@ -52,6 +55,7 @@ initializations from Data
 	n_Providers;
 	n_Nodes;
 	n_Paths;
+	n_BackupPaths;
 end-initializations
 	
 Customers:= 1..n_Customers;
@@ -59,12 +63,14 @@ Services:= 1..n_Services;
 Providers:= 1..n_Providers;
 Nodes:= 1..n_Nodes;
 Paths := 1..n_Paths;
+BackupPaths := 1..n_BackupPaths;
 
 finalize(Customers);
 finalize(Services);
 finalize(Providers);
 finalize(Nodes);
 finalize(Paths);
+finalize(BackupPaths);
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Parameters
@@ -87,6 +93,13 @@ declarations
 	
 	S_ServiceForCustomer:		set of set of integer; 
 	
+	J_PathLatency:				dynamic array(Paths)				of real;
+	
+	G_LatencyReq:				dynamic array(Services)				of real;
+	
+	D_PathAvailability:			dynamic array(Paths)				of real;
+	D_BackupPathAvailability:	dynamic array(BackupPaths)			of real;
+	Y_AvailabilityReq:			dynamic array(Services)				of real;
 	Symmetric:				boolean;
 
 end-declarations
@@ -101,6 +114,12 @@ initialisations from Data
 	U_PathBandwidthUsage;
 	C_PathCost;
 	S_ServiceForCustomer;
+	J_PathLatency;
+	G_LatencyReq;
+	D_PathAvailability;
+	D_BackupPathAvailability;
+	Y_AvailabilityReq;
+	Symmetric;
 end-initialisations
 
 if(Symmetric) then
@@ -120,6 +139,8 @@ declarations
 	y_Serve:			dynamic array (Customers)						of mpvar;
 	! - u: binary, indicates which paths are used
 	u_UsePath:			dynamic array (Paths)							of mpvar; 
+	! - v: binary, indicated which backup paths are used
+	v_UseBackupPath:	dynamic array(BackupPaths)						of mpvar;
 end-declarations
 
 ! - for all combinations of service and provider
@@ -139,6 +160,12 @@ forall(pp in Paths) do
 	u_UsePath(pp) is_binary;
 end-do
 
+forall (bb in BackupPaths) do
+	create(v_UseBackupPath(bb));
+	v_UseBackupPath(bb) is_binary;
+end-do
+
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! CONSTRAINTS
@@ -153,6 +180,8 @@ declarations
 	UsePath:						dynamic array(Services,Providers)			of linctr;
 	UsePathDown:					dynamic array(Services,Providers)			of linctr;
 	PathArcBandwidth:				dynamic array(Nodes,Nodes)					of linctr;
+	PathLatency:					dynamic array(Services,Providers)			of linctr;
+	PathAvailability:				dynamic array(Services,Providers)			of linctr;
 end-declarations
 
 
@@ -186,6 +215,28 @@ forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 	PathArcBandwidth(nn,mm) := sum(kk in L_PathsUsingLink(nn,mm)) U_PathBandwidthUsage(kk)*u_UsePath(kk);
 end-do
 
+
+forall(cc in Customers) do
+	forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+	PathLatency(ss,pp) := sum(kk in K_Paths(ss,pp)) u_UsePath(kk)*J_PathLatency(kk) + sum(kk in K_PathsDown(ss,pp)) u_UsePath(kk)*J_PathLatency(kk) <=G_LatencyReq(ss);
+	end-do
+end-do
+
+forall(cc in Customers) do
+	forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+	PathAvailability(ss,pp) := sum(kk in K_Paths(ss,pp)) u_UsePath(kk)*ln(D_PathAvailability(kk)) +sum(kk in K_PathsDown(ss,pp)) u_UsePath(kk)*ln(D_PathAvailability(kk)) + sum(bb in BackupPaths) v_UseBackupPath(bb)* ln(D_BackupPathAvailability(bb))>= ln(Y_AvailabilityReq(ss))* sum(kk in K_Paths(ss,pp)) u_UsePath(kk);
+	end-do
+end-do
+
+
+
+
+
+
+
+
+
+
 writeln("Model building completed in ", timestamp - timetracker, " seconds");
 
 writeln("Solving model...");
@@ -209,17 +260,17 @@ forall(cc in Customers) do
 			R_Revenue(cc)*getsol(y_Serve(cc)));
 		forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
 			if(getsol(x_Placement(ss,pp)) > 0.1) then
-			writeln("  - Service ",ss," is placed at provider ",pp);
+			writeln("  - Service ",ss," is placed at provider ",pp,"	(latency req: ",G_LatencyReq(ss),")");
 			write("	  - Path up: ");
 				forall(kk in K_Paths(ss,pp)) do
 					if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln(kk," , cost: ",C_PathCost(kk));
+					writeln(kk," , cost: ",C_PathCost(kk)," , latency: ",J_PathLatency(kk));
 					end-if
 				end-do
 			write("	  - Path down: ");
 				forall(kk in K_PathsDown(ss,pp)) do
 					if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln(kk," , cost: ",C_PathCost(kk));
+					writeln(kk," , cost: ",C_PathCost(kk)," , latency: ",J_PathLatency(kk));
 					end-if
 				end-do
 			end-if

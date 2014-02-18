@@ -95,11 +95,15 @@ function MainViewModel() {
 		this.selectedObjects.removeAll();
 	}
 	
-	this.mapclick = function(e) {
+	this.mapclick = function(e, containerId) {
 		if(this.mode() == 'view' || this.mode() == 'edit' || this.mode() == 'addarc') {
 			this.selectedObjects.removeAll();
 		} else if(this.mode() == 'addnode') {
-			this.dataVM().network().addInternalNodeForLocation(e.offsetX, e.offsetY);
+			console.log(e, $(e.target).offset().left, $(e.target).offset().top);
+			this.dataVM().network().addInternalNodeForLocation(
+				(e.offsetX !== undefined) ? e.offsetX : (e.pageX-$(e.target).offset().left),
+				(e.offsetY !== undefined) ? e.offsetY : (e.pageY-$(e.target).offset().top)
+			);
 		}
 		e.cancelBubble = true;
 			if (e.stopPropagation) e.stopPropagation();
@@ -148,6 +152,8 @@ function GenerationConfigViewModel() {
     this._maxNumberOfServicesPerCustomer = ko.observable(3);
     this._numberOfProviders = ko.observable(10);
     this._proportionEligibleProviders = ko.observable(0.5);
+	this._avgArcLatency = ko.observable(5);
+	this._avgServiceLatencyReq = ko.observable(70);
 	
 	this.numNodeLevels = ko.computed({
 		read : function() { return this._numNodeLevels(); },
@@ -244,6 +250,31 @@ function GenerationConfigViewModel() {
 			},
 		owner : this
 	});
+	this.avgArcLatency = ko.computed({
+		read : function() { return this._avgArcLatency(); },
+		write : function(value) { var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._avgArcLatency(numval)
+				}
+				else {
+					console.log('failed to set "proportionEligibleProviders" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.avgServiceLatencyReq = ko.computed({
+		read : function() { return this._avgServiceLatencyReq(); },
+		write : function(value) { var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._avgServiceLatencyReq(numval)
+				}
+				else {
+					console.log('failed to set "proportionEligibleProviders" to', value);
+				}
+			},
+		owner : this
+	});
 }
 
 // Main viewmodel class
@@ -303,7 +334,7 @@ function NetworkViewModel(dataVM) {
 	}
 	
 	this.addArcForNodes = function(nodeFrom, nodeTo) {
-		this.arcs.push(Datagen.utils._arcForNodes(nodeFrom, nodeTo));
+		this.arcs.push(Datagen.utils._arcForNodes(nodeFrom, nodeTo, dataVM.main.generationConfig()));
 	}
 	
 	this.insertNodeAsInternal = function (node) {
@@ -495,20 +526,19 @@ function CustomerViewModel(dataVM, revenue) {
 	
 	this.addService = function() {
 		this.services.push(new ServiceViewModel(
-			this.dataVM, 20, 100, 20, 100, 0.95
+			this.dataVM, 20, 20, 100, 0.95
 		));
 	}
 }
 
 // Service viewmodel class
-function ServiceViewModel(dataVM, bandwidthReq, latencyReq, bandwidthReqDown, latencyReqDown, availabilityReq) {
+function ServiceViewModel(dataVM, bandwidthReq, bandwidthReqDown, latencyReq, availabilityReq) {
     this.dataVM = dataVM;
     this.dataVM.services.push(this);
 
     this.bandwidthRequirementUp = ko.observable(bandwidthReq);
-    this.latencyRequirementUp = ko.observable(latencyReq);
     this.bandwidthRequirementDown = ko.observable(bandwidthReqDown);
-    this.latencyRequirementDown = ko.observable(latencyReqDown);
+    this.latencyRequirement = ko.observable(latencyReq);
 	this.availabilityRequirement = ko.observable(availabilityReq)
 
     this.placements = ko.observableArray();
