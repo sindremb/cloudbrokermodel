@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'small.txt';
+	Data = 'mdata.txt';
 end-parameters
 
 declarations
@@ -288,7 +288,7 @@ forall(cc in Customers) do
 		! output served customer and generated profits for customer
 		writeln("\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
 			R_Revenue(cc)*getsol(y_Serve(cc)));
-		forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
+		forall(ss in S_ServiceForCustomer(cc), pp in Providers | exists(K_Paths(ss,pp))) do
 			if(getsol(x_Placement(ss,pp)) > 0.1) then
 			writeln("  - Service ",ss," is placed at provider ",pp);
 			write("	  - Path up: ");
