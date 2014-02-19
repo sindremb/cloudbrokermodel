@@ -26,7 +26,9 @@ function MainViewModel() {
 	// creates a new dataVM from the provided mosel data string
 	this.parseMoselData = function (data) {
 		var dataObj = Datagen.utils.parseMoselData(data);
+		this.selectedObjects.removeAll();
 		this.dataVM(Datagen.utils.networkFromDataObject(dataObj, this));
+		
 	}
 
 	// generates a new random dataVM according to current configuration
@@ -99,7 +101,6 @@ function MainViewModel() {
 		if(this.mode() == 'view' || this.mode() == 'edit' || this.mode() == 'addarc') {
 			this.selectedObjects.removeAll();
 		} else if(this.mode() == 'addnode') {
-			console.log(e, $(e.target).offset().left, $(e.target).offset().top);
 			this.dataVM().network().addInternalNodeForLocation(
 				(e.offsetX !== undefined) ? e.offsetX : (e.pageX-$(e.target).offset().left),
 				(e.offsetY !== undefined) ? e.offsetY : (e.pageY-$(e.target).offset().top)
@@ -385,9 +386,51 @@ function NodeViewModel(network, x, y, level) {
 	
     this.network = network;
 
-    this.x = ko.observable(x);
-    this.y = ko.observable(y);
-	this.level = ko.observable(level);
+    this._x = ko.observable(x);
+    this._y = ko.observable(y);
+	this._level = ko.observable(level);
+	
+	this.x = ko.computed({
+		read : function() { return this._x(); },
+		write : function(value) {
+				var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._x(numval)
+				}
+				else {
+					console.log('[NodeViewModel] failed to set "x" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.y = ko.computed({
+		read : function() { return this._y(); },
+		write : function(value) {
+				var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._y(numval)
+				}
+				else {
+					console.log('[NodeViewModel] failed to set "y" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.level = ko.computed({
+		read : function() { return this._level(); },
+		write : function(value) {
+				var numval = parseInt(value);
+				if(!isNaN(numval)) {
+					this._level(numval)
+				}
+				else {
+					console.log('[NodeViewModel] failed to set "level" to', value);
+				}
+			},
+		owner : this
+	});
 
     this.nodeNumber = ko.computed(function () {
         return this.network.nodes.indexOf(this) + 1;
@@ -473,10 +516,66 @@ function ArcViewModel(nodeTo, nodeFrom, latency, bandwidthCap, bandwidthPrice, a
 	
     this.nodeTo = ko.observable(nodeTo);
     this.nodeFrom = ko.observable(nodeFrom);
-    this.latency = ko.observable(latency);
-    this.bandwidthCap = ko.observable(bandwidthCap);
-    this.bandwidthPrice = ko.observable(bandwidthPrice);
-    this.expectedAvailability = ko.observable(availability);
+    this._latency = ko.observable(latency);
+    this._bandwidthCap = ko.observable(bandwidthCap);
+    this._bandwidthPrice = ko.observable(bandwidthPrice);
+    this._expectedAvailability = ko.observable(availability);
+	
+	this.latency = ko.computed({
+		read : function() { return this._latency(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._latency(numval)
+				}
+				else {
+					console.log('[ArcViewModel] failed to set "latency" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.bandwidthCap = ko.computed({
+		read : function() { return this._bandwidthCap(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._bandwidthCap(numval)
+				}
+				else {
+					console.log('[ArcViewModel] failed to set "bandwidthCap" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.bandwidthPrice = ko.computed({
+		read : function() { return this._bandwidthPrice(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._bandwidthPrice(numval)
+				}
+				else {
+					console.log('[ArcViewModel] failed to set "bandwidthPrice" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.expectedAvailability = ko.computed({
+		read : function() { return this._expectedAvailability(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._expectedAvailability(numval)
+				}
+				else {
+					console.log('[ArcViewModel] failed to set "expectedAvailability" to', value);
+				}
+			},
+		owner : this
+	});
 	
 	this.getTemplate = function() {
 		return 'ArcViewModelTemplate';
@@ -504,8 +603,23 @@ function ProviderViewModel(dataVM) {
 // Customer viewmodel class
 function CustomerViewModel(dataVM, revenue) {
     this.dataVM = dataVM;
-    this.revenue = ko.observable(revenue)
+	
+    this._revenue = ko.observable(revenue)
     this.services = ko.observableArray();
+	
+	this.revenue = ko.computed({
+		read : function() { return this._revenue(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._revenue(numval)
+				}
+				else {
+					console.log('[CustomerViewModel] failed to set "revenue" to', value);
+				}
+			},
+		owner : this
+	});
 
     this.customerNumber = ko.computed(function () {
         return this.dataVM.customers.indexOf(this) + 1;
@@ -536,10 +650,66 @@ function ServiceViewModel(dataVM, bandwidthReq, bandwidthReqDown, latencyReq, av
     this.dataVM = dataVM;
     this.dataVM.services.push(this);
 
-    this.bandwidthRequirementUp = ko.observable(bandwidthReq);
-    this.bandwidthRequirementDown = ko.observable(bandwidthReqDown);
-    this.latencyRequirement = ko.observable(latencyReq);
-	this.availabilityRequirement = ko.observable(availabilityReq)
+    this._bandwidthRequirementUp = ko.observable(bandwidthReq);
+    this._bandwidthRequirementDown = ko.observable(bandwidthReqDown);
+    this._latencyRequirement = ko.observable(latencyReq);
+	this._availabilityRequirement = ko.observable(availabilityReq)
+	
+	this.bandwidthRequirementUp = ko.computed({
+		read : function() { return this._bandwidthRequirementUp(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._bandwidthRequirementUp(numval)
+				}
+				else {
+					console.log('[ServiceViewModel] failed to set "bandwidthRequirementUp" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.bandwidthRequirementDown = ko.computed({
+		read : function() { return this._bandwidthRequirementDown(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._bandwidthRequirementDown(numval)
+				}
+				else {
+					console.log('[ServiceViewModel] failed to set "bandwidthRequirementDown" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.latencyRequirement = ko.computed({
+		read : function() { return this._latencyRequirement(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._latencyRequirement(numval)
+				}
+				else {
+					console.log('[ServiceViewModel] failed to set "latencyRequirement" to', value);
+				}
+			},
+		owner : this
+	});
+	
+	this.availabilityRequirement = ko.computed({
+		read : function() { return this._availabilityRequirement(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._availabilityRequirement(numval)
+				}
+				else {
+					console.log('[ServiceViewModel] failed to set "availabilityRequirement" to', value);
+				}
+			},
+		owner : this
+	});
 
     this.placements = ko.observableArray();
 
@@ -584,5 +754,19 @@ function ServiceViewModel(dataVM, bandwidthReq, bandwidthReqDown, latencyReq, av
 function ServicePlacementViewModel(service, provider, price) {
     this.service = ko.observable(service);
     this.provider = ko.observable(provider);
-    this.price = ko.observable(price);
+    this._price = ko.observable(price);
+	
+	this.price = ko.computed({
+		read : function() { return this._price(); },
+		write : function(value) {
+				var numval = parseFloat(value);
+				if(!isNaN(numval)) {
+					this._price(numval)
+				}
+				else {
+					console.log('[ServicePlacementViewModel] failed to set "price" to', value);
+				}
+			},
+		owner : this
+	});
 }
