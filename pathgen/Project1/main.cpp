@@ -46,10 +46,6 @@ int main()
 			cout << "\n\nPaths generated and data stored to " << outputfilename;
 
 		} else if(rootSelection == 2) {
-			const char* urlA = "file://C:\Users\sindremo\cloudbrokermodel\datagen\index.htm";
-			wchar_t urlW[150];
-			std::copy( urlA, urlA + lstrlenA( urlA ) + 1, urlW );
-			//if ((int)ShellExecuteW( NULL, L"open", urlW, NULL, NULL, SW_SHOW ) < 32)
 			if ((int)ShellExecute(NULL, "open", "..\\datagen\\index.htm", NULL, NULL, SW_SHOWNORMAL) < 32)
 			{
 				cout << "\n editor opened";
