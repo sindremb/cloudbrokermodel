@@ -55,7 +55,7 @@ namespace pathgen {
 
 			// for each arc, expand current path or spawn new paths (if more than one possibility for expansion)
 			bool path_expanded = false;
-			for(int j = 0; j < arcs->size(); ++j) {
+			for(unsigned int j = 0; j < arcs->size(); ++j) {
 				// shorthands for current arc and its return arc
 				arc * a_up = arcs->at(j);
 				arc * a_down = a_up->return_arc;
@@ -97,10 +97,10 @@ namespace pathgen {
 		// calculate prop b up given a up
 		vector<arc*> unique;
 
-		for(int i = 0; i < b->arcs_up.size(); ++i) {
+		for(unsigned int i = 0; i < b->arcs_up.size(); ++i) {
 			arc * anarc = b->arcs_up[i];
 			bool found = false;
-			for(int j = 0; j < a->arcs_up.size(); ++j) {
+			for(unsigned int j = 0; j < a->arcs_up.size(); ++j) {
 				if(anarc == a->arcs_up[j]) {
 					found = true;
 					break;
@@ -111,7 +111,7 @@ namespace pathgen {
 			}
 		}
 
-		for(int i = 0; i < unique.size(); ++i) {
+		for(unsigned int i = 0; i < unique.size(); ++i) {
 			combo.exp_b_given_a *= unique[i]->exp_availability;
 		}
 
@@ -120,61 +120,62 @@ namespace pathgen {
 
 	void generatePaths(dataContent * data) {
 
+		// create arcs from node pointers for each node
 		vector<vector<arc*>> nodeArcs(data->network.n_nodes);
-		for (int i = 0; i < data->network.arcs.size(); i++) {
+		for (unsigned int i = 0; i < data->network.arcs.size(); i++) {
 			arc * a = &data->network.arcs[i];
 			nodeArcs.at(a->startNode).push_back(a);
 		}
 
 		// loop through customers
-		int customerNode = 0;
-		int serviceNumber = 0;
-		for (int c = 0; c < data->customers.size(); ++c)
+		int serviceNumber = 0; // tracker for service number in total
+		for (unsigned int c = 0; c < data->customers.size(); ++c)
 		{
 			// - loop through customer's services
 			customer * cu = &data->customers[c];
-			cout << "\n\nCustomer #" << customerNode;
-			for (int s = 0; s < cu->services.size(); ++s) 
+			cout << "\n\nCustomer #" << c+1;
+			for (unsigned int s = 0; s < cu->services.size(); ++s) 
 			{
 				service * se = &cu->services[s];
 				// -- for each service's placement		
-				for (int p = 0; p < se->possible_placements.size(); ++p)
+				for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
 				{
 					placement * placement = &se->possible_placements[p];
 					cout << "\n- Service #" << serviceNumber << ", Provider #" << placement->provider_number;
 					int providerNode = data->network.n_nodes - data->n_providers + placement->provider_number;
 					
-					// --- generate all feasible paths
-					
 					// CUSTOMER -> PLACEMENT
 					// generate paths
-					placement->paths = _generateReturnPathsForNodePair(
-						customerNode, providerNode, se->latency_req, 
+					placement->paths = _generateReturnPathsForNodePair(c, // customer index == customer node index
+						providerNode, se->latency_req, 
 						se->bandwidth_req_up, se->bandwidth_req_down,
 						&nodeArcs, placement->price
 					);
 
 					// Register paths at their used arcs
-					for (int ipath = 0; ipath < placement->paths.size(); ++ipath) {
-						for (int iarc = 0; iarc < placement->paths[ipath].arcs_up.size(); ++iarc) {
+					for (unsigned int ipath = 0; ipath < placement->paths.size(); ++ipath) {
+						// all arcs used on the way up
+						for (unsigned int iarc = 0; iarc < placement->paths[ipath].arcs_up.size(); ++iarc) {
 							placement->paths[ipath].arcs_up[iarc]->up_paths.push_back(&placement->paths[ipath]);
 						}
-						for (int iarc = 0; iarc < placement->paths[ipath].arcs_down.size(); ++iarc) {
+						// all arcs used on the way down
+						for (unsigned int iarc = 0; iarc < placement->paths[ipath].arcs_down.size(); ++iarc) {
 							placement->paths[ipath].arcs_down[iarc]->down_paths.push_back(&placement->paths[ipath]);
 						}
 					}
 
-					// calculate combo availability
-					for (int apath = 0; apath < placement->paths.size(); ++apath) {
-						for (int bpath = 0; bpath < placement->paths.size(); ++bpath) {
+					// calculate combo availability [ P(A)*P(B|A) ]
+					for (unsigned int apath = 0; apath < placement->paths.size(); ++apath) {
+						for (unsigned int bpath = 0; bpath < placement->paths.size(); ++bpath) {
 							data->pathCombos.push_back(_pathComboForPaths(&placement->paths[apath], &placement->paths[bpath]));
 						}
 					}
 				}
 				++serviceNumber;
 			}
-			++customerNode;
 		}
+		// find paths with overlap
+
 		return;
 	}
 
