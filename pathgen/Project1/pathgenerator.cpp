@@ -100,8 +100,8 @@ namespace pathgen {
 		for(int i = 0; i < b->arcs_up.size(); ++i) {
 			arc * anarc = b->arcs_up[i];
 			bool found = false;
-			for(int j = 0; j < b->arcs_up.size(); ++j) {
-				if(anarc == b->arcs_up[j]) {
+			for(int j = 0; j < a->arcs_up.size(); ++j) {
+				if(anarc == a->arcs_up[j]) {
 					found = true;
 					break;
 				}

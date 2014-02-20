@@ -290,11 +290,15 @@ forall(cc in Customers) do
 			R_Revenue(cc)*getsol(y_Serve(cc)));
 		forall(ss in S_ServiceForCustomer(cc), pp in Providers | exists(K_Paths(ss,pp))) do
 			if(getsol(x_Placement(ss,pp)) > 0.1) then
-			writeln("  - Service ",ss," is placed at provider ",pp);
-			write("	  - Path up: ");
+				writeln("  - Service ",ss," is placed at provider ",pp);
 				forall(kk in K_Paths(ss,pp)) do
 					if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln(kk," , cost: ",C_PathCost(kk));
+						writeln("	  - Path up: ", kk, " , cost: ",C_PathCost(kk));
+					end-if
+				end-do
+				forall(kk in K_Paths(ss,pp)) do
+					if (getsol(v_UseBackupPath(kk)) > 0.1) then
+						writeln("	  - Backup path: ", kk);
 					end-if
 				end-do
 			end-if
