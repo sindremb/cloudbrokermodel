@@ -266,7 +266,7 @@ forall(cc in Customers) do
 	end-do
 end-do
 
-forall(pp in Paths, bb in Paths, kk in Paths, tt in Paths) do
+forall(pp in Paths, bb in Paths, kk in Paths, tt in Paths | pp <> kk and bb <>tt) do
 	Overlap := o_UseCombination(pp,kk) + o_UseCombination(bb,tt) + Q_Overlap(pp,bb) + Q_Overlap(kk,tt) <=3;
 end-do
 
