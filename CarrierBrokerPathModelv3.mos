@@ -95,6 +95,7 @@ declarations
 	D_PathAvailability:			dynamic array(Paths)				of real;
 	D_CombinationAvailability:	dynamic array(Paths,Paths)			of real;
 	Y_AvailabilityReq:			dynamic array(Services)				of real;
+	Q_Overlap:					dynamic array(Paths,Paths)			of real;
 	
 	Symmetric:				boolean;
 
@@ -115,6 +116,7 @@ initialisations from Data
 	D_PathAvailability;
 	D_CombinationAvailability;
 	Y_AvailabilityReq;
+	Q_Overlap
 	Symmetric;
 end-initialisations
 
@@ -189,6 +191,7 @@ declarations
 	MaximumBackup:					dynamic array(Nodes,Nodes,Paths)			of linctr;
 	BackupRequirement:				dynamic array(Services,Providers,Paths,Paths) of linctr;
 	BackupCombination:				dynamic array(Services,Providers,Paths)		of linctr;
+	Overlap:						dynamic array(Paths,Paths,Paths,Paths)		of linctr;
 end-declarations
 
 
@@ -262,6 +265,11 @@ forall(cc in Customers) do
 		end-do
 	end-do
 end-do
+
+forall(pp in Paths, bb in Paths, kk in Paths, tt in Paths) do
+	Overlap := o_UseCombination(pp,kk) + o_UseCombination(bb,tt) + Q_Overlap(pp,bb) + Q_Overlap(kk,tt) <=3;
+end-do
+
 
 
 

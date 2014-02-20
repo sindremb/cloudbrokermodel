@@ -1,0 +1,58 @@
+n_Customers: 1
+n_Services: 1
+n_Providers: 1
+n_Nodes: 4
+!n_Paths: ! included below (not counted yet..)
+
+Symmetric: false
+
+R_Revenue: [1000 ]
+
+S_ServiceForCustomer: [
+ [ 1 ]
+]
+
+Y_AvailabilityReq: [
+0.95 
+]
+
+K_Paths: [
+ (1 1) [1 2 3 ]
+]
+
+L_PathsUsingLink: [
+ (1 2) [1 ]
+ (4 1) [3 ]
+ (3 4) [1 2 ]
+ (1 3) [2 ]
+ (2 3) [1 ]
+ (2 1) [1 ]
+ (1 4) [3 ]
+ (4 3) [1 2 ]
+ (3 1) [2 ]
+ (3 2) [1 ]
+]
+
+U_PathBandwidthUsage: [
+ (1 2 1)  20
+ (4 1 3)  20 (3 4 1)  20 (3 4 2)  20
+ (1 3 2)  20
+ (2 3 1)  20
+ (2 1 1)  20 (1 4 3)  20
+ (4 3 1)  20 (4 3 2)  20 (3 1 2)  20 (3 2 1)  20]
+
+D_PathAvailability: [0.991309 0.993709 0.990694 ]
+
+C_PathCost: [340 340 180 ]
+
+D_CombinationAvailability: [
+ (1 1) 0.991309 (1 2) 0.991309 (1 3) 0.991309 (2 1) 0.993709 (2 2) 0.993709 (2 3) 0.993709 (3 1) 0.990694 (3 2) 0.990694 (3 3) 0.990694
+]
+
+G_LatencyReq: [100 ]
+
+F_BandwidthCap: [ (1 2) 65 (4 1) 89 (3 4) 78 (1 3) 70 (2 3) 83 (2 1) 65 (1 4) 89 (4 3) 78 (3 1) 70 (3 2) 83]
+
+C_BackupCost: [ (1 2) 2 (4 1) 2 (3 4) 2 (1 3) 4 (2 3) 2 (2 1) 2 (1 4) 2 (4 3) 2 (3 1) 4 (3 2) 2]
+
+n_Paths: 3
