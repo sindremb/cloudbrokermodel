@@ -116,7 +116,7 @@ initialisations from Data
 	D_PathAvailability;
 	D_CombinationAvailability;
 	Y_AvailabilityReq;
-	Q_Overlap
+	Q_Overlap;
 	Symmetric;
 end-initialisations
 
@@ -266,8 +266,10 @@ forall(cc in Customers) do
 	end-do
 end-do
 
-forall(pp in Paths, bb in Paths, kk in Paths, tt in Paths | pp <> kk and bb <>tt) do
-	Overlap := o_UseCombination(pp,kk) + o_UseCombination(bb,tt) + Q_Overlap(pp,bb) + Q_Overlap(kk,tt) <=3;
+forall(pp in Paths, kk in Paths) do
+	forall(bb in Paths, tt in Paths | bb <> pp) do
+		Overlap(pp, bb, kk, tt) := o_UseCombination(pp,kk) + o_UseCombination(bb,tt) + Q_Overlap(pp,bb) + Q_Overlap(kk,tt) <=3;
+	end-do
 end-do
 
 
