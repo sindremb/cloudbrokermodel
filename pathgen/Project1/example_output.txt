@@ -13,7 +13,7 @@ S_ServiceForCustomer: [
 ]
 
 Y_AvailabilityReq: [
-0.9 0.99 
+0.9 0.999 
 ]
 
 K_Paths: [
