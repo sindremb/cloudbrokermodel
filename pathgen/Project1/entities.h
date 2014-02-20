@@ -53,6 +53,11 @@ namespace entities {
 		double exp_b_given_a;
 	};
 
+	struct pathOverlap {
+		returnPath * a;
+		returnPath * b;
+	};
+
 	struct network {
 		int n_nodes;
 		bool symmetric;
@@ -88,6 +93,7 @@ namespace entities {
 		network network;
 
 		std::vector<pathCombo> pathCombos;
+		std::vector<pathOverlap> pathOverlaps;
 
 		std::vector<customer> customers;
 	};

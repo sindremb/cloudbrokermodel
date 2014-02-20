@@ -374,6 +374,13 @@ namespace entities {
 		}
 		myfile << "\n]";
 
+		myfile << "\n\nQ_Overlap: [\n";
+		for (int i = 0; i < data->pathOverlaps.size(); ++i) {
+			pathOverlap * overlap = &data->pathOverlaps[i];
+			myfile << " ("  << overlap->a->pathNumber << " " << overlap->b->pathNumber << ") 1";
+		}
+		myfile << "\n]";
+
 
 		myfile << "\n\nG_LatencyReq: [";
 		for (int i = 0; i < data->customers.size(); ++i) {
