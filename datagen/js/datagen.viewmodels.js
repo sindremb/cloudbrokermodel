@@ -24,14 +24,14 @@ function MainViewModel() {
     };
 	
 	this.importJSON = function (jsondata) {
+		this.selectedObjects.removeAll();
 		this.dataVM(Datagen.utils.dataModelToDataVM(JSON.parse(jsondata), this));
 	}
 	
 	// creates a new dataVM from the provided mosel data string
 	this.parseMoselData = function (data) {
-		var dataObj = Datagen.utils.parseMoselData(data);
 		this.selectedObjects.removeAll();
-		this.dataVM(Datagen.utils.networkFromDataObject(dataObj, this));
+		this.dataVM(Datagen.utils.networkFromDataObject(Datagen.utils.parseMoselData(data), this));
 		
 	};
 
@@ -646,10 +646,15 @@ function CustomerViewModel(dataVM, revenue) {
 		return this.dataVM.network().nodes()[this.customerNumber()-1]
 	}
 	
-	this.addService = function() {
-		var s = new ServiceViewModel(
+	this.addEmptyService = function() {
+		s = new ServiceViewModel(
 			this.dataVM, 20, 20, 100, 0.95
 		);
+		this.services.push(s);
+		this.dataVM.services.push(s);
+	}
+	
+	this.addService = function(s) {
 		this.services.push(s);
 		this.dataVM.services.push(s);
 	}

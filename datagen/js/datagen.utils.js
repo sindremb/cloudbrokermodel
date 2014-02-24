@@ -306,12 +306,16 @@ Datagen.utils.dataModelToDataVM = function(model, main) {
 				sm.latencyRequirement,
 				sm.availabilityRequirement
 			);
-			customer.addService(svm);
 			for (var k in sm.placements) {
-				sm.placements.push(new ServicePlacementViewModel(
-					svm, sm.placements[k].provider, sm.placements[k].price
-				));
+				svm.addPlacement(
+					dataVM.providers()[sm.placements[k].provider],
+					sm.placements[k].price
+				);
+				console.log(svm.placements()[k]);
 			}
+			console.log("before push", svm.placements());
+			customer.addService(svm);
+			console.log("after push", customer.services()[j].placements());
         }
         dataVM.customers.push(customer);
     }
@@ -377,9 +381,10 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
 				dataObj.Y_AvailabilityReq[j]
 			);
 			for (var k in dataObj.H_PlacePrice[sNumber]) {
-				s.placements.push(new ServicePlacementViewModel(
-					s, dataVM.providers()[k-1], dataObj.H_PlacePrice[sNumber][k]
-				));
+				s.addPlacement(
+					dataVM.providers()[k-1],
+					dataObj.H_PlacePrice[sNumber][k]
+				);
 			}
             customer.addService(s);
         }

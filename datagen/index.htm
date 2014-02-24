@@ -47,7 +47,7 @@
 	<b>Customer #<span data-bind="text: customerNumber"></span></b>
 	<button data-bind="click: function() {owner().removeCustomer($data)}">Delete</button><br>
 	Revenue : <input type="text" data-bind="value: revenue" size="5" /><br />
-	<button data-bind="click: function() {addService()}">Add Service</button><br>
+	<button data-bind="click: function() {addEmptyService()}">Add Service</button><br>
 	<div data-bind="foreach: services">
 		<div data-bind="template: {name: 'ServiceViewModelTemplate', data: $data}"></div>
 	</div>
