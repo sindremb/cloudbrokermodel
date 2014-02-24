@@ -313,9 +313,7 @@ Datagen.utils.dataModelToDataVM = function(model, main) {
 				);
 				console.log(svm.placements()[k]);
 			}
-			console.log("before push", svm.placements());
 			customer.addService(svm);
-			console.log("after push", customer.services()[j].placements());
         }
         dataVM.customers.push(customer);
     }
