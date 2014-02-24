@@ -14,14 +14,18 @@ function MainViewModel() {
 	this.selectedObjects = ko.observableArray();
 
 	// outputs the dataVM content as text to container of provided id
-    this.outputToMoselData = function (containerId) {
-        $('#' + containerId).val(Datagen.utils.toMoselData(this.dataVM()));
+    this.outputToMoselData = function (containerSelector) {
+        $(containerSelector).val(Datagen.utils.toMoselData(this.dataVM()));
     };
 	
 	// outputs the dataVM content as text to container of provided id
-    this.outputToJSON = function (containerId) {
-        $('#' + containerId).val(JSON.stringify(new DataModel(this.dataVM())));
+    this.exportToJSON = function (containerSelector) {
+        $(containerSelector).val(JSON.stringify(new DataModel(this.dataVM())));
     };
+	
+	this.importJSON = function (jsondata) {
+		this.dataVM(Datagen.utils.dataModelToDataVM(JSON.parse(jsondata), this));
+	}
 	
 	// creates a new dataVM from the provided mosel data string
 	this.parseMoselData = function (data) {
@@ -29,7 +33,7 @@ function MainViewModel() {
 		this.selectedObjects.removeAll();
 		this.dataVM(Datagen.utils.networkFromDataObject(dataObj, this));
 		
-	}
+	};
 
 	// generates a new random dataVM according to current configuration
     this.generateRandomNetwork = function (containerId) {
@@ -37,12 +41,16 @@ function MainViewModel() {
         this.outputToMoselData(containerId);
     };
 	
+	this.clearData = function() {
+		this.dataVM(new DataViewModel(this));
+	};
+	
 	this.setMode = function(mode) {
 		if(mode != this.mode()) {
 			this.mode(mode);
 			this.selectedObjects.removeAll();
 		}
-	}
+	};
 	
 	// keypress handler
 	this.handleKeypress = function(keycode) {
@@ -51,7 +59,7 @@ function MainViewModel() {
 				this.deleteSelection();
 			}
 		}
-	}
+	};
 	
 	this.deleteSelection = function() {
 		// delete all objects
@@ -639,16 +647,17 @@ function CustomerViewModel(dataVM, revenue) {
 	}
 	
 	this.addService = function() {
-		this.services.push(new ServiceViewModel(
+		var s = new ServiceViewModel(
 			this.dataVM, 20, 20, 100, 0.95
-		));
+		);
+		this.services.push(s);
+		this.dataVM.services.push(s);
 	}
 }
 
 // Service viewmodel class
 function ServiceViewModel(dataVM, bandwidthReq, bandwidthReqDown, latencyReq, availabilityReq) {
     this.dataVM = dataVM;
-    this.dataVM.services.push(this);
 
     this._bandwidthRequirementUp = ko.observable(bandwidthReq);
     this._bandwidthRequirementDown = ko.observable(bandwidthReqDown);

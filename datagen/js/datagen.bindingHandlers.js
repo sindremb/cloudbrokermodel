@@ -9,14 +9,14 @@ ko.bindingHandlers.draggableElement = {
 		var settings = ko.unwrap(valueAccessor());
 		$(element).mousedown(function(e) {
 			isDragging = true;
-			console.log('down', e.clientX, e.clientY);
+			//console.log('down', e.clientX, e.clientY);
 			prevX = e.clientX;
 			prevY = e.clientY;
 		});
 		
 		$(element).parent().parent().mousemove(function(e) {
 			if(isDragging) {
-				console.log('move', e.clientX, e.clientY);
+				//console.log('move', e.clientX, e.clientY);
 				var deltaX = e.clientX - prevX;
 				var deltaY = e.clientY - prevY;
 				settings.x(settings.x() + deltaX);
@@ -27,7 +27,7 @@ ko.bindingHandlers.draggableElement = {
 		});
 		
 		$(element).parent().parent().mouseup(function(e) {
-			console.log('up');
+			//console.log('up');
 			isDragging = false;
 		});
     },

@@ -22,10 +22,15 @@ function NetworkModel(networkvm) {
 	this.isSymmetric = networkvm.isSymmetric();
 
     this.arcs = []
+	this.nodes = []
     this.leasableArcs = []
 	
 	for(var i in networkvm.arcs()) {
 		this.arcs.push(new ArcModel(networkvm.arcs()[i]));
+	}
+	
+	for(var i in networkvm.nodes()) {
+		this.nodes.push(new NodeModel(networkvm.nodes()[i]));
 	}
 	
 	for(var i in networkvm.leasableArcs()) {
@@ -33,7 +38,7 @@ function NetworkModel(networkvm) {
 	}
 }
 
-// Network arc viewmodel class
+// Network arc model class
 function ArcModel(arcvm) {
 
     this.nodeTo = arcvm.nodeTo().nodeNumber()-1;
@@ -44,7 +49,13 @@ function ArcModel(arcvm) {
     this.expectedAvailability = arcvm.expectedAvailability();
 }
 
-// Customer viewmodel class
+// Node model
+function NodeModel(nodevm) {
+	this.x = nodevm.x();
+	this.y = nodevm.y();
+}
+
+// Customer model class
 function CustomerModel(customervm) {
     this.revenue = customervm.revenue();
     this.services = [];
@@ -52,10 +63,9 @@ function CustomerModel(customervm) {
 	for(var i in customervm.services()) {
 		this.services.push(new ServiceModel(customervm.services()[i]));
 	}
-	
 }
 
-// Service viewmodel class
+// Service model class
 function ServiceModel(servicevm) {
 
     this.bandwidthRequirementUp = servicevm.bandwidthRequirementUp();

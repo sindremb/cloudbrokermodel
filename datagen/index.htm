@@ -120,6 +120,7 @@ Select two nodes to add an arc between.
 	<button data-bind="click: function() {$parent.setMode('edit')}, style : {'border-style' : $data == 'edit' ? 'inset' : ''}">Edit</button>
 	<button data-bind="click: function() {$parent.setMode('addnode')}, style : {'border-style' : $data == 'addnode' ? 'inset' : ''}">Add Node</button>
 	<button data-bind="click: function() {$parent.setMode('addarc')}, style : {'border-style' : $data == 'addarc' ? 'inset' : ''}">Add Arc</button>
+	<button data-bind="click: function() {$parent.clearData()}">Clear Data</button>
 
 	<div height="20px" data-bind="template: {name: $data + '-mode-desc', data: $data}">
 	</div>
@@ -189,9 +190,10 @@ Select two nodes to add an arc between.
 </tr>
 </table>
 <div>
-    <button data-bind="click: function() {outputToMoselData('dataOutputBox')}">Output data file</button>
+    <button data-bind="click: function() {outputToMoselData('#dataOutputBox')}">Output data file</button>
 	<button data-bind="click: function() {parseMoselData($('#dataOutputBox').val())}">Load data file</button>
-	<button data-bind="click: function() {outputToJSON('dataOutputBox')}">Export to JSON</button>
+	<button data-bind="click: function() {exportToJSON('#dataOutputBox')}">Export to JSON</button>
+	<button data-bind="click: function() {importJSON($('#dataOutputBox').val())}">Import JSON</button>
 <!--	<button data-bind="click: function() {
 		window.open('data:text/txt;charset=utf-8,' + escape($('#dataOutputBox').val()));
 	}">Download file</button>-->

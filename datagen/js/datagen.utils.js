@@ -264,14 +264,68 @@ Datagen.utils._extractSubwords = function(word) {
 	return subwords;
 }
 
-Datagen.utils.networkFromDataObject = function(dataObj, main) {
+Datagen.utils.dataModelToDataVM = function(model, main) {
+	var dataVM = new DataViewModel(main)
+	
+    // STEP 1: Generate network
+    var network = new NetworkViewModel(dataVM)
+	dataVM.network(network);
+	
+	// generate nodes from data obj (using given number and locations)
+	for(var i in model.network.nodes) {
+		network.nodes.push(new NodeViewModel(network,
+			model.network.nodes[i].x,
+			model.network.nodes[i].y,
+			2
+		));
+	}
+	
+	// add owned arcs according to data object
+	for(var i in model.network.arcs) {
+		network.arcs.push(new ArcViewModel(
+			network.nodes()[model.network.arcs[i].nodeTo],
+			network.nodes()[model.network.arcs[i].nodeFrom],
+			model.network.arcs[i].latency, model.network.arcs[i].bandwidthCap,
+			model.network.arcs[i].bandwidthPrice, model.network.arcs[i].expectedAvailability
+		));
+	}
+	
+    // STEP 2: Generate providers
+    for (var i = 0; i < model.numProviders; i++) {
+        dataVM.providers.push(new ProviderViewModel(dataVM));
+    }
+    
+    // STEP 3: Generate customers and services
+    for (var i in model.customers) {
+        var customer = new CustomerViewModel(dataVM, model.customers[i].revenue);
+		for (var j in model.customers[i].services) {
+			var sm = model.customers[i].services[j];
+            var svm = new ServiceViewModel(
+				dataVM, sm.bandwidthRequirementUp,
+				sm.bandwidthRequirementDown, 
+				sm.latencyRequirement,
+				sm.availabilityRequirement
+			);
+			customer.addService(svm);
+			for (var k in sm.placements) {
+				sm.placements.push(new ServicePlacementViewModel(
+					svm, sm.placements[k].provider, sm.placements[k].price
+				));
+			}
+        }
+        dataVM.customers.push(customer);
+    }
+	
+	return dataVM
+}
 
-	console.log(dataObj);
+Datagen.utils.networkFromDataObject = function(dataObj, main) {
 
 	var dataVM = new DataViewModel(main)
 
     // STEP 1: Generate network
     var network = new NetworkViewModel(dataVM)
+	dataVM.network(network);
 	
 	// generate nodes from data obj (using given number and locations)
 	var step = (Math.PI * 2) / dataObj.n_Nodes; // used if no x- and y-coords are defined for nodes
@@ -304,38 +358,33 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
 			));
 		}
 	}
-    
-    // STEP 2: Generate customers and services
-    for (var i = 0; i < dataObj.n_Customers; i++) {
-        var customer = new CustomerViewModel(dataVM, dataObj.R_Revenue[i])
-        for (var j in dataObj.S_ServiceForCustomer[i]) {
-            customer.services.push(new ServiceViewModel(
-                    dataVM, dataObj.B_BandwidthReq[j],
-					dataObj.B_BandwidthReqD[j],
-					dataObj.G_LatencyReq[j],
-					dataObj.Y_AvailabilityReq[j]
-                ));
-        }
-        dataVM.customers.push(customer);
-    }
 
-    // STEP 3: Generate providers
+    // STEP 2: Generate providers
     for (var i = 0; i < dataObj.n_Providers; i++) {
         dataVM.providers.push(new ProviderViewModel(dataVM));
     }
-
-    // STEP 4: Map services to eligible providers
-    for (var i in dataObj.H_PlacePrice) {
-		var service = dataVM.services()[i-1];
-        for (var j in dataObj.H_PlacePrice[i]) {
-			service.placements.push(new ServicePlacementViewModel(
-				service, dataVM.providers()[j-1], dataObj.H_PlacePrice[i][j]
-			));
+    
+    // STEP 3: Generate customers and services
+	var sNumber = 0;
+    for (var i = 0; i < dataObj.n_Customers; i++) {
+        var customer = new CustomerViewModel(dataVM, dataObj.R_Revenue[i])
+        for (var j in dataObj.S_ServiceForCustomer[i]) {
+			sNumber++;
+			var s = new ServiceViewModel(
+				dataVM, dataObj.B_BandwidthReq[j],
+				dataObj.B_BandwidthReqD[j],
+				dataObj.G_LatencyReq[j],
+				dataObj.Y_AvailabilityReq[j]
+			);
+			for (var k in dataObj.H_PlacePrice[sNumber]) {
+				s.placements.push(new ServicePlacementViewModel(
+					s, dataVM.providers()[k-1], dataObj.H_PlacePrice[sNumber][k]
+				));
+			}
+            customer.addService(s);
         }
+        dataVM.customers.push(customer);
     }
-	
-	// add network to data viewmodel
-	dataVM.network(network);
 	
     return dataVM
 } 
@@ -561,7 +610,7 @@ Datagen.utils.generateData = function (genConfig, main) {
         var customer = new CustomerViewModel(dataVM, Math.floor((Math.random() * 1000)) + 500)
         numServices = Math.floor((Math.random() * genConfig.maxNumberOfServicesPerCustomer())) + 1
         for (var j = 0; j < numServices; j++) {
-            customer.services.push(new ServiceViewModel(
+            customer.addService(new ServiceViewModel(
                     dataVM, Math.floor((Math.random() * 15)) + 5, Math.floor((Math.random() * 15)) + 5,
                     Math.floor((Math.random() * genConfig.avgServiceLatencyReq()) + 0.5*genConfig.avgServiceLatencyReq()),
 					(Math.random() * 0.025) + 0.97
