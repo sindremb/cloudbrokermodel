@@ -33,15 +33,17 @@ namespace pathgen {
 		initial.visitedNodes.resize(node_arcs->size(), false);
 		initial.visitedNodes[start_node] = true;
 
-		vector<returnPath> incomplete;
-		vector<returnPath> complete;
+		list<returnPath> incomplete;
+		list<returnPath> complete;
 
 		incomplete.push_back(initial);
 
 		int i = 0;
-		while(incomplete.size() > i) {
+		int incompletePathCount = 0;
+		while(incomplete.size() > 0) {
 			// current: copy of first path in list
-			returnPath current = incomplete[i];
+			returnPath current = incomplete.front(); //incomplete[i];
+			incomplete.pop_front();
 
 			// current path has reached destination
 			if(current.endNode == end_node) {
@@ -68,24 +70,22 @@ namespace pathgen {
 					continue;
 				
 				// if current already expanded once -> spawn new incomplete path from current copy
-				if(path_expanded) {
-					returnPath newPath = current;	// copy of original
-					_expandPathWithArc(&newPath, a_up);	// expand new copy with arc
-					incomplete.push_back(newPath);	// add new path to incomplete list
-				}
-				// expand current in place
-				else {
-					_expandPathWithArc(&incomplete[i], a_up);
-					path_expanded = true;
-				}
+				
+				returnPath newPath = current;	// copy of original
+				_expandPathWithArc(&newPath, a_up);	// expand new copy with arc
+				incomplete.push_back(newPath);	// add new path to incomplete list
+				path_expanded = true;
 			}
 			// if current path could not be extended -> skip to next path
 			if(!path_expanded) {
-				++i;
+				incompletePathCount++;
 			}
 		}
-		cout << "\n - # generated (incomplete paths): " << complete.size() << " (" << incomplete.size() - complete.size() << ")";
-		return complete;
+		cout << "\n - # generated (incomplete paths): " << complete.size() << " (" << incompletePathCount << ")";
+		vector<returnPath> result;
+		result.reserve(complete.size());
+		result.insert(result.end(), complete.begin(), complete.end());
+		return result;
 	}
 
 	pathCombo _pathComboForPaths(returnPath * a, returnPath * b) {
@@ -163,8 +163,8 @@ namespace pathgen {
 				for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
 				{
 					placement * placement = &se->possible_placements[p];
-					cout << "\n- Service #" << serviceNumber << ", Provider #" << placement->provider_number;
-					int providerNode = data->network.n_nodes - data->n_providers + placement->provider_number;
+					cout << "\n- Service #" << serviceNumber+1 << ", Provider #" << placement->provider_index+1;
+					int providerNode = data->network.n_nodes - data->n_providers + placement->provider_index;
 					
 					// CUSTOMER -> PLACEMENT
 					// generate paths
@@ -185,13 +185,14 @@ namespace pathgen {
 							placement->paths[ipath].arcs_down[iarc]->down_paths.push_back(&placement->paths[ipath]);
 						}
 					}
-
+					cout << "\n - calculating combo availability (" << placement->paths.size() << "x" << placement->paths.size() << ")";
 					// calculate combo availability [ P(A)*P(B|A) ]
 					for (unsigned int apath = 0; apath < placement->paths.size(); ++apath) {
 						for (unsigned int bpath = 0; bpath < placement->paths.size(); ++bpath) {
 							data->pathCombos.push_back(_pathComboForPaths(&placement->paths[apath], &placement->paths[bpath]));
 						}
 					}
+					cout << "\n - done";
 				}
 				++serviceNumber;
 			}
@@ -199,6 +200,7 @@ namespace pathgen {
 		// find paths with overlap
 		// NOTE: current implementation inefficient
 		// loop through all paths
+		cout << "\n\ncalculating path overlaps..";
 		int path1Num = 0;
 		for (unsigned int c1 = 0; c1 < data->customers.size(); ++c1) {
 			for (unsigned int s1 = 0; s1 < data->customers[c1].services.size(); ++s1) {	

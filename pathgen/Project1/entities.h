@@ -67,7 +67,7 @@ namespace entities {
 
 	struct placement {
 		int price;
-		int provider_number;
+		int provider_index;
 		std::vector<RETURN_PATH> paths;
 	};
 

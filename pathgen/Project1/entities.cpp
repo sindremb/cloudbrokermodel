@@ -60,7 +60,7 @@ namespace entities {
 						std::string node_name_p = p->name();
 						// find out where to store the values
 						if (node_name_p == "provider"){
-							placement.provider_number = p->as_int();
+							placement.provider_index = p->as_int();
 						}
 						else if (node_name_p == "price") {
 							placement.price = p->as_int();
@@ -296,7 +296,7 @@ namespace entities {
 				service * s = &c->services[j];
 				for (int k = 0; k < s->possible_placements.size(); ++k) {
 					placement * p = &s->possible_placements[k];
-					myfile << "\n (" << serviceNumber << " " << p->provider_number + 1 << ")";
+					myfile << "\n (" << serviceNumber << " " << p->provider_index + 1 << ")";
 					myfile << " [";
 					for (int l = 0; l < p->paths.size(); ++l) {
 						myfile << pathNumber << " ";
