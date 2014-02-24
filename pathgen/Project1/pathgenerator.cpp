@@ -22,6 +22,7 @@ namespace pathgen {
 
 	vector<returnPath> _generateReturnPathsForNodePair(int start_node, int end_node, int max_latency, int bandwidth_up, int bandwidth_down, vector<vector<arc*>> * node_arcs, int start_cost = 0)
 	{
+		// initial incomplete path to spawn all other paths from
 		returnPath initial;
 		initial.startNode = start_node;
 		initial.endNode = start_node;
@@ -33,22 +34,22 @@ namespace pathgen {
 		initial.visitedNodes.resize(node_arcs->size(), false);
 		initial.visitedNodes[start_node] = true;
 
+		// lists of incomplete and complete paths during path generation
 		list<returnPath> incomplete;
 		list<returnPath> complete;
 
+		// add initial path to list of incomplete paths
 		incomplete.push_back(initial);
 
-		int i = 0;
-		int incompletePathCount = 0;
+		int discardedPathCount = 0;
 		while(incomplete.size() > 0) {
-			// current: copy of first path in list
-			returnPath current = incomplete.front(); //incomplete[i];
+			// take first incomplete path from list
+			returnPath current = incomplete.front();
 			incomplete.pop_front();
 
-			// current path has reached destination
+			// current path has reached destination -> add to complete paths list, skip to next
 			if(current.endNode == end_node) {
 				complete.push_back(current);
-				++i;
 				continue;
 			}
 
@@ -62,26 +63,27 @@ namespace pathgen {
 				arc * a_up = arcs->at(j);
 				arc * a_down = a_up->return_arc;
 
-				// expansion non-feasibility check for arc
+				// non-feasibility check for expansion of arc
 				if( current.visitedNodes.at(a_up->endNode) ||								// arc leads to already visited node
 					(a_up->latency + a_down->latency > max_latency - current.latency) ||	// including path incurs to much latency
 					(a_up->bandwidth_cap <= current.bandwidth_usage_up) ||					// current arc does not have enough capacity for upstream
 					(a_down->bandwidth_cap <= current.bandwidth_usage_down))				// return arc does not have enough capacity for downstream
 					continue;
 				
-				// if current already expanded once -> spawn new incomplete path from current copy
-				
-				returnPath newPath = current;	// copy of original
+				// if reached, arc qualifies -> spawn new incomplete path by adding arc
+				returnPath newPath = current;		// copy of original (need to keep original for additional arcs)
 				_expandPathWithArc(&newPath, a_up);	// expand new copy with arc
-				incomplete.push_back(newPath);	// add new path to incomplete list
+				incomplete.push_back(newPath);		// add new path to incomplete list
 				path_expanded = true;
 			}
-			// if current path could not be extended -> skip to next path
+			// if path could not be expanded -> update discarded paths counter
 			if(!path_expanded) {
-				incompletePathCount++;
+				discardedPathCount++;
 			}
 		}
-		cout << "\n - # generated (incomplete paths): " << complete.size() << " (" << incompletePathCount << ")";
+		cout << "\n - # generated paths (discarded paths): " << complete.size() << " (" << discardedPathCount << ")";
+		
+		// convert complete paths list to vector for return
 		vector<returnPath> result;
 		result.reserve(complete.size());
 		result.insert(result.end(), complete.begin(), complete.end());
@@ -226,6 +228,7 @@ namespace pathgen {
 				}
 			}
 		}
+		cout << "\n- # overlapping path pairs (not distinct): " << data->pathOverlaps.size();
 
 		return;
 	}
