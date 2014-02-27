@@ -68,7 +68,23 @@ function MainViewModel() {
 			var obj = this.selectedObjects()[i];
 			console.log('! - DELETING:', obj)
 			if(obj instanceof NodeViewModel) {
+				// remove any customer or provider in node
+				var content = obj.content();
+				if(content instanceof CustomerViewModel) {
+					// remove customer
+					this.dataVM().customers.remove(content);
+					// remove all services of customer
+					for(var i in content.services()) {
+						this.dataVM().services.remove(content.services()[i]);
+					}
+				} else if (content instanceof ProviderViewModel) {
+					// remove provider and all placements for provider
+					this.dataVM().providers.remove(content);
+					this.dataVM().removePlacementsForProvider(content);
+				}
+				// remove node
 				this.dataVM().network().nodes.remove(obj);
+				
 			} else if(obj instanceof ArcViewModel) {
 				this.dataVM().network().arcs.remove(obj);
 				this.dataVM().network().leasableArcs.remove(obj);
@@ -468,7 +484,6 @@ function NodeViewModel(network, x, y, level) {
 		return null;
 	}, this);
 	
-	
 	this.removeCustomer = function(customer) {
 		var ownerNode = this.network.nodes()[customer.customerNumber()-1]
 		if(ownerNode != null) {
@@ -486,7 +501,7 @@ function NodeViewModel(network, x, y, level) {
 	this.removeProvider = function(provider) {
 		var ownerNode = this.network.nodes()[this.network.nodes().length - this.network.dataVM.providers().length + provider.providerNumber()-1]
 		if(ownerNode != null) {
-			// remove node and customer
+			// remove node and provider
 			this.network.nodes.remove(ownerNode);
 			this.network.dataVM.providers.remove(provider);
 			// reinsert node as internal node

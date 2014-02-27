@@ -48,6 +48,7 @@ int main()
 			pathgen::generatePaths(&data, config.calcOverlaps);
 
 			// STEP 3: store to generated file
+			cout << "\n\nWriting to mosel data file..";
 			entities::toMoselDataFile(outputfilename.c_str(), &data);
 
 			cout << "\n\nPaths generated and data stored to " << outputfilename;
