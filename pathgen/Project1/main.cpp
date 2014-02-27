@@ -16,12 +16,19 @@ using namespace pathgen;
 using namespace moseldata;
 using namespace entities;
 
+struct pathgenConfig {
+	bool calcOverlaps;
+};
+
 int main()
 {
+	pathgenConfig config;
+	config.calcOverlaps = false;
+
 	cout << "Welcome to network path generation bot v0.1";
 	while(true) {
 		int rootSelection;
-		cout << "\n\n Menu:\n (1) Load (JSON) file and generate paths\n (2) Open editor \n (0) exit\n\nSelection: ";
+		cout << "\n\n Menu:\n (1) Load (JSON) file and generate paths\n (2) Open editor \n (3) config \n (0) exit\n\nSelection: ";
 		cin >> rootSelection;
 
 		if(rootSelection == 1) {
@@ -38,7 +45,7 @@ int main()
 			cin >> outputfilename;
 
 			// STEP 2: generate paths
-			pathgen::generatePaths(&data);
+			pathgen::generatePaths(&data, config.calcOverlaps);
 
 			// STEP 3: store to generated file
 			entities::toMoselDataFile(outputfilename.c_str(), &data);
@@ -52,6 +59,21 @@ int main()
 			}
 			else {
 				cout << "\n could not open editor";
+			}
+		} else if(rootSelection == 3) {
+			while(true) {
+				int configSelection;
+				cout << "Pathgen Config\n - Calculate Path Overlaps: " << (config.calcOverlaps ? "true" : "false");
+				cout << "\n\n Options:\n (1) Toggle Calculate Path Overlaps\n (0) back\n\nSelection: ";
+				cin >> rootSelection;
+
+				if(rootSelection == 1) {
+					config.calcOverlaps = !config.calcOverlaps;
+				} else if(rootSelection == 0) {
+					break;
+				} else {
+					cout << "\n Unknown choice";
+				}
 			}
 		} else if(rootSelection == 0) {
 			break;

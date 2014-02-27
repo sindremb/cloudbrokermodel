@@ -142,7 +142,7 @@ namespace pathgen {
 		return false;
 	}
 
-	void generatePaths(dataContent * data) {
+	void generatePaths(dataContent * data, bool calcOverlaps = false) {
 
 		// create arcs from node pointers for each node
 		vector<vector<arc*>> nodeArcs(data->network.n_nodes);
@@ -199,26 +199,28 @@ namespace pathgen {
 				++serviceNumber;
 			}
 		}
-		// find paths with overlap
-		// NOTE: current implementation inefficient
-		// loop through all paths
-		cout << "\n\ncalculating path overlaps..";
-		int path1Num = 0;
-		for (unsigned int c1 = 0; c1 < data->customers.size(); ++c1) {
-			for (unsigned int s1 = 0; s1 < data->customers[c1].services.size(); ++s1) {	
-				for (unsigned int p1 = 0; p1 < data->customers[c1].services[s1].possible_placements.size(); ++p1) {
-					for (unsigned int ipath1 = 0; ipath1 < data->customers[c1].services[s1].possible_placements[p1].paths.size(); ++ipath1) {
-						returnPath * path1 = &data->customers[c1].services[s1].possible_placements[p1].paths[ipath1];
-						for (unsigned int c2 = 0; c2 < data->customers.size(); ++c2) {
-							for (unsigned int s2 = 0; s2 < data->customers[c2].services.size(); ++s2) {	
-								for (unsigned int p2 = 0; p2 < data->customers[c2].services[s2].possible_placements.size(); ++p2) {
-									for (unsigned int ipath2 = 0; ipath2 < data->customers[c2].services[s2].possible_placements[p2].paths.size(); ++ipath2) {
-										returnPath * path2 = &data->customers[c2].services[s2].possible_placements[p2].paths[ipath2];
-										if(_checkPathOverlap(path1, path2)) {
-											pathOverlap o;
-											o.a = path1;
-											o.b = path2;
-											data->pathOverlaps.push_back(o);
+		if(calcOverlaps) {
+			// find paths with overlap
+			// NOTE: current implementation inefficient
+			// loop through all paths
+			cout << "\n\ncalculating path overlaps..";
+			int path1Num = 0;
+			for (unsigned int c1 = 0; c1 < data->customers.size(); ++c1) {
+				for (unsigned int s1 = 0; s1 < data->customers[c1].services.size(); ++s1) {	
+					for (unsigned int p1 = 0; p1 < data->customers[c1].services[s1].possible_placements.size(); ++p1) {
+						for (unsigned int ipath1 = 0; ipath1 < data->customers[c1].services[s1].possible_placements[p1].paths.size(); ++ipath1) {
+							returnPath * path1 = &data->customers[c1].services[s1].possible_placements[p1].paths[ipath1];
+							for (unsigned int c2 = 0; c2 < data->customers.size(); ++c2) {
+								for (unsigned int s2 = 0; s2 < data->customers[c2].services.size(); ++s2) {	
+									for (unsigned int p2 = 0; p2 < data->customers[c2].services[s2].possible_placements.size(); ++p2) {
+										for (unsigned int ipath2 = 0; ipath2 < data->customers[c2].services[s2].possible_placements[p2].paths.size(); ++ipath2) {
+											returnPath * path2 = &data->customers[c2].services[s2].possible_placements[p2].paths[ipath2];
+											if(_checkPathOverlap(path1, path2)) {
+												pathOverlap o;
+												o.a = path1;
+												o.b = path2;
+												data->pathOverlaps.push_back(o);
+											}
 										}
 									}
 								}
@@ -227,8 +229,10 @@ namespace pathgen {
 					}
 				}
 			}
+			cout << "\n- # overlapping path pairs (not distinct): " << data->pathOverlaps.size();
+		} else {
+			cout << "\n\n- skipping calculating overlaps..";
 		}
-		cout << "\n- # overlapping path pairs (not distinct): " << data->pathOverlaps.size();
 
 		return;
 	}
