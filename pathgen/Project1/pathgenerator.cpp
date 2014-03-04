@@ -51,7 +51,7 @@ namespace pathgen {
 			// current path has reached destination -> add to complete paths list, skip to next
 			if(current.endNode == end_node) {
 				complete.push_back(current);
-				if(complete.size() >= config.maxPathsPerPlacement) {
+				if(config.maxPathsPerPlacement > 0 && complete.size() >= config.maxPathsPerPlacement) {
 					// max number of paths generated
 					break;
 				}
