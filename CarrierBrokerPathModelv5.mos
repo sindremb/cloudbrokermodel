@@ -290,7 +290,7 @@ forall(cc in Customers) do
 		forall(ss in S_ServiceForCustomer(cc) | exists(K_Paths(ss))) do
 			forall(kk in K_Paths(ss)) do
 				if (getsol(u_UsePath(kk)) > 0.1) then
-				writeln("  - Service ",ss," uses path ", kk, " , cost: ",C_PathCost(kk));
+					writeln("  - Service ",ss," uses path ",kk," , cost: ",C_PathCost(kk));
 				end-if
 			end-do
 		end-do
