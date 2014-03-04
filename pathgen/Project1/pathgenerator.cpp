@@ -104,17 +104,16 @@ namespace pathgen {
 		// calculate prop b up given a up
 		vector<arc*> unique;
 
-		for(unsigned int i = 0; i < b->arcs_up.size(); ++i) {
-			arc * anarc = b->arcs_up[i];
+		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
 			bool found = false;
-			for(unsigned int j = 0; j < a->arcs_up.size(); ++j) {
-				if(anarc == a->arcs_up[j]) {
+			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
+				if(*i == *j) {
 					found = true;
 					break;
 				}
 			}
 			if(!found) {
-				unique.push_back(anarc);
+				unique.push_back(*i);
 			}
 		}
 
@@ -128,17 +127,17 @@ namespace pathgen {
 	bool _checkPathOverlap(returnPath * a, returnPath * b) {
 
 		// loop through all arc used by path a and b, check if any arc is the same
-		for(unsigned int i = 0; i < b->arcs_up.size(); ++i) {
-			for(unsigned int j = 0; j < a->arcs_up.size(); ++j) {
-				if(b->arcs_up[i] == a->arcs_up[j]) {
+		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
+			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
+				if(*i == *j) {
 					return true;
 				}
 			}
 		}
 
-		for(unsigned int i = 0; i < b->arcs_down.size(); ++i) {
-			for(unsigned int j = 0; j < a->arcs_down.size(); ++j) {
-				if(b->arcs_down[i] == a->arcs_down[j]) {
+		for (list<arc*>::const_iterator i = b->arcs_down.begin(), end = b->arcs_down.end(); i != end; ++i) {
+			for (list<arc*>::const_iterator j = a->arcs_down.begin(), end = a->arcs_down.end(); j != end; ++j) {
+				if(*i == *j) {
 					return true;
 				}
 			}
@@ -169,34 +168,34 @@ namespace pathgen {
 				// -- for each service's placement		
 				for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
 				{
-					placement * placement = &se->possible_placements[p];
-					cout << "\n- Service #" << serviceNumber+1 << ", Provider #" << placement->provider_index+1;
-					int providerNode = data->network.n_nodes - data->n_providers + placement->provider_index;
+					placement * pl = &se->possible_placements[p];
+					cout << "\n- Service #" << serviceNumber+1 << ", Provider #" << pl->provider_index+1;
+					int providerNode = data->network.n_nodes - data->n_providers + pl->provider_index;
 					
 					// CUSTOMER -> PLACEMENT
 					// generate paths
-					placement->paths = _generateReturnPathsForNodePair(c, // customer index == customer node index
+					pl->paths = _generateReturnPathsForNodePair(c, // customer index == customer node index
 						providerNode, se->latency_req, 
 						se->bandwidth_req_up, se->bandwidth_req_down,
-						&nodeArcs, placement->price, config
+						&nodeArcs, pl->price, config
 					);
 
 					// Register paths at their used arcs
-					for (unsigned int ipath = 0; ipath < placement->paths.size(); ++ipath) {
+					for (unsigned int ipath = 0; ipath < pl->paths.size(); ++ipath) {
 						// all arcs used on the way up
-						for (unsigned int iarc = 0; iarc < placement->paths[ipath].arcs_up.size(); ++iarc) {
-							placement->paths[ipath].arcs_up[iarc]->up_paths.push_back(&placement->paths[ipath]);
+						for (list<arc*>::const_iterator j = pl->paths[ipath].arcs_up.begin(), end = pl->paths[ipath].arcs_up.end(); j != end; ++j) {
+							(*j)->up_paths.push_back(&pl->paths[ipath]);
 						}
 						// all arcs used on the way down
-						for (unsigned int iarc = 0; iarc < placement->paths[ipath].arcs_down.size(); ++iarc) {
-							placement->paths[ipath].arcs_down[iarc]->down_paths.push_back(&placement->paths[ipath]);
+						for (list<arc*>::const_iterator j = pl->paths[ipath].arcs_down.begin(), end = pl->paths[ipath].arcs_down.end(); j != end; ++j) {
+							(*j)->down_paths.push_back(&pl->paths[ipath]);
 						}
 					}
-					cout << "\n - calculating combo availability (" << placement->paths.size() << "x" << placement->paths.size() << ")";
+					cout << "\n - calculating combo availability (" << pl->paths.size() << "x" << pl->paths.size() << ")";
 					// calculate combo availability [ P(A)*P(B|A) ]
-					for (unsigned int apath = 0; apath < placement->paths.size(); ++apath) {
-						for (unsigned int bpath = 0; bpath < placement->paths.size(); ++bpath) {
-							data->pathCombos.push_back(_pathComboForPaths(&placement->paths[apath], &placement->paths[bpath]));
+					for (unsigned int apath = 0; apath < pl->paths.size(); ++apath) {
+						for (unsigned int bpath = 0; bpath < pl->paths.size(); ++bpath) {
+							data->pathCombos.push_back(_pathComboForPaths(&pl->paths[apath], &pl->paths[bpath]));
 						}
 					}
 					cout << "\n - done";
@@ -309,21 +308,19 @@ namespace pathgen {
 				// register routings for service at used arcs
 				for (unsigned int i = 0; i < se->possible_routings.size(); ++i) {
 					routing * r = &se->possible_routings[i];
-					for (unsigned int a = 0; a < r->primary->arcs_up.size(); ++a) {
-						arc * ar = r->primary->arcs_up[a];
-						ar->up_routings_primary.push_back(r);
+					for (list<arc*>::const_iterator j = r->primary->arcs_up.begin(), end = r->primary->arcs_up.end(); j != end; ++j) {
+						(*j)->up_routings_primary.push_back(r);
 					}
-					for (unsigned int a = 0; a < r->primary->arcs_down.size(); ++a) {
-						arc * ar = r->primary->arcs_down[a];
-						ar->down_routings_primary.push_back(r);
+					for (list<arc*>::const_iterator j = r->primary->arcs_down.begin(), end = r->primary->arcs_down.end(); j != end; ++j) {
+						(*j)->down_routings_primary.push_back(r);
 					}
-					for (unsigned int a = 0; a < r->backup->arcs_up.size(); ++a) {
-						arc * ar = r->backup->arcs_up[a];
-						ar->up_routings_backup.push_back(r);
-					}
-					for (unsigned int a = 0; a < r->backup->arcs_down.size(); ++a) {
-						arc * ar = r->backup->arcs_down[a];
-						ar->down_routings_backup.push_back(r);
+					if(r->backup != NULL) {
+						for (list<arc*>::const_iterator j = r->backup->arcs_up.begin(), end = r->backup->arcs_up.end(); j != end; ++j) {
+							(*j)->up_routings_backup.push_back(r);
+						}
+						for (list<arc*>::const_iterator j = r->backup->arcs_down.begin(), end = r->backup->arcs_down.end(); j != end; ++j) {
+							(*j)->down_routings_backup.push_back(r);
+						}
 					}
 				}
 				cout << "\n - # total availability feasible routings (primary[+backup]): " << se->possible_routings.size();

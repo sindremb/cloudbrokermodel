@@ -315,11 +315,11 @@ namespace entities {
 		for (int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
-			for (int j = 0; j < a->up_paths.size(); ++j) {
-				myfile << a->up_paths[j]->pathNumber << " ";
+			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
+				myfile << (*j)->pathNumber << " ";
 			}
-			for (int j = 0; j < a->down_paths.size(); ++j) {
-				myfile << a->down_paths[j]->pathNumber << " ";
+			for (list<returnPath*>::const_iterator j = a->down_paths.begin(), end = a->down_paths.end(); j != end; ++j) {
+				myfile << (*j)->pathNumber << " ";
 			}
 			myfile << "]\n";
 		}
@@ -328,13 +328,13 @@ namespace entities {
 		myfile << "\n\nU_PathBandwidthUsage: [\n";
 		for (int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
-			for (int j = 0; j < a->up_paths.size(); ++j) {
+			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
 				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
-					  a->up_paths[j]->pathNumber << ") " << " " << a->up_paths[j]->bandwidth_usage_up;
+					  (*j)->pathNumber << ") " << " " << (*j)->bandwidth_usage_up;
 			}
-			for (int j = 0; j < a->down_paths.size(); ++j) {
+			for (list<returnPath*>::const_iterator j = a->down_paths.begin(), end = a->down_paths.end(); j != end; ++j) {
 				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
-					  a->down_paths[j]->pathNumber << ") " << " " << a->down_paths[j]->bandwidth_usage_down;
+					  (*j)->pathNumber << ") " << " " << (*j)->bandwidth_usage_down;
 			}
 			if(a->up_paths.size() > 0)
 				myfile << "\n";
@@ -369,16 +369,14 @@ namespace entities {
 		myfile << "]";
 
 		myfile << "\n\nD_CombinationAvailability: [\n";
-		for (int i = 0; i < data->pathCombos.size(); ++i) {
-			pathCombo * combo = &data->pathCombos[i];
-			myfile << " ("  << combo->a->pathNumber << " " << combo->b->pathNumber << ") " << combo->exp_b_given_a;
+		for (list<pathCombo>::const_iterator i = data->pathCombos.begin(), end = data->pathCombos.end(); i != end; ++i) {
+			myfile << " ("  << i->a->pathNumber << " " << i->b->pathNumber << ") " << i->exp_b_given_a;
 		}
 		myfile << "\n]";
 
 		myfile << "\n\nQ_Overlap: [\n";
-		for (int i = 0; i < data->pathOverlaps.size(); ++i) {
-			pathOverlap * overlap = &data->pathOverlaps[i];
-			myfile << " ("  << overlap->a->pathNumber << " " << overlap->b->pathNumber << ") 1";
+		for (list<pathOverlap>::const_iterator i = data->pathOverlaps.begin(), end = data->pathOverlaps.end(); i != end; ++i) {
+			myfile << " ("  << i->a->pathNumber << " " << i->b->pathNumber << ") 1";
 		}
 		myfile << "\n]";
 
@@ -465,11 +463,11 @@ namespace entities {
 		for (int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
-			for (int j = 0; j < a->up_routings_primary.size(); ++j) {
-				myfile << a->up_routings_primary[j]->routingNumber << " ";
+			for (list<routing*>::const_iterator j = a->up_routings_primary.begin(), end = a->up_routings_primary.end(); j != end; ++j) {
+				myfile << (*j)->routingNumber << " ";
 			}
-			for (int j = 0; j < a->down_routings_primary.size(); ++j) {
-				myfile << a->down_routings_primary[j]->routingNumber << " ";
+			for (list<routing*>::const_iterator j = a->down_routings_primary.begin(), end = a->down_routings_primary.end(); j != end; ++j) {
+				myfile << (*j)->routingNumber << " ";
 			}
 			myfile << "]\n";
 		}
@@ -479,15 +477,16 @@ namespace entities {
 		for (int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
-			for (int j = 0; j < a->up_routings_backup.size(); ++j) {
-				myfile << a->up_routings_backup[j]->routingNumber << " ";
+			for (list<routing*>::const_iterator j = a->up_routings_backup.begin(), end = a->up_routings_backup.end(); j != end; ++j) {
+				myfile << (*j)->routingNumber << " ";
 			}
-			for (int j = 0; j < a->down_routings_backup.size(); ++j) {
-				myfile << a->down_routings_backup[j]->routingNumber << " ";
+			for (list<routing*>::const_iterator j = a->down_routings_backup.begin(), end = a->down_routings_backup.end(); j != end; ++j) {
+				myfile << (*j)->routingNumber << " ";
 			}
 			myfile << "]\n";
 		}
 		myfile << "]";
+
 		myfile << "\n\nU_PathBandwidthUsage: [\n";
 		for (int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
@@ -507,30 +506,16 @@ namespace entities {
 		myfile << "\n\nU_PathBandwidthUsageBackup: [\n";
 		for (int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
-			for (int j = 0; j < a->up_routings_backup.size(); ++j) {
+			for (list<routing*>::const_iterator j = a->up_routings_backup.begin(), end = a->up_routings_backup.end(); j != end; ++j) {
 				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
-					a->up_routings_backup[j]->routingNumber << ") " << a->up_routings_backup[j]->backup->bandwidth_usage_up;
+					(*j)->routingNumber << ") " << (*j)->backup->bandwidth_usage_up;
 			}
-			for (int j = 0; j < a->down_routings_backup.size(); ++j) {
+			for (list<routing*>::const_iterator j = a->down_routings_backup.begin(), end = a->down_routings_backup.end(); j != end; ++j) {
 				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
-					a->down_routings_backup[j]->routingNumber << ") " << a->down_routings_backup[j]->backup->bandwidth_usage_down;
+					(*j)->routingNumber << ") " << (*j)->backup->bandwidth_usage_down;
 			}
 			if(a->up_paths.size() > 0)
 				myfile << "\n";
-		}
-		myfile << "]";
-
-		
-		myfile << "\n\nD_PathAvailability: [";
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
-					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths.size(); ++l) {
-						myfile << p->paths[l].exp_availability << " ";
-					}
-				}
-			}
 		}
 		myfile << "]";
 
@@ -543,29 +528,6 @@ namespace entities {
 						myfile << p->paths[l].cost << " ";
 					}
 				}
-			}
-		}
-		myfile << "]";
-
-		myfile << "\n\nD_CombinationAvailability: [\n";
-		for (int i = 0; i < data->pathCombos.size(); ++i) {
-			pathCombo * combo = &data->pathCombos[i];
-			myfile << " ("  << combo->a->pathNumber << " " << combo->b->pathNumber << ") " << combo->exp_b_given_a;
-		}
-		myfile << "\n]";
-
-		myfile << "\n\nQ_Overlap: [\n";
-		for (int i = 0; i < data->pathOverlaps.size(); ++i) {
-			pathOverlap * overlap = &data->pathOverlaps[i];
-			myfile << " ("  << overlap->a->pathNumber << " " << overlap->b->pathNumber << ") 1";
-		}
-		myfile << "\n]";
-
-
-		myfile << "\n\nG_LatencyReq: [";
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				myfile << data->customers[i].services[j].latency_req << " ";
 			}
 		}
 		myfile << "]";
