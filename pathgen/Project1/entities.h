@@ -2,6 +2,7 @@
 #define ENTITIES_H
 
 #include <vector>
+#include <list>
 
 namespace entities {
 
@@ -10,6 +11,12 @@ namespace entities {
 
 	typedef struct arc ARC;
 	typedef struct returnPath RETURN_PATH;
+	typedef struct routing ROUTING;
+
+	struct pathgenConfig {
+		bool calcOverlaps;
+		int maxPathsPerPlacement;
+	};
 	
 	struct arc {
 		int startNode;
@@ -22,8 +29,13 @@ namespace entities {
 
 		arc * return_arc;
 
-		std::vector<RETURN_PATH*> up_paths;
-		std::vector<RETURN_PATH*> down_paths;
+		std::list<ROUTING*> up_routings_primary;
+		std::list<ROUTING*> down_routings_primary;
+		std::list<ROUTING*> up_routings_backup;
+		std::list<ROUTING*> down_routings_backup;
+
+		std::list<RETURN_PATH*> up_paths;
+		std::list<RETURN_PATH*> down_paths;
 	};
 
 	struct returnPath {
@@ -42,8 +54,8 @@ namespace entities {
 
 		std::vector<bool> visitedNodes;
 
-		std::vector<ARC*> arcs_up;
-		std::vector<ARC*> arcs_down;
+		std::list<ARC*> arcs_up;
+		std::list<ARC*> arcs_down;
 	};
 
 	struct pathCombo {
@@ -56,6 +68,12 @@ namespace entities {
 	struct pathOverlap {
 		returnPath * a;
 		returnPath * b;
+	};
+
+	struct routing {
+		int routingNumber;
+		returnPath * primary;
+		returnPath * backup;
 	};
 
 	struct network {
@@ -77,6 +95,8 @@ namespace entities {
 		int latency_req;
 		double availability_req;
 		std::vector<placement> possible_placements;
+
+		std::vector<routing> possible_routings;
 	};
 
 	struct customer {
@@ -92,8 +112,8 @@ namespace entities {
 
 		network network;
 
-		std::vector<pathCombo> pathCombos;
-		std::vector<pathOverlap> pathOverlaps;
+		std::list<pathCombo> pathCombos;
+		std::list<pathOverlap> pathOverlaps;
 
 		std::vector<customer> customers;
 	};
@@ -101,6 +121,8 @@ namespace entities {
 	void loadFromJSONFile(const char *, dataContent *);
 
 	void toMoselDataFile(const char *, dataContent *);
+
+	void toMoselDataFileV2(const char *, dataContent *);
 }
 
 #endif

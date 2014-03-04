@@ -4,7 +4,8 @@
 #include "entities.h"
 
 namespace pathgen {
-	void generatePaths(entities::dataContent *, bool calcOverlaps = false);
+	void generatePaths(entities::dataContent *, entities::pathgenConfig);
+	void generateRoutings(entities::dataContent *, entities::pathgenConfig);
 }
 
 #endif

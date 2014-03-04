@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <list>
 
 #include "entities.h"
 #include "libjson.h"
@@ -28,7 +29,7 @@ namespace entities {
 	}
 
 	service _parseJsonServiceObj(const JSONNode & n) {
-		service service;
+		service s;
 
 		JSONNode::const_iterator i = n.begin();
 
@@ -39,16 +40,16 @@ namespace entities {
 
 			// find out where to store the values
 			if (node_name == "bandwidthRequirementUp"){
-				service.bandwidth_req_up = i->as_int();
+				s.bandwidth_req_up = i->as_int();
 			}
 			else if (node_name == "bandwidthRequirementDown") {
-				service.bandwidth_req_down = i->as_int();
+				s.bandwidth_req_down = i->as_int();
 			}
 			else if (node_name == "latencyRequirement") {
-				service.latency_req = i->as_int();
+				s.latency_req = i->as_int();
 			}
 			else if (node_name == "availabilityRequirement") {
-				service.availability_req = i->as_float();
+				s.availability_req = i->as_float();
 			}
 			else if (node_name == "placements") {
 				JSONNode::const_iterator j = i->begin();
@@ -69,7 +70,7 @@ namespace entities {
 						++p;
 					}
 					
-					service.possible_placements.push_back(placement);
+					s.possible_placements.push_back(placement);
 
 					//increment the iterator
 					++j;
@@ -78,7 +79,7 @@ namespace entities {
 			//increment the iterator
 			++i;
 		}
-		return service;
+		return s;
 	}
 
 
@@ -288,7 +289,7 @@ namespace entities {
 		myfile << "\n]";
 
 		myfile << "\n\nK_Paths: [";
-		int pathNumber = 1;
+		int pathNumber = 0;
 		serviceNumber = 1;
 		for (int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
@@ -299,9 +300,9 @@ namespace entities {
 					myfile << "\n (" << serviceNumber << " " << p->provider_index + 1 << ")";
 					myfile << " [";
 					for (int l = 0; l < p->paths.size(); ++l) {
+						++pathNumber;
 						myfile << pathNumber << " ";
 						p->paths[l].pathNumber = pathNumber;
-						++pathNumber;
 					}
 					myfile << "]";
 				}
@@ -404,7 +405,186 @@ namespace entities {
 		}
 		myfile << "]";
 
-		myfile << "\n\nn_Paths: " << pathNumber-1;
+		myfile << "\n\nn_Paths: " << pathNumber;
+
+		myfile.close();
+		
+		return;
+	}
+
+	void toMoselDataFileV2(const char * filename, dataContent * data) {
+
+		ofstream myfile;
+		myfile.open(filename);
+		myfile << "n_Customers: " << data->n_customers;
+		myfile << "\nn_Services: " << data->n_services;
+		myfile << "\nn_Nodes: " << data->network.n_nodes;
+		myfile << "\n!n_Routings: ! included below (not counted yet..)";
+		myfile << "\n\nSymmetric: false";
+
+		myfile << "\n\nR_Revenue: [";
+		for (int i = 0; i < data->customers.size(); ++i) {
+			myfile << data->customers[i].revenue << " ";
+		}
+		myfile << "]";
+
+		myfile << "\n\nS_ServiceForCustomer: [";
+		int serviceNumber = 1;
+		for (int i = 0; i < data->customers.size(); ++i) {
+			customer * c = &data->customers[i];
+			myfile << "\n [ ";
+			for (int j = 0; j < c->services.size(); ++j) {
+				myfile << serviceNumber << " ";
+				++serviceNumber;
+			}
+			myfile << "]";
+		}
+		myfile << "\n]";
+
+		myfile << "\n\nK_Paths: [";
+		int routingNumber = 0;
+		serviceNumber = 1;
+		for (int i = 0; i < data->customers.size(); ++i) {
+			customer * c = &data->customers[i];
+			for (int j = 0; j < c->services.size(); ++j) {
+				service * s = &c->services[j];
+				myfile << "\n (" << serviceNumber << ")";
+				myfile << " [";
+				for (int l = 0; l < s->possible_routings.size(); ++l) {
+					++routingNumber;
+					myfile << routingNumber << " ";
+					s->possible_routings[l].routingNumber = routingNumber;
+				}
+				myfile << "]";
+				++serviceNumber;
+			}
+		}
+		myfile << "\n]";
+
+		myfile << "\n\nL_PathsUsingLink: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
+			for (int j = 0; j < a->up_routings_primary.size(); ++j) {
+				myfile << a->up_routings_primary[j]->routingNumber << " ";
+			}
+			for (int j = 0; j < a->down_routings_primary.size(); ++j) {
+				myfile << a->down_routings_primary[j]->routingNumber << " ";
+			}
+			myfile << "]\n";
+		}
+		myfile << "]";
+
+		myfile << "\n\nL_PathsUsingLinkBackup: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
+			for (int j = 0; j < a->up_routings_backup.size(); ++j) {
+				myfile << a->up_routings_backup[j]->routingNumber << " ";
+			}
+			for (int j = 0; j < a->down_routings_backup.size(); ++j) {
+				myfile << a->down_routings_backup[j]->routingNumber << " ";
+			}
+			myfile << "]\n";
+		}
+		myfile << "]";
+		myfile << "\n\nU_PathBandwidthUsage: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			for (list<routing*>::const_iterator j = a->up_routings_primary.begin(), end = a->up_routings_primary.end(); j != end; ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					(*j)->routingNumber << ") " << (*j)->primary->bandwidth_usage_up;
+			}
+			for (list<routing*>::const_iterator j = a->down_routings_primary.begin(), end = a->down_routings_primary.end(); j != end; ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					(*j)->routingNumber << ") " << (*j)->primary->bandwidth_usage_down;
+			}
+			if(a->up_paths.size() > 0)
+				myfile << "\n";
+		}
+		myfile << "]";
+
+		myfile << "\n\nU_PathBandwidthUsageBackup: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			for (int j = 0; j < a->up_routings_backup.size(); ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					a->up_routings_backup[j]->routingNumber << ") " << a->up_routings_backup[j]->backup->bandwidth_usage_up;
+			}
+			for (int j = 0; j < a->down_routings_backup.size(); ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					a->down_routings_backup[j]->routingNumber << ") " << a->down_routings_backup[j]->backup->bandwidth_usage_down;
+			}
+			if(a->up_paths.size() > 0)
+				myfile << "\n";
+		}
+		myfile << "]";
+
+		
+		myfile << "\n\nD_PathAvailability: [";
+		for (int i = 0; i < data->customers.size(); ++i) {
+			for (int j = 0; j < data->customers[i].services.size(); ++j) {
+				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
+					placement * p = &data->customers[i].services[j].possible_placements[k];
+					for (int l = 0; l < p->paths.size(); ++l) {
+						myfile << p->paths[l].exp_availability << " ";
+					}
+				}
+			}
+		}
+		myfile << "]";
+
+		myfile << "\n\nC_PathCost: [";
+		for (int i = 0; i < data->customers.size(); ++i) {
+			for (int j = 0; j < data->customers[i].services.size(); ++j) {
+				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
+					placement * p = &data->customers[i].services[j].possible_placements[k];
+					for (int l = 0; l < p->paths.size(); ++l) {
+						myfile << p->paths[l].cost << " ";
+					}
+				}
+			}
+		}
+		myfile << "]";
+
+		myfile << "\n\nD_CombinationAvailability: [\n";
+		for (int i = 0; i < data->pathCombos.size(); ++i) {
+			pathCombo * combo = &data->pathCombos[i];
+			myfile << " ("  << combo->a->pathNumber << " " << combo->b->pathNumber << ") " << combo->exp_b_given_a;
+		}
+		myfile << "\n]";
+
+		myfile << "\n\nQ_Overlap: [\n";
+		for (int i = 0; i < data->pathOverlaps.size(); ++i) {
+			pathOverlap * overlap = &data->pathOverlaps[i];
+			myfile << " ("  << overlap->a->pathNumber << " " << overlap->b->pathNumber << ") 1";
+		}
+		myfile << "\n]";
+
+
+		myfile << "\n\nG_LatencyReq: [";
+		for (int i = 0; i < data->customers.size(); ++i) {
+			for (int j = 0; j < data->customers[i].services.size(); ++j) {
+				myfile << data->customers[i].services[j].latency_req << " ";
+			}
+		}
+		myfile << "]";
+
+		myfile << "\n\nF_BandwidthCap: [";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode + 1 << ") " << a->bandwidth_cap;
+		}
+		myfile << "]";
+
+		myfile << "\n\nC_BackupCost: [";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode + 1 << ") " << a->bandwidth_price;
+		}
+		myfile << "]";
+
+		myfile << "\n\nn_Paths: " << routingNumber;
 
 		myfile.close();
 		

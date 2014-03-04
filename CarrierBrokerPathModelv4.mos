@@ -155,7 +155,7 @@ end-do
 
 forall(pp in Paths) do
 	create(u_UsePath(pp));
-	u_UsePath(pp) is_binary;
+	!u_UsePath(pp) is_binary;
 	create(v_UseBackupPath(pp));
 	v_UseBackupPath(pp) is_binary;
 end-do
@@ -192,7 +192,8 @@ declarations
 	MaximumBackup:					dynamic array(Nodes,Nodes,Paths)			of linctr;
 	BackupRequirement:				dynamic array(Services,Providers,Paths,Paths) of linctr;
 	BackupCombination:				dynamic array(Services,Providers,Paths)		of linctr;
-	Overlap:						dynamic array(Services, Services)		of linctr;
+	Overlap:						dynamic array(Nodes, Nodes, Services, Services)		of linctr;
+	ServiceOverlap:					dynamic array(Nodes, Nodes, Services, Services)		of linctr;
 end-declarations
 
 
@@ -306,7 +307,7 @@ end-do!)
 forall(cc in Customers, qq in Customers) do
 	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz) do
 		forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-			Overlap(ss,zz):= 
+			ServiceOverlap(nn, mm, ss, zz):= 
 				sum(pp in Providers | exists(K_Paths(ss,pp)))(
 					sum(kk in (K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))) (
 						u_UsePath(kk)
@@ -330,7 +331,7 @@ end-do
 forall(cc in Customers, qq in Customers) do
 	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz) do
 		forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-			Overlap(ss,zz):= 
+			Overlap(nn, mm, ss,zz):= 
 				sum(pp in Providers | exists(K_Paths(ss,pp)))(
 					sum(kk in (K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))) (
 						v_UseBackupPath(kk)
@@ -377,21 +378,21 @@ writeln("\nTotal Profits: ", getobjval);
 ! for all customers
 forall(cc in Customers) do
 	! Check if customer is served
-	if (getsol(y_Serve(cc)) > 0.1) then
+	if (getsol(y_Serve(cc)) > 0.001) then
 		! output served customer and generated profits for customer
 		writeln("\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
 			R_Revenue(cc)*getsol(y_Serve(cc)));
 		forall(ss in S_ServiceForCustomer(cc), pp in Providers | exists(K_Paths(ss,pp))) do
-			if(getsol(x_Placement(ss,pp)) > 0.1) then
+			if(getsol(x_Placement(ss,pp)) > 0.001) then
 				writeln("  - Service ",ss," is placed at provider ",pp);
 				forall(kk in K_Paths(ss,pp)) do
-					if (getsol(u_UsePath(kk)) > 0.1) then
-						writeln("	  - Path up: ", kk, " , cost: ",C_PathCost(kk));
+					if (getsol(u_UsePath(kk)) > 0.001) then
+						writeln("	  - Path up: ", kk, " , cost: ",getsol(u_UsePath(kk))*C_PathCost(kk), " (", getsol(u_UsePath(kk))*100, " %)");
 					end-if
 				end-do
 				forall(kk in K_Paths(ss,pp)) do
-					if (getsol(v_UseBackupPath(kk)) > 0.1) then
-						writeln("	  - Backup path: ", kk);
+					if (getsol(v_UseBackupPath(kk)) > 0) then
+						writeln("	  - Backup path: ", kk, " (", getsol(v_UseBackupPath(kk))*100, " %)");
 					end-if
 				end-do
 			end-if
