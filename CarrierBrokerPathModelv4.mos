@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'min_test.txt';
+	Data = 'small.txt';
 end-parameters
 
 declarations
@@ -221,7 +221,7 @@ Total_Profits := sum (cc in Customers) (
 ! Customers can only be served if all services for customer is provided
 forall(cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc)) do
-		ServeCustomer(ss) := sum (pp in Providers) x_Placement(ss,pp) - y_Serve(cc) = 0;
+		ServeCustomer(ss) := sum (pp in Providers | exists(K_Paths(ss,pp))) x_Placement(ss,pp) - y_Serve(cc) = 0;
 	end-do
 end-do
 
