@@ -99,7 +99,9 @@ initialisations from Data
 	F_BandwidthCap;	
 	K_Paths;
 	L_PathsUsingLink;
+	L_PathsUsingLinkBackup;
 	U_PathBandwidthUsage;
+	U_PathBandwidthUsageBackup;
 	C_PathCost;
 	C_BackupCost;
 	S_ServiceForCustomer;
