@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'largev2.txt';
+	Data = 'mediumv2.txt';
 end-parameters
 
 declarations
@@ -213,7 +213,7 @@ forall( nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 	TotalBackup(nn,mm) := 0.3* sum(kk in L_PathsUsingLinkBackup(nn,mm))u_UsePath(kk)*U_PathBandwidthUsageBackup(nn,mm,kk) <= l_Lambda(nn,mm);
 end-do
 
-writeln("DONE\n - backup path bw use cnstr. 2:");
+write("DONE\n - backup path bw use cnstr. 2 ..");
 
 ! MIN BACKUP PATH BANDWIDTH CONSTRAINT
 ! bandwidth reserved for backup paths must be at least as high as the bandwidth required by the
@@ -222,14 +222,13 @@ writeln("DONE\n - backup path bw use cnstr. 2:");
 !   at this arc
 forall (cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc)) do
-		writeln("  - service: ", ss);
 		forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLinkBackup(nn,mm))) do
 			MaximumBackup(nn,mm,ss) := sum(kk in (L_PathsUsingLinkBackup(nn,mm)*K_Paths(ss))) (U_PathBandwidthUsageBackup(nn,mm,kk)-U_PathBandwidthUsage(nn,mm,kk))*u_UsePath(kk) <= l_Lambda(nn,mm);
 		end-do
 	end-do
 end-do
 
-writeln("  - DONE\n - service and backup overlap cnstrs.");
+writeln("DONE\n - service and backup overlap cnstrs.");
 
 forall(cc in Customers, qq in Customers) do
 	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz) do
@@ -267,7 +266,7 @@ forall(cc in Customers, qq in Customers) do
 	end-do
 end-do
 
-writeln("\n  - DONE");
+writeln("  - DONE");
 
 
 writeln("Model building completed in ", timestamp - timetracker, " seconds");
