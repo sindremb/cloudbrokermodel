@@ -521,12 +521,12 @@ namespace entities {
 
 		myfile << "\n\nC_PathCost: [";
 		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
-					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths.size(); ++l) {
-						myfile << p->paths[l].cost << " ";
-					}
+			customer * c = &data->customers[i];
+			for (int j = 0; j < c->services.size(); ++j) {
+				service * s = &c->services[j];
+				for (int l = 0; l < s->possible_routings.size(); ++l) {
+					routing * r = &s->possible_routings[l];
+					myfile << r->primary->cost << " ";
 				}
 			}
 		}
