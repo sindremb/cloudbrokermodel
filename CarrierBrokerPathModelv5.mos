@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'ml.txt';
+	Data = 'largev2.txt';
 end-parameters
 
 declarations
@@ -19,7 +19,7 @@ writeln("Building model...");
 timetracker := timestamp; ! assigns current "timestamp" to timetracker
 
 !setparam("XPRS_presolve", 0);	! uncomment to turn of presolve
-!setparam("XPRS_maxtime", 3600); ! maximum number of seconds for optimisation
+setparam("XPRS_maxtime", 3600); ! maximum number of seconds for optimisation
 
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! Sets
@@ -41,7 +41,7 @@ declarations
 	Nodes:					set of integer;
 	
 	Paths:					set of integer; 
-
+	
 end-declarations
 
 initializations from Data
@@ -139,7 +139,7 @@ forall (nn in Nodes, mm in Nodes) do
 	create(l_Lambda(nn,mm));
 end-do
 
-forall (ss in Services, zz in Services) do
+forall (ss in Services, zz in Services | ss < zz) do
 	create(l_Overlap(ss,zz));
 	l_Overlap(ss,zz) is_binary;
 end-do
@@ -231,11 +231,13 @@ end-do
 writeln("DONE\n - service and backup overlap cnstrs.");
 
 forall(cc in Customers, qq in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz) do
+	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz and ss < zz) do
 		writeln("  - service pair: ", ss, ", ", zz);
-		forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm)) 
-			and K_Paths(ss)*L_PathsUsingLink(nn,mm) <> {}
-			and K_Paths(zz)*L_PathsUsingLink(nn,mm) <> {}) do
+		forall(nn in Nodes, mm in Nodes | 	exists(L_PathsUsingLink(nn,mm)) 				! There are some paths using this arc
+											and K_Paths(ss)*L_PathsUsingLink(nn,mm) <> {}	! Service ss has paths using this link
+											and K_Paths(zz)*L_PathsUsingLink(nn,mm) <> {}	! Service zz has paths using this link
+										) do
+		
 			! SERVICE PATH OVERLAP CONSTRAINTS
 			! To services have overlapping main paths if for any arc both paths are represented
 			ServiceOverlap(nn,mm,ss,zz):=
