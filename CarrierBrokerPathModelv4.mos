@@ -291,17 +291,6 @@ forall(cc in Customers) do
 	end-do
 end-do
 
-! AUXILIARY PATH COMBO CONSTRAINT (NEEDED? will never be beneficial to set more than one o_UseCombination to 1?) 
-! is a backup path is selected for a service, one (and only one) path combination variable with the backup path
-! and one of the service possible paths must be 1
-(!forall(cc in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), pp in Providers| exists(K_Paths(ss,pp))) do
-		forall(bb in K_Paths(ss,pp)) do
-		BackupCombination(ss,pp,bb) := v_UseBackupPath(bb) = sum(kk in K_Paths(ss,pp)) o_UseCombination(kk,bb);
-		end-do
-	end-do
-end-do!)
-
 ! SERVICE PATH OVERLAP CONSTRAINTS
 ! To services have overlapping main paths if for any arc both paths are represented
 forall(cc in Customers, qq in Customers) do
@@ -341,18 +330,6 @@ forall(cc in Customers, qq in Customers) do
 				sum(pp in Providers | exists(K_Paths(zz,pp)))(
 					sum(kk in (K_Paths(zz,pp)*L_PathsUsingLink(nn,mm))) (
 						v_UseBackupPath(kk)
-					)
-				)
-				-
-				sum(pp in Providers | exists(K_Paths(ss,pp)))(
-					sum(kk in (K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))) (
-						u_UsePath(kk)
-					)
-				)
-				-
-				sum(pp in Providers | exists(K_Paths(zz,pp)))(
-					sum(kk in (K_Paths(zz,pp)*L_PathsUsingLink(nn,mm))) (
-						u_UsePath(kk)
 					)
 				)
 				+ l_Overlap(ss, zz)
@@ -398,36 +375,6 @@ forall(cc in Customers) do
 			end-if
 		end-do
 	end-if
-end-do
-
-				
-(! for all customers
-forall(cc in Customers) do
-	! Check if customer is served
-	if (getsol(y_Serve(cc)) > 0.1) then
-		! output served customer and generated profits for customer
-		writeln("\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
-			R_Revenue(cc)*getsol(y_Serve(cc)));
-		forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
-			if(getsol(x_Placement(ss,pp)) > 0.1) then
-			writeln("  - Service ",ss," is placed at provider ",pp,"	(latency req: ",G_LatencyReq(ss),")");
-			write("	  - Path up: ");
-				forall(kk in K_Paths(ss,pp)) do
-					if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln(kk," , cost: ",C_PathCost(kk)," , latency: ",J_PathLatency(kk));
-					end-if
-				end-do
-			write("	  - Path down: ");
-				forall(kk in K_PathsDown(ss,pp)) do
-					if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln(kk," , cost: ",C_PathCost(kk)," , latency: ",J_PathLatency(kk));
-					end-if
-				end-do
-			end-if
-		end-do
-	end-if
-end-do	!)			
-				
-				
+end-do			
 
 end-model
