@@ -67,7 +67,7 @@
 	-- Possible Placements:
 	<div data-bind="foreach: placements">
 		--- provider #<span data-bind="text: provider().providerNumber()"></span>
-		Price: <input type="text" data-bind="value: price()"  size="5"/>
+		Price: <input type="text" data-bind="value: price"  size="5"/>
 		<button data-bind="click: function() {$parent.removePlacement($data)}">Delete</button><br>
 	</div>
 	-- Additional providers:

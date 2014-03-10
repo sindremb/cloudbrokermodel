@@ -311,7 +311,6 @@ Datagen.utils.dataModelToDataVM = function(model, main) {
 					dataVM.providers()[sm.placements[k].provider],
 					sm.placements[k].price
 				);
-				console.log(svm.placements()[k]);
 			}
 			customer.addService(svm);
         }
