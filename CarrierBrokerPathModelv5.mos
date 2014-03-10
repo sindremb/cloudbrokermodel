@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'largev2.txt';
+	Data = 'mediumv2.txt';
 end-parameters
 
 declarations
@@ -188,10 +188,11 @@ end-do
 write("DONE\n - arc cap cnstr. ..");	
 
 ! ARC CAPACITY CONSTRAINT
-! The total used bandwidth for main paths and reserved for backup paths must not exceed the
+! The total used bandwidth for primary paths and reserved for backup paths must not exceed the
 ! arcs capacity
 forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-	PathArcBandwidth(nn,mm) := sum(kk in L_PathsUsingLink(nn,mm)) U_PathBandwidthUsage(nn,mm,kk)*u_UsePath(kk) + l_Lambda(nn,mm) <= F_BandwidthCap(nn,mm);
+	PathArcBandwidth(nn,mm) := sum(kk in L_PathsUsingLink(nn,mm)) U_PathBandwidthUsage(nn,mm,kk)*u_UsePath(kk) + l_Lambda(nn,mm) 
+		<= F_BandwidthCap(nn,mm);
 end-do
 
 write("DONE\n - backup path bw use cnstr. 1 ..");
@@ -200,20 +201,24 @@ write("DONE\n - backup path bw use cnstr. 1 ..");
 ! bandwidth reserved for backup paths on an arc is at least a fraction of the total bandwidth of all
 ! backup paths using that arc
 forall( nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-	TotalBackup(nn,mm) := 0.3* sum(kk in L_PathsUsingLinkBackup(nn,mm))u_UsePath(kk)*U_PathBandwidthUsageBackup(nn,mm,kk) <= l_Lambda(nn,mm);
+	TotalBackup(nn,mm) := 0.3* sum(kk in L_PathsUsingLinkBackup(nn,mm))
+		u_UsePath(kk)*(U_PathBandwidthUsageBackup(nn,mm,kk) - U_PathBandwidthUsage(nn,mm,kk)) 
+		<= l_Lambda(nn,mm);
 end-do
 
 write("DONE\n - backup path bw use cnstr. 2 ..");
 
 ! MIN BACKUP PATH BANDWIDTH CONSTRAINT
 ! bandwidth reserved for backup paths must be at least as high as the bandwidth required by the
-! most demanding backup path alone not also having its main path at the same arc
-! - if main path goes down elsewhere - sufficient bandwidth is released for the backup path
+! most demanding backup path alone not also having its primary path at the same arc
+! - if primary path goes down elsewhere - sufficient bandwidth is released for the backup path
 !   at this arc
 forall (cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc)) do
 		forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLinkBackup(nn,mm))) do
-			MaximumBackup(nn,mm,ss) := sum(kk in (L_PathsUsingLinkBackup(nn,mm)*K_Paths(ss))) (U_PathBandwidthUsageBackup(nn,mm,kk)-U_PathBandwidthUsage(nn,mm,kk))*u_UsePath(kk) <= l_Lambda(nn,mm);
+			MaximumBackup(nn,mm,ss) := sum(kk in (L_PathsUsingLinkBackup(nn,mm)*K_Paths(ss))) 
+				(U_PathBandwidthUsageBackup(nn,mm,kk)-U_PathBandwidthUsage(nn,mm,kk))*u_UsePath(kk) 
+				<= l_Lambda(nn,mm);
 		end-do
 	end-do
 end-do
@@ -229,29 +234,21 @@ forall(cc in Customers, qq in Customers) do
 										) do
 		
 			! SERVICE PATH OVERLAP CONSTRAINTS
-			! To services have overlapping main paths if for any arc both paths are represented
+			! Two services have overlapping primary paths if for any arc both paths are represented
 			ServiceOverlap(nn,mm,ss,zz):=
-				sum(kk in (K_Paths(ss)*L_PathsUsingLink(nn,mm))) (
-						u_UsePath(kk)
-				)
+				sum(kk in (K_Paths(ss)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
 				+
-				sum(kk in (K_Paths(zz)*L_PathsUsingLink(nn,mm))) (
-						u_UsePath(kk)
-				)
+				sum(kk in (K_Paths(zz)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
 				-1
 				<= l_Overlap(ss, zz);
 			
 			! BACKUP PATH OVERLAP CONSTRAINT
-			! backup paths may not overlap at an arc if their main paths overlap anywhere, unless
-			! one of the main paths also overlap at that specific arc
+			! backup paths may not overlap at an arc if their primary paths overlap anywhere, unless
+			! one of the primary paths also overlap at that specific arc
 			Overlap(nn,mm,ss,zz):= 
-				sum(kk in (K_Paths(ss)*L_PathsUsingLinkBackup(nn,mm))) (
-						u_UsePath(kk)
-				)
+				sum(kk in (K_Paths(ss)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
 				+
-				sum(kk in (K_Paths(zz)*L_PathsUsingLinkBackup(nn,mm))) (
-						u_UsePath(kk)
-				)
+				sum(kk in (K_Paths(zz)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
 				+ l_Overlap(ss, zz)
 				<= 2;
 		end-do
