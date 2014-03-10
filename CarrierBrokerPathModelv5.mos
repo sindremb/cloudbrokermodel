@@ -39,7 +39,7 @@ declarations
 	! Set of nodes in the network. 
 	! - First we have the customer nodes, then the internal nodes, the the provider nodes.
 	Nodes:					set of integer;
-	
+	! Set of paths
 	Paths:					set of integer; 
 	
 end-declarations
