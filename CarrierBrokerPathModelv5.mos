@@ -84,7 +84,6 @@ declarations
 	C_BackupCost:				dynamic array(Nodes,Nodes)			of real;
 	! services of services for customer
 	S_ServiceForCustomer:		set of set of integer; 
-	Symmetric:				boolean;
 
 end-declarations
 
@@ -100,17 +99,8 @@ initialisations from Data
 	C_PathCost;
 	C_BackupCost;
 	S_ServiceForCustomer;
-	Symmetric;
 end-initialisations
 
-if(Symmetric) then
-forall(nn in Nodes, mm in Nodes) do
-	if(exists(F_BandwidthCap(nn,mm)) and not exists(F_BandwidthCap(mm,nn))) then
-			create(F_BandwidthCap(mm,nn));
-			F_BandwidthCap(mm,nn):=F_BandwidthCap(nn,mm);
-	end-if
-end-do
-end-if
 
 declarations	
 	!Variables
@@ -120,7 +110,7 @@ declarations
 	u_UsePath:			dynamic array (Paths)						of mpvar; 
 	! - lambda: continous, amount of capacity reserved on a link for backup
 	l_Lambda:			dynamic array(Nodes,Nodes)					of mpvar;
-	! - lambda: continous, amount of capacity reserved on a link for backup
+	! - l: binary, indicates if two services' primary paths overlap
 	l_Overlap:			dynamic array(Services,Services)			of mpvar;
 end-declarations
 
@@ -301,35 +291,6 @@ forall(cc in Customers) do
 		end-do
 	end-if
 end-do
-
-				
-(! for all customers
-forall(cc in Customers) do
-	! Check if customer is served
-	if (getsol(y_Serve(cc)) > 0.1) then
-		! output served customer and generated profits for customer
-		writeln("\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
-			R_Revenue(cc)*getsol(y_Serve(cc)));
-		forall(ss in S_ServiceForCustomer(cc), pp in Providers) do
-			if(getsol(x_Placement(ss,pp)) > 0.1) then
-			writeln("  - Service ",ss," is placed at provider ",pp,"	(latency req: ",G_LatencyReq(ss),")");
-			write("	  - Path up: ");
-				forall(kk in K_Paths(ss,pp)) do
-					if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln(kk," , cost: ",C_PathCost(kk)," , latency: ",J_PathLatency(kk));
-					end-if
-				end-do
-			write("	  - Path down: ");
-				forall(kk in K_PathsDown(ss,pp)) do
-					if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln(kk," , cost: ",C_PathCost(kk)," , latency: ",J_PathLatency(kk));
-					end-if
-				end-do
-			end-if
-		end-do
-	end-if
-end-do	!)			
-				
 				
 
 end-model
