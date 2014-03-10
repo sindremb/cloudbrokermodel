@@ -1,0 +1,85 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Data set: smallA
+! - Small problem instance constructed to test model
+! - Varied requirements for bandwidth and latency
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+n_Customers: 3	! number of customers
+n_Services: 5	! number of services in total
+n_Providers: 2	! number of providers
+n_Nodes: 10		! number of nodes in total (customer, internal and provider nodes)
+n_Paths: 30		! number of paths generated
+
+Symmetric: false ! indicates wether or not arc provided in dataset goes both ways
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Customers, Services and Providers data
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! (c) Revenue from serving customer c
+R_Revenue: [1800	2400	1400]
+
+! (c) Set of services for customers c
+S_ServiceForCustomer:	[
+	[1	2]
+	[3]
+	[4	5]
+]
+
+
+C_PathCost: [ 200	200	300	157	978	1000	210	990	290	789	903	900	100	100	290	100	200	300	572	978	100	210	990	290	789	932	900	500	100	290	
+]
+K_Paths:[
+[1	2	3]	[6	7]
+[9]	[12]
+[13	14]	[17	18]
+[20]	[22]
+[24	25]	[27	28]
+]
+
+K_PathsDown:[
+[4	5]	[8]
+[10]	[11]
+[15	16]	[19]
+[21]	[23]
+[26]	[29	30]
+
+]
+L_PathsUsingLink:[
+	(1 4) [1	8	5	7	4]
+	(2 4) [7	8	9	20]	(2 5) [27	6	16]	
+	(3 5) [1	2]	
+	(4 1) [2	3	23]	(4 2) [4	9	6	23]	(4 6) [1	12	16	17]	(4 7) [11	12]
+	(5 2) [18	19	20]	(5 3) [10	14	16]	(5 6) [11	12]	(5 8) [28	30	29]	
+	(6 4) [23	24	25]	(6 5) [22	12]	(6 7) [21	19	15]	(6 8) [22	21	23]
+	(7 4) [22]	(7 6) [1]	(7 9) [4]	(7 10) [6]	
+	(8 5) [8]	(8 6) [9]	(8 9) [10]	(8 10) [4]
+	(9 7) [22]	(9 8) [1]
+	(10 7) [4]	(10 8) [8]
+]
+
+U_PathBandwidthUsage: [
+	49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 49 29 39 49
+	]
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Network data
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!! Own network
+
+
+! (i,j) Bandwidth capacity between nodes i and j
+F_BandwidthCap: [
+	(1 4) 50
+	(2 4) 50	(2 5) 50	
+	(3 5) 50	
+	(4 1) 50	(4 2) 50	(4 6) 50	(4 7) 50
+	(5 2) 50	(5 3) 50	(5 6) 50	(5 8) 50	
+	(6 4) 50	(6 5) 50	(6 7) 50	(6 8) 50
+	(7 4) 50	(7 6) 50	(7 9) 50	(7 10) 50	
+	(8 5) 50	(8 6) 50	(8 9) 50	(8 10) 50
+	(9 7) 50	(9 8) 50
+	(10 7) 50	(10 8) 50
+]
+

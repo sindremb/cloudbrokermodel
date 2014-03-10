@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'mediumv2.txt';
+	Data = 'data/mediumv2.txt';
 end-parameters
 
 declarations
