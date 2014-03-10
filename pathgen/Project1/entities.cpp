@@ -40,13 +40,13 @@ namespace entities {
 
 			// find out where to store the values
 			if (node_name == "bandwidthRequirementUp"){
-				s.bandwidth_req_up = i->as_int();
+				s.bandwidth_req_up = i->as_float();
 			}
 			else if (node_name == "bandwidthRequirementDown") {
-				s.bandwidth_req_down = i->as_int();
+				s.bandwidth_req_down = i->as_float();
 			}
 			else if (node_name == "latencyRequirement") {
-				s.latency_req = i->as_int();
+				s.latency_req = i->as_float();
 			}
 			else if (node_name == "availabilityRequirement") {
 				s.availability_req = i->as_float();
@@ -64,7 +64,7 @@ namespace entities {
 							placement.provider_index = p->as_int();
 						}
 						else if (node_name_p == "price") {
-							placement.price = p->as_int();
+							placement.price = p->as_float();
 						}
 
 						++p;
@@ -94,7 +94,7 @@ namespace entities {
 
 			// find out where to store the values
 			if (node_name == "revenue"){
-				customer.revenue = i->as_int();
+				customer.revenue = i->as_float();
 			}
 			else if (node_name == "services"){
 				JSONNode::const_iterator j = i->begin();
@@ -155,13 +155,13 @@ namespace entities {
 							arc.startNode = k->as_int();
 						}
 						else if (node_name_k == "latency") {
-							arc.latency = k->as_int();
+							arc.latency = k->as_float();
 						}
 						else if (node_name_k == "bandwidthCap") {
-							arc.bandwidth_cap = k->as_int();
+							arc.bandwidth_cap = k->as_float();
 						}
 						else if (node_name_k == "bandwidthPrice") {
-							arc.bandwidth_price = k->as_int();
+							arc.bandwidth_price = k->as_float();
 						}
 						else if (node_name_k == "expectedAvailability") {
 							arc.exp_availability = k->as_float();

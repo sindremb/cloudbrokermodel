@@ -22,9 +22,9 @@ namespace entities {
 		int startNode;
 		int endNode;
 
-		int latency;
-		int bandwidth_cap;
-		int bandwidth_price;
+		double latency;
+		double bandwidth_cap;
+		double bandwidth_price;
 		double exp_availability;
 
 		arc * return_arc;
@@ -39,14 +39,14 @@ namespace entities {
 	};
 
 	struct returnPath {
-		int bandwidth_usage_up;
-		int bandwidth_usage_down;
-		int latency;
+		double bandwidth_usage_up;
+		double bandwidth_usage_down;
+		double latency;
 
 		int startNode;
 		int endNode;
 
-		int cost;
+		double cost;
 
 		double exp_availability;
 
@@ -84,15 +84,15 @@ namespace entities {
 	};
 
 	struct placement {
-		int price;
+		double price;
 		int provider_index;
 		std::vector<RETURN_PATH> paths;
 	};
 
 	struct service {
-		int bandwidth_req_up;
-		int bandwidth_req_down;
-		int latency_req;
+		double bandwidth_req_up;
+		double bandwidth_req_down;
+		double latency_req;
 		double availability_req;
 		std::vector<placement> possible_placements;
 
@@ -100,7 +100,7 @@ namespace entities {
 	};
 
 	struct customer {
-		int revenue;
+		double revenue;
 
 		std::vector<service> services;
 	};
