@@ -31,6 +31,7 @@ declarations
 	n_Services:				integer; ! number of services
 	n_Nodes:				integer; ! number of nodes in total
 	n_Paths:				integer; ! number of paths
+	n_Mappings:				integer; ! number of mappings
 	
 ! Sets	
 	Customers:				set of integer; 
