@@ -19,7 +19,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'bigA.txt';
+	Data = 'data/sm.txt';
 	! Use thightened restrictions (v2) or not (v1)
 	TightenLP = false;
 end-parameters

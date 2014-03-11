@@ -1,0 +1,34 @@
+Building model...
+ - obj. fn. ..DONE
+ - use path cnstr. ..DONE
+ - arc cap cnstr. ..DONE
+ - backup path bw use cnstr. 1 ..DONE
+ - backup path bw use cnstr. 2 ..DONE
+ - service and backup overlap cnstrs.
+  - service pair: 1, 2
+  - service pair: 1, 3
+  - service pair: 1, 4
+  - service pair: 2, 3
+  - service pair: 2, 4
+  - service pair: 3, 4
+  - DONE
+Model building completed in 0.128 seconds
+Solving model...
+Model solved in 7.899 seconds
+
+Total Profits: 1688
+
+
+Customer 1 (node 1) is being served
+ - R_Revenue: 1000
+  - Service 1 uses path 2 , cost: 260
+
+
+Customer 2 (node 2) is being served
+ - R_Revenue: 1000
+  - Service 2 uses path 179 , cost: 260
+
+
+Customer 4 (node 4) is being served
+ - R_Revenue: 1000
+  - Service 4 uses path 763 , cost: 380

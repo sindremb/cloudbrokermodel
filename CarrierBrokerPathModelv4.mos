@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/small.txt';
+	Data = 'data/sm_paths.txt';
 end-parameters
 
 declarations
@@ -187,7 +187,7 @@ declarations
 	ServeCustomer:					dynamic array(Services)						of linctr;
 	UsePath:						dynamic array(Services,Providers)			of linctr;
 	PathArcBandwidth:				dynamic array(Nodes,Nodes)					of linctr;
-	PathAvailability:				dynamic array(Services,Providers)			of linctr;
+	PathAvailability:				dynamic array(Services)						of linctr;
 	TotalBackup:					dynamic array(Nodes,Nodes)					of linctr;
 	MaximumBackup:					dynamic array(Nodes,Nodes,Paths)			of linctr;
 	BackupRequirement:				dynamic array(Services,Providers,Paths,Paths) of linctr;
@@ -247,17 +247,26 @@ end-do
 ! - single main path: P(A)
 ! - with backup path: P(A) + P(B) - P(A)P(B|A)
 forall(cc in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), pp in Providers | exists(K_Paths(ss,pp))) do
-		PathAvailability(ss,pp) := 
+	forall(ss in S_ServiceForCustomer(cc)) do
+		PathAvailability(ss) := 
 			! Availability from main (and backup path): P(A) + P(B)
-			sum(kk in K_Paths(ss,pp)) (
-					v_UseBackupPath(kk) 
-					+ u_UsePath(kk)
-				)*D_PathAvailability(kk) 
+			sum(pp in Providers | exists(K_Paths(ss,pp))) (
+				sum(kk in K_Paths(ss,pp)) (
+					D_PathAvailability(kk) 
+					*
+					(
+						u_UsePath(kk)
+						+
+						v_UseBackupPath(kk) 
+					)
+				)
+			)
 			- 
 			! subtract P(A)P(B|A) if backup path is chosen
-			sum(kk in K_Paths(ss,pp), bb in K_Paths(ss,pp)) 
-				o_UseCombination(kk,bb)*D_CombinationAvailability(kk,bb)
+			sum(pp in Providers | exists(K_Paths(ss,pp))) (
+				sum(kk in K_Paths(ss,pp), bb in K_Paths(ss,pp)) 
+					D_CombinationAvailability(kk,bb)*o_UseCombination(kk,bb)
+			)
 			>= Y_AvailabilityReq(ss)* y_Serve(cc);
 	end-do
 end-do
@@ -286,7 +295,7 @@ end-do
 forall(cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc), pp in Providers| exists(K_Paths(ss,pp))) do
 		forall(kk in K_Paths(ss,pp), bb in K_Paths(ss,pp)) do
-		BackupRequirement(ss,pp,kk,bb) := u_UsePath(kk) + v_UseBackupPath(bb) - 1 <= o_UseCombination(kk,bb);
+			BackupRequirement(ss,pp,kk,bb) := u_UsePath(kk) + v_UseBackupPath(bb) - 1 <= o_UseCombination(kk,bb);
 		end-do
 	end-do
 end-do
@@ -351,6 +360,8 @@ else
 end-if
 
 writeln("\nTotal Profits: ", getobjval);
+
+writeln("\nTotal Backup Costs: ", sum(nn in Nodes)(sum(mm in Nodes)(C_BackupCost(nn, mm)*getsol(l_Lambda(nn, mm)))));
 
 ! for all customers
 forall(cc in Customers) do

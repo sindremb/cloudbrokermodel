@@ -1,0 +1,16 @@
+Building model...
+Model building completed in 0.0059998 seconds
+Solving model...
+Model solved in 0.0910001 seconds
+
+Total Profits: 396
+
+
+Customer 2 (node 2) is being served
+ - R_Revenue: 600
+  - Service 2 is placed at provider 4
+	  - Path up: 27 , cost: 204 (100 %)
+	  - Backup path: 27 (100 %)
+	  - Backup path: 28 (100 %)
+	  - Backup path: 33 (100 %)
+	  - Backup path: 41 (100 %)

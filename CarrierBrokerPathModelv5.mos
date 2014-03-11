@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/mediumv2.txt';
+	Data = 'data/sm_mappings.txt';
 end-parameters
 
 declarations
@@ -270,6 +270,8 @@ else
 end-if
 
 writeln("\nTotal Profits: ", getobjval);
+
+writeln("\nTotal Backup Costs: ", sum(nn in Nodes)(sum(mm in Nodes)(C_BackupCost(nn, mm)*getsol(l_Lambda(nn, mm)))));
 
 ! for all customers
 forall(cc in Customers) do
