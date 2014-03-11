@@ -49,17 +49,20 @@ initializations from Data
 	n_Services;
 	n_Nodes;
 	n_Paths;
+	n_Mappings;
 end-initializations
 	
 Customers:= 1..n_Customers;
 Services:= 1..n_Services;  
 Nodes:= 1..n_Nodes;
 Paths := 1..n_Paths;
+Mappings := 1..n_Mappings;
 
 finalize(Customers);
 finalize(Services);
 finalize(Nodes);
 finalize(Paths);
+finalize(Mappings);
 
 !!!!!!!!!!!!!!!!!!!!!!!
 ! Parameters
@@ -85,16 +88,16 @@ declarations
 	!Possible mappings for each pair of service and provider
 	K_Mappings:					dynamic array(Services) of set of integer;
 	! mappings using path as primary path
-	P_mappings:					set of set of integer;
+	P_MappingPerPath:			dynamic array(Paths) of set of integer;
 	! mappings using path as backup path
-	B_mappings:					set of set of integer;
+	B_MappingsPerBackupPath:	dynamic array(Paths) of set of integer;
 end-declarations
 
 
 initialisations from Data	
 	R_Revenue;
 	F_BandwidthCap;	
-	K_Paths;
+	K_Mappings;
 	L_PathsUsingLink;
 	L_PathsUsingLinkBackup;
 	U_PathBandwidthUsage;
@@ -102,6 +105,8 @@ initialisations from Data
 	C_PathCost;
 	C_BackupCost;
 	S_ServiceForCustomer;
+	P_MappingsPerPath;
+	B_MappingsPerBackupPath;
 end-initialisations
 
 
@@ -110,7 +115,7 @@ declarations
 	! - y: binary, serving of a customer
 	y_Serve:			dynamic array (Customers)					of mpvar;
 	! - u: binary, indicates which paths are used
-	u_UsePath:			dynamic array (Paths)						of mpvar; 
+	u_UseMapping:		dynamic array (Mappings)						of mpvar; 
 	! - lambda: continous, amount of capacity reserved on a link for backup
 	l_Lambda:			dynamic array(Nodes,Nodes)					of mpvar;
 	! - l: binary, indicates if two services' primary paths overlap
@@ -123,9 +128,9 @@ forall(cc in Customers) do
 	y_Serve(cc) is_binary;
 end-do
 
-forall(pp in Paths) do
-	create(u_UsePath(pp));
-	u_UsePath(pp) is_binary;
+forall(mm in Mappings) do
+	create(u_UseMapping(mm));
+	u_UseMapping(mm) is_binary;
 end-do
 
 forall (nn in Nodes, mm in Nodes) do
@@ -165,9 +170,9 @@ Total_Profits := sum (cc in Customers) (
 				)
 				- 
 				! cost for all paths used as main paths
-				sum(kk in Paths) (
+				sum(kk in Paths) sum(mm in P_MappingsPerPath(kk)) (
 					!cost for using a path
-					C_PathCost(kk)*u_UsePath(kk)
+					C_PathCost(kk)*u_UseMapping(mm)
 				)
 				-
 				! cost of bandwidth reserved to support backup paths
@@ -178,6 +183,10 @@ Total_Profits := sum (cc in Customers) (
 				);
 
 write("DONE\n - use path cnstr. ..");		
+
+
+!!!!!!!Change from path to mappings came this far!!!!
+
 
 
 ! USE PATH CONSTRAINTS
