@@ -70,8 +70,6 @@ declarations
 	R_Revenue:					dynamic array(Customers)	 of real;
 	!Bandwidth capacity between each pair of nodes
 	F_BandwidthCap:				dynamic array(Nodes,Nodes)	 of real;
-	!Possible paths for each pair of service and provider
-	K_Paths:					dynamic array(Services) of set of integer;
 	!set of paths  using each link
 	L_PathsUsingLink:			dynamic array(Nodes,Nodes) of set	of integer;
 	L_PathsUsingLinkBackup:		dynamic array(Nodes,Nodes) of set	of integer;
@@ -84,7 +82,12 @@ declarations
 	C_BackupCost:				dynamic array(Nodes,Nodes)			of real;
 	! services of services for customer
 	S_ServiceForCustomer:		set of set of integer;
-
+	!Possible mappings for each pair of service and provider
+	K_Mappings:					dynamic array(Services) of set of integer;
+	! mappings using path as primary path
+	P_mappings:					set of set of integer;
+	! mappings using path as backup path
+	B_mappings:					set of set of integer;
 end-declarations
 
 
