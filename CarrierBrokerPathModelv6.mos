@@ -217,10 +217,6 @@ end-do
 write("DONE\n - backup path bw use cnstr. 2 ..");
 
 
-!!!!!!!!!!!!!!!Endring kommet hit!!!!!!!!!!!!!!!!!!!!!!
-!Hvordan blir disse? Kan ikke bare bytte ut K_Paths med K_Mappings.. Trenger en måte å finne de paths som en service bruker?
-
-
 
 ! MIN BACKUP PATH BANDWIDTH CONSTRAINT
 ! bandwidth reserved for backup paths must be at least as high as the bandwidth required by the
@@ -230,9 +226,13 @@ write("DONE\n - backup path bw use cnstr. 2 ..");
 forall (cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc)) do
 		forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLinkBackup(nn,mm))) do
-			MaximumBackup(nn,mm,ss) := sum(kk in (L_PathsUsingLinkBackup(nn,mm)*K_Paths(ss))) 
-				(U_PathBandwidthUsageBackup(nn,mm,kk)-U_PathBandwidthUsage(nn,mm,kk))*u_UsePath(kk) 
-				<= l_Lambda(nn,mm);
+			MaximumBackup(nn,mm,ss) := 
+				!sum(pp in (P_MappingsPerPath(L_PathsUsingLinkBackup(nn,mm))*K_Mappings(ss)))
+				!(U_PathBandwidthUsageBackup(nn,mm,kk)-U_PathBandwidthUsage(nn,mm,kk))*u_UseMapping(pp) 
+				!<= l_Lambda(nn,mm);
+			 sum(kk in L_PathsUsingLinkBackup(nn,mm))(U_PathBandwidthUsageBackup(nn,mm,kk)-U_PathBandwidthUsage(nn,mm,kk))
+			 *sum(pp in P_MappingsPerPath(kk)*K_Mappings(ss))(u_UseMapping(pp)) 
+				<= l_Lambda(nn,mm); ) 
 		end-do
 	end-do
 end-do
@@ -243,16 +243,18 @@ forall(cc in Customers, qq in Customers) do
 	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz and ss < zz) do
 		writeln("  - service pair: ", ss, ", ", zz);
 		forall(nn in Nodes, mm in Nodes | 	exists(L_PathsUsingLink(nn,mm)) 				! There are some paths using this arc
-											and K_Paths(ss)*L_PathsUsingLink(nn,mm) <> {}	! Service ss has paths using this link
-											and K_Paths(zz)*L_PathsUsingLink(nn,mm) <> {}	! Service zz has paths using this link
+											!and K_Paths(ss)*L_PathsUsingLink(nn,mm) <> {}	! Service ss has paths using this link
+											!and K_Paths(zz)*L_PathsUsingLink(nn,mm) <> {}	! Service zz has paths using this link
 										) do
 		
 			! SERVICE PATH OVERLAP CONSTRAINTS
 			! Two services have overlapping primary paths if for any arc both paths are represented
 			ServiceOverlap(nn,mm,ss,zz):=
-				sum(kk in (K_Paths(ss)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
+				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(ss)*P_MappingsPerPath(kk)))(u_UseMapping(pp))
+				!sum(kk in (K_Paths(ss)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
 				+
-				sum(kk in (K_Paths(zz)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
+				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(zz)*P_MappingsPerPath(kk)))(u_UseMapping(pp))
+				!sum(kk in (K_Paths(zz)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
 				-1
 				<= l_Overlap(ss, zz);
 			
@@ -260,9 +262,11 @@ forall(cc in Customers, qq in Customers) do
 			! backup paths may not overlap at an arc if their primary paths overlap anywhere, unless
 			! one of the primary paths also overlap at that specific arc
 			Overlap(nn,mm,ss,zz):= 
-				sum(kk in (K_Paths(ss)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
+				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(ss)*P_MappingsPerBackupPath(kk)))(u_UseMapping(pp))
+				!sum(kk in (K_Paths(ss)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
 				+
-				sum(kk in (K_Paths(zz)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
+				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(zz)*P_MappingsPerBackupPath(kk)))(u_UseMapping(pp))
+				!sum(kk in (K_Paths(zz)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
 				+ l_Overlap(ss, zz)
 				<= 2;
 		end-do
@@ -272,6 +276,9 @@ end-do
 writeln("  - DONE");
 
 
+
+
+!!!! Ikke endret utskrift enda!!!!
 writeln("Model building completed in ", timestamp - timetracker, " seconds");
 
 writeln("Solving model...");
