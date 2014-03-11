@@ -552,4 +552,148 @@ namespace entities {
 		
 		return;
 	}
+
+	
+	void toMoselDataFileV3(const char * filename, dataContent * data) {
+
+		ofstream myfile;
+		myfile.open(filename);
+		myfile << "n_Customers: " << data->n_customers;
+		myfile << "\nn_Services: " << data->n_services;
+		myfile << "\nn_Nodes: " << data->network.n_nodes;
+		myfile << "\n!n_Routings: ! included below (not counted yet..)";
+		myfile << "\n\nSymmetric: false";
+
+		myfile << "\n\nR_Revenue: [";
+		for (int i = 0; i < data->customers.size(); ++i) {
+			myfile << data->customers[i].revenue << " ";
+		}
+		myfile << "]";
+
+		myfile << "\n\nS_ServiceForCustomer: [";
+		int serviceNumber = 1;
+		for (int i = 0; i < data->customers.size(); ++i) {
+			customer * c = &data->customers[i];
+			myfile << "\n [ ";
+			for (int j = 0; j < c->services.size(); ++j) {
+				myfile << serviceNumber << " ";
+				++serviceNumber;
+			}
+			myfile << "]";
+		}
+		myfile << "\n]";
+
+		myfile << "\n\nK_Paths: [";
+		int routingNumber = 0;
+		serviceNumber = 1;
+		for (int i = 0; i < data->customers.size(); ++i) {
+			customer * c = &data->customers[i];
+			for (int j = 0; j < c->services.size(); ++j) {
+				service * s = &c->services[j];
+				myfile << "\n (" << serviceNumber << ")";
+				myfile << " [";
+				for (int l = 0; l < s->possible_routings.size(); ++l) {
+					++routingNumber;
+					myfile << routingNumber << " ";
+					s->possible_routings[l].routingNumber = routingNumber;
+				}
+				myfile << "]";
+				++serviceNumber;
+			}
+		}
+		myfile << "\n]";
+
+		myfile << "\n\nL_PathsUsingLink: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
+			for (list<routing*>::const_iterator j = a->up_routings_primary.begin(), end = a->up_routings_primary.end(); j != end; ++j) {
+				myfile << (*j)->routingNumber << " ";
+			}
+			for (list<routing*>::const_iterator j = a->down_routings_primary.begin(), end = a->down_routings_primary.end(); j != end; ++j) {
+				myfile << (*j)->routingNumber << " ";
+			}
+			myfile << "]\n";
+		}
+		myfile << "]";
+
+		myfile << "\n\nL_PathsUsingLinkBackup: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
+			for (list<routing*>::const_iterator j = a->up_routings_backup.begin(), end = a->up_routings_backup.end(); j != end; ++j) {
+				myfile << (*j)->routingNumber << " ";
+			}
+			for (list<routing*>::const_iterator j = a->down_routings_backup.begin(), end = a->down_routings_backup.end(); j != end; ++j) {
+				myfile << (*j)->routingNumber << " ";
+			}
+			myfile << "]\n";
+		}
+		myfile << "]";
+
+		myfile << "\n\nU_PathBandwidthUsage: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			for (list<routing*>::const_iterator j = a->up_routings_primary.begin(), end = a->up_routings_primary.end(); j != end; ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					(*j)->routingNumber << ") " << (*j)->primary->bandwidth_usage_up;
+			}
+			for (list<routing*>::const_iterator j = a->down_routings_primary.begin(), end = a->down_routings_primary.end(); j != end; ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					(*j)->routingNumber << ") " << (*j)->primary->bandwidth_usage_down;
+			}
+			if(a->up_paths.size() > 0)
+				myfile << "\n";
+		}
+		myfile << "]";
+
+		myfile << "\n\nU_PathBandwidthUsageBackup: [\n";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			for (list<routing*>::const_iterator j = a->up_routings_backup.begin(), end = a->up_routings_backup.end(); j != end; ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					(*j)->routingNumber << ") " << (*j)->backup->bandwidth_usage_up;
+			}
+			for (list<routing*>::const_iterator j = a->down_routings_backup.begin(), end = a->down_routings_backup.end(); j != end; ++j) {
+				myfile << " (" << a->startNode +1 << " " << a->endNode +1 << " " <<
+					(*j)->routingNumber << ") " << (*j)->backup->bandwidth_usage_down;
+			}
+			if(a->up_paths.size() > 0)
+				myfile << "\n";
+		}
+		myfile << "]";
+
+		myfile << "\n\nC_PathCost: [";
+		for (int i = 0; i < data->customers.size(); ++i) {
+			customer * c = &data->customers[i];
+			for (int j = 0; j < c->services.size(); ++j) {
+				service * s = &c->services[j];
+				for (int l = 0; l < s->possible_routings.size(); ++l) {
+					routing * r = &s->possible_routings[l];
+					myfile << r->primary->cost << " ";
+				}
+			}
+		}
+		myfile << "]";
+
+		myfile << "\n\nF_BandwidthCap: [";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode + 1 << ") " << a->bandwidth_cap;
+		}
+		myfile << "]";
+
+		myfile << "\n\nC_BackupCost: [";
+		for (int i = 0; i < data->network.arcs.size(); ++i) {
+			arc* a = &data->network.arcs[i];
+			myfile << " (" << a->startNode +1 << " " << a->endNode + 1 << ") " << a->bandwidth_price;
+		}
+		myfile << "]";
+
+		myfile << "\n\nn_Paths: " << routingNumber;
+
+		myfile.close();
+		
+		return;
+	}
 }

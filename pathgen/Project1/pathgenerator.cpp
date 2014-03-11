@@ -191,40 +191,58 @@ namespace pathgen {
 							(*j)->down_paths.push_back(&pl->paths[ipath]);
 						}
 					}
-					cout << "\n - calculating combo availability (" << pl->paths.size() << "x" << pl->paths.size() << ")";
+				}
+				++serviceNumber;
+			}
+		}
+
+		return;
+	}
+
+	void calculatePathComboAvailabilities(dataContent * data) {
+		cout << "\n - calculating combo availability within each placement";
+		
+		for (unsigned int c = 0; c < data->customers.size(); ++c)
+		{
+			// - loop through customer's services
+			customer * cu = &data->customers[c];
+			for (unsigned int s = 0; s < cu->services.size(); ++s) 
+			{
+				service * se = &cu->services[s];
+				// -- for each service's placement		
+				for (unsigned int p = 0; p < se->possible_placements.size(); ++p) {
+					placement * pl = &se->possible_placements[p];
 					// calculate combo availability [ P(A)*P(B|A) ]
 					for (unsigned int apath = 0; apath < pl->paths.size(); ++apath) {
 						for (unsigned int bpath = 0; bpath < pl->paths.size(); ++bpath) {
 							data->pathCombos.push_back(_pathComboForPaths(&pl->paths[apath], &pl->paths[bpath]));
 						}
 					}
-					cout << "\n - done";
 				}
-				++serviceNumber;
 			}
 		}
-		if(config.calcOverlaps) {
-			// find paths with overlap
-			// NOTE: current implementation inefficient
-			// loop through all paths
-			cout << "\n\ncalculating path overlaps..";
-			int path1Num = 0;
-			for (unsigned int c1 = 0; c1 < data->customers.size(); ++c1) {
-				for (unsigned int s1 = 0; s1 < data->customers[c1].services.size(); ++s1) {	
-					for (unsigned int p1 = 0; p1 < data->customers[c1].services[s1].possible_placements.size(); ++p1) {
-						for (unsigned int ipath1 = 0; ipath1 < data->customers[c1].services[s1].possible_placements[p1].paths.size(); ++ipath1) {
-							returnPath * path1 = &data->customers[c1].services[s1].possible_placements[p1].paths[ipath1];
-							for (unsigned int c2 = 0; c2 < data->customers.size(); ++c2) {
-								for (unsigned int s2 = 0; s2 < data->customers[c2].services.size(); ++s2) {	
-									for (unsigned int p2 = 0; p2 < data->customers[c2].services[s2].possible_placements.size(); ++p2) {
-										for (unsigned int ipath2 = 0; ipath2 < data->customers[c2].services[s2].possible_placements[p2].paths.size(); ++ipath2) {
-											returnPath * path2 = &data->customers[c2].services[s2].possible_placements[p2].paths[ipath2];
-											if(_checkPathOverlap(path1, path2)) {
-												pathOverlap o;
-												o.a = path1;
-												o.b = path2;
-												data->pathOverlaps.push_back(o);
-											}
+		cout << "\n - done (number of combos: " << data->pathCombos.size() << ")";
+	}
+
+	void calculatePathOverlaps(dataContent * data) {
+		cout << "\n\ncalculating path overlaps..";
+		int path1Num = 0;
+		
+		for (unsigned int c1 = 0; c1 < data->customers.size(); ++c1) {
+			for (unsigned int s1 = 0; s1 < data->customers[c1].services.size(); ++s1) {	
+				for (unsigned int p1 = 0; p1 < data->customers[c1].services[s1].possible_placements.size(); ++p1) {
+					for (unsigned int ipath1 = 0; ipath1 < data->customers[c1].services[s1].possible_placements[p1].paths.size(); ++ipath1) {
+						returnPath * path1 = &data->customers[c1].services[s1].possible_placements[p1].paths[ipath1];
+						for (unsigned int c2 = 0; c2 < data->customers.size(); ++c2) {
+							for (unsigned int s2 = 0; s2 < data->customers[c2].services.size(); ++s2) {	
+								for (unsigned int p2 = 0; p2 < data->customers[c2].services[s2].possible_placements.size(); ++p2) {
+									for (unsigned int ipath2 = 0; ipath2 < data->customers[c2].services[s2].possible_placements[p2].paths.size(); ++ipath2) {
+										returnPath * path2 = &data->customers[c2].services[s2].possible_placements[p2].paths[ipath2];
+										if(_checkPathOverlap(path1, path2)) {
+											pathOverlap o;
+											o.a = path1;
+											o.b = path2;
+											data->pathOverlaps.push_back(o);
 										}
 									}
 								}
@@ -233,58 +251,34 @@ namespace pathgen {
 					}
 				}
 			}
-			cout << "\n- # overlapping path pairs (not distinct): " << data->pathOverlaps.size();
-		} else {
-			cout << "\n\n- skipping calculating overlaps..";
 		}
-
-		return;
+		cout << "\n- # overlapping path pairs (not distinct): " << data->pathOverlaps.size();
 	}
 
-	void generateRoutings(dataContent * data, pathgenConfig config) {
-
-		// create arcs from node pointers for each node
-		vector<vector<arc*>> nodeArcs(data->network.n_nodes);
-		for (unsigned int i = 0; i < data->network.arcs.size(); i++) {
-			arc * a = &data->network.arcs[i];
-			nodeArcs.at(a->startNode).push_back(a);
-		}
-
+	void generateMappings(dataContent * data, pathgenConfig config) {
 		// loop through customers
 		int serviceNumber = 0; // tracker for service number in total
 		for (unsigned int c = 0; c < data->customers.size(); ++c)
 		{
 			// - loop through customer's services
 			customer * cu = &data->customers[c];
-			cout << "\n\nCustomer #" << c+1;
 			for (unsigned int s = 0; s < cu->services.size(); ++s) 
 			{
 				service * se = &cu->services[s];
-				cout << "\n- Service #" << serviceNumber+1;
 				// -- for each service's placement		
 				for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
 				{
 					placement * pl = &se->possible_placements[p];
-					cout << "\n - to provider #" << pl->provider_index+1;
-					int providerNode = data->network.n_nodes - data->n_providers + pl->provider_index;
-					
-					// CUSTOMER -> PLACEMENT
-					// generate paths
-					pl->paths = _generateReturnPathsForNodePair(c, // customer index == customer node index
-						providerNode, se->latency_req, 
-						se->bandwidth_req_up, se->bandwidth_req_down,
-						&nodeArcs, pl->price, config
-					);
 
 					for (unsigned int a = 0; a < pl->paths.size(); ++a) {
 						returnPath * apath = &pl->paths[a];
 						bool used = false;
 						if(apath->exp_availability >= se->availability_req) {
 							// path offers sufficient availability alone -> dont add backup path
-							routing r;
-							r.primary = apath;
-							r.backup = NULL;
-							se->possible_routings.push_back(r);
+							mapping m;
+							m.primary = apath;
+							m.backup = NULL;
+							se->possible_mappings.push_back(m);
 						}
 						else {
 							// path does not offer sufficient availability -> look for possible backup paths
@@ -294,36 +288,24 @@ namespace pathgen {
 								pathCombo combo = _pathComboForPaths(apath, bpath);
 								if(apath->exp_availability + apath->exp_availability - combo.exp_b_given_a >= se->availability_req) {
 									// combination of a as primary and b as backup is feasible -> add routing
-									routing r;
-									r.primary = apath;
-									r.backup = bpath;
-									se->possible_routings.push_back(r);
+									mapping m;
+									m.primary = apath;
+									m.backup = bpath;
+									se->possible_mappings.push_back(m);
 								}
 							}
 						}
 					}
-					
-					
 				}
 				// register routings for service at used arcs
-				for (unsigned int i = 0; i < se->possible_routings.size(); ++i) {
-					routing * r = &se->possible_routings[i];
-					for (list<arc*>::const_iterator j = r->primary->arcs_up.begin(), end = r->primary->arcs_up.end(); j != end; ++j) {
-						(*j)->up_routings_primary.push_back(r);
-					}
-					for (list<arc*>::const_iterator j = r->primary->arcs_down.begin(), end = r->primary->arcs_down.end(); j != end; ++j) {
-						(*j)->down_routings_primary.push_back(r);
-					}
-					if(r->backup != NULL) {
-						for (list<arc*>::const_iterator j = r->backup->arcs_up.begin(), end = r->backup->arcs_up.end(); j != end; ++j) {
-							(*j)->up_routings_backup.push_back(r);
-						}
-						for (list<arc*>::const_iterator j = r->backup->arcs_down.begin(), end = r->backup->arcs_down.end(); j != end; ++j) {
-							(*j)->down_routings_backup.push_back(r);
-						}
+				for (unsigned int i = 0; i < se->possible_mappings.size(); ++i) {
+					mapping * m = &se->possible_mappings[i];
+					m->primary->primary_mappings.push_back(m);
+					if(m->backup != NULL) {
+						m->backup->backup_mappings.push_back(m);
 					}
 				}
-				cout << "\n - # total availability feasible routings (primary[+backup]): " << se->possible_routings.size();
+				cout << "\n - # total availability feasible routings (primary[+backup]): " << se->possible_mappings.size();
 				++serviceNumber;
 			}
 		}
