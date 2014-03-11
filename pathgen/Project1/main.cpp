@@ -20,9 +20,10 @@ int main()
 {
 	pathgenConfig config;
 	config.calcOverlaps = false;
+	config.calcComboAvailabilities = true;
 	config.maxPathsPerPlacement = 50;
 
-	cout << "Welcome to network path generation bot v0.1";
+	cout << "Welcome to network path generation bot v0.3";
 	while(true) {
 		int rootSelection;
 		cout << "\n\n Menu:\n (1) Load (JSON) file and generate paths\n (2) Load (JSON) file and generate primary/backup combos\n (3) Load (JSON) file and generate common path and mapping data\n (4) Open editor \n (5) config \n (0) exit\n\nSelection: ";
@@ -41,8 +42,10 @@ int main()
 			cout << "\nJSON data loaded..\n\nEnter filename for storing generated data and press enter to start path generation: ";
 			cin >> outputfilename;
 
-			// STEP 2: generate paths
+			// STEP 2: generate paths and additional data as configured
 			pathgen::generatePaths(&data, config);
+			if (config.calcComboAvailabilities) pathgen::addPathComboAvailabilities(&data);
+			if (config.calcOverlaps) pathgen::addPathOverlaps(&data);
 
 			// STEP 3: store to generated file
 			cout << "\n\nWriting to mosel data file..";
@@ -64,9 +67,12 @@ int main()
 			cin >> outputfilename;
 
 			// STEP 2: generate paths
-			pathgen::generateRoutings(&data, config);
+			pathgen::generatePaths(&data, config);
 
-			// STEP 3: store to generated file
+			// STEP 3: find and add feasible mappings from generated paths
+			pathgen::addFeasibleMappings(&data);
+
+			// STEP 4: store to generated file
 			cout << "\n\nWriting to mosel data file..";
 			entities::toMoselDataFileV2(outputfilename.c_str(), &data);
 
@@ -84,10 +90,15 @@ int main()
 			cout << "\nJSON data loaded..\n\nEnter filename for storing generated data and press enter to start path generation: ";
 			cin >> outputfilename;
 
-			// STEP 2: generate paths
-			pathgen::generateRoutings(&data, config);
+			// STEP 2: generate paths and additional data as configured
+			pathgen::generatePaths(&data, config);
+			if (config.calcComboAvailabilities) pathgen::addPathComboAvailabilities(&data);
+			if (config.calcOverlaps) pathgen::addPathOverlaps(&data);
 
-			// STEP 3: store to generated file
+			// STEP 3: find and add feasible mappings from generated paths
+			pathgen::addFeasibleMappings(&data);
+
+			// STEP 4: store to generated file
 			cout << "\n\nWriting to mosel data file..";
 			entities::toMoselDataFileV3(outputfilename.c_str(), &data);
 
@@ -105,7 +116,8 @@ int main()
 				int configSelection;
 				cout << "Pathgen Config\n - Calculate Path Overlaps: " << (config.calcOverlaps ? "true" : "false");
 				cout << "\n - Max number of paths per placement: " << config.maxPathsPerPlacement;
-				cout << "\n\n Options:\n (1) Toggle Calculate Path Overlaps\n (2) Set max number of paths per placement\n (0) back\n\nSelection: ";
+				cout << "\n - Calculate Path Combo Availabilities: " << (config.calcComboAvailabilities ? "true" : "false");
+				cout << "\n\n Options:\n (1) Toggle Calculate Path Overlaps\n (2) Set max number of paths per placement\n (3) Toggle Calculate Path Combo availabilities (0) back\n\nSelection: ";
 				cin >> rootSelection;
 
 				if(rootSelection == 1) {
@@ -115,7 +127,10 @@ int main()
 					int maxnum;
 					cin >> maxnum;
 					config.maxPathsPerPlacement = maxnum;
-				} else if(rootSelection == 0) {
+				} else if (rootSelection == 3) {
+					config.calcComboAvailabilities = !config.calcComboAvailabilities;
+				}
+				else if (rootSelection == 0) {
 					break;
 				} else {
 					cout << "\n Unknown choice";

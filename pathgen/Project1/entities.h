@@ -6,15 +6,14 @@
 
 namespace entities {
 
-	struct arc;
-	struct path;
-
+	// typedefs to allow bidirectional pointers
 	typedef struct arc ARC;
 	typedef struct returnPath RETURN_PATH;
 	typedef struct mapping MAPPING;
 
 	struct pathgenConfig {
 		bool calcOverlaps;
+		bool calcComboAvailabilities;
 		int maxPathsPerPlacement;
 	};
 	
@@ -111,8 +110,8 @@ namespace entities {
 		// price of placement
 		double price;
 
-		// provider index for this placement
-		int provider_index;
+		// global provider index for this placement
+		int globalProviderIndex;
 
 		// possible paths for this placement
 		std::vector<RETURN_PATH> paths;
