@@ -9,6 +9,8 @@ uses "mmxprs", "mmsystem";
 parameters
 	! Data file to read from
 	Data = 'data/sm_multi.txt';
+	! Minimum proportion of total backup requirement reserved on an arc
+	MinBackupProportion = 0.3;
 end-parameters
 
 declarations
@@ -151,7 +153,7 @@ declarations
 	Total_Profits:																linctr;
 
 ! Constraints
-	UsePath:						dynamic array(Services)							of linctr;
+	AllocateMapping:				dynamic array(Services)							of linctr;
 	PathArcBandwidth:				dynamic array(Nodes,Nodes)						of linctr;
 	TotalBackup:					dynamic array(Nodes,Nodes)						of linctr;
 	MaximumBackup:					dynamic array(Nodes,Nodes,Services)				of linctr;
@@ -168,26 +170,28 @@ Total_Profits := sum (cc in Customers) (
 					R_Revenue(cc)*y_Serve(cc)
 				)
 				- 
-				! cost for all paths used as main paths
-				sum(kk in Paths) (sum(mm in P_MappingsPerPath(kk)) (
-					!cost for using a path
-					C_PathCost(kk)*u_UseMapping(mm))
+				! for all paths
+				sum(kk in Paths) (
+					! for all mappings using path as primary
+					sum(mm in P_MappingsPerPath(kk)) (
+						! add cost for using path if mapping is used
+						C_PathCost(kk)*u_UseMapping(mm)
+					)
 				)
 				-
-				! cost of bandwidth reserved to support backup paths
-				sum(nn in Nodes, mm in Nodes) (
-						C_BackupCost(nn, mm)*l_Lambda(nn, mm)
+				! for each arc
+				sum(nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm)))(
+					! add cost of bandwidth reserved for backup paths
+					C_BackupCost(nn, mm)*l_Lambda(nn, mm)
 				);
 
 write("DONE\n - use path cnstr. ..");	
 
-
-
-! USE PATH CONSTRAINTS
-! If a service is placed at a provider, a path connecting to that provider location must be chosen
+! ALLOCATE MAPPING CONSTRAINTS
+! All services of a customer that is to be served must be allocated one mapping
 forall(cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc) | exists(K_Mappings(ss))) do
-		UsePath(ss) := sum(kk in K_Mappings(ss)) u_UseMapping(kk) -y_Serve(cc) =0;
+		AllocateMapping(ss) := sum(kk in K_Mappings(ss)) u_UseMapping(kk) = y_Serve(cc);
 	end-do
 end-do
 
@@ -197,7 +201,15 @@ write("DONE\n - arc cap cnstr. ..");
 ! The total used bandwidth for primary paths and reserved for backup paths must not exceed the
 ! arcs capacity
 forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-	PathArcBandwidth(nn,mm) := sum(kk in L_PathsUsingLink(nn,mm)) U_PathBandwidthUsage(nn,mm,kk)*(sum(pp in P_MappingsPerPath(kk))u_UseMapping(pp)) + l_Lambda(nn,mm) 
+	PathArcBandwidth(nn,mm) := 
+		! for each path using link
+		sum(kk in L_PathsUsingLink(nn,mm)) (
+			! add bw req for path for each mapping using path being used
+			U_PathBandwidthUsage(nn,mm,kk)
+			*(sum(pp in P_MappingsPerPath(kk))u_UseMapping(pp))
+		)
+		! add bandwidth reserved for backup paths on arc
+		+ l_Lambda(nn,mm) 
 		<= F_BandwidthCap(nn,mm);
 end-do
 
@@ -208,35 +220,32 @@ write("DONE\n - backup path bw use cnstr. 1 ..");
 ! backup paths using that arc
 forall( nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 	TotalBackup(nn,mm) := 
-		0.3*
+		MinBackupProportion*
 		sum(kk in L_PathsUsingLink(nn,mm)) (
 			U_PathBandwidthUsage(nn,mm,kk)
-			*
-			sum(pp in B_MappingsPerBackupPath(kk))(u_UseMapping(pp))
+			* sum(pp in B_MappingsPerBackupPath(kk)) u_UseMapping(pp)
 		)
 		<= l_Lambda(nn,mm);
 end-do
 
 write("DONE\n - backup path bw use cnstr. 2 ..");
 
-
-
 ! MIN BACKUP PATH BANDWIDTH CONSTRAINT
 ! bandwidth reserved for backup paths must be at least as high as the bandwidth required by the
 ! most demanding backup path alone not also having its primary path at the same arc
 ! - if primary path goes down elsewhere - sufficient bandwidth is released for the backup path
 !   at this arc
-forall (cc in Customers) do
-	forall(ss in S_ServiceForCustomer(cc)) do
-		forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-			MaximumBackup(nn,mm,ss) := 
-				!sum(pp in (P_MappingsPerPath(L_PathsUsingLinkBackup(nn,mm))*K_Mappings(ss)))
-				!(U_PathBandwidthUsageBackup(nn,mm,kk)-U_PathBandwidthUsage(nn,mm,kk))*u_UseMapping(pp) 
-				!<= l_Lambda(nn,mm);
+forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
+	forall (cc in Customers) do
+		forall(ss in S_ServiceForCustomer(cc)) do		
+			MaximumBackup(nn,mm,ss) :=
+				! sum for all paths using this link
 				sum(kk in L_PathsUsingLink(nn,mm))(
+					! service's backup requirement on arc (if path is used)
 					U_PathBandwidthUsage(nn,mm,kk)
 					*sum(pp in B_MappingsPerBackupPath(kk)*K_Mappings(ss))(u_UseMapping(pp))
 					-
+					! service's primary requirement on arc (if path is used)
 					U_PathBandwidthUsage(nn,mm,kk)
 					*sum(pp in P_MappingsPerPath(kk)*K_Mappings(ss))(u_UseMapping(pp))
 			 	) 
@@ -251,7 +260,7 @@ forall(cc in Customers, qq in Customers) do
 	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz and ss < zz) do
 		writeln("  - service pair: ", ss, ", ", zz);
 		forall(nn in Nodes, mm in Nodes | 	exists(L_PathsUsingLink(nn,mm)) 	! There is an entry for paths using this link
-											and L_PathsUsingLink(nn,mm) <> {}	! Entry of paths using link is not empty
+											!and L_PathsUsingLink(nn,mm) <> {}	! Entry of paths using link is not empty
 											!and K_Paths(zz)*L_PathsUsingLink(nn,mm) <> {}	! Service zz has paths using this link
 										) do
 		
@@ -267,8 +276,7 @@ forall(cc in Customers, qq in Customers) do
 				<= 1;
 			
 			! BACKUP PATH OVERLAP CONSTRAINT
-			! backup paths may not overlap at an arc if their primary paths overlap anywhere, unless
-			! one of the primary paths also overlap at that specific arc
+			! backup paths may not overlap at an arc if their primary paths overlap anywhere
 			Overlap(nn,mm,ss,zz):= 
 				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(ss)*B_MappingsPerBackupPath(kk))(u_UseMapping(pp)))
 				!sum(kk in (K_Paths(ss)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
@@ -306,7 +314,7 @@ forall(cc in Customers) do
 	if (getsol(y_Serve(cc)) > 0.1) then
 		! output served customer and generated profits for customer
 		writeln(
-			"\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
+			"\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
 			R_Revenue(cc)*getsol(y_Serve(cc))
 		);
 		forall(ss in S_ServiceForCustomer(cc)) do
