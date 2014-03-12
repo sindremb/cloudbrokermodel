@@ -251,13 +251,13 @@ namespace entities {
 
 	int _assignGlobalPathNumbers(dataContent * data) {
 		int pathNumber = 0;
-		for (int i = 0; i < data->customers.size(); ++i) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
-			for (int j = 0; j < c->services.size(); ++j) {
+			for (unsigned int j = 0; j < c->services.size(); ++j) {
 				service * s = &c->services[j];
-				for (int k = 0; k < s->possible_placements.size(); ++k) {
+				for (unsigned int k = 0; k < s->possible_placements.size(); ++k) {
 					placement * p = &s->possible_placements[k];
-					for (int l = 0; l < p->paths.size(); ++l) {
+					for (unsigned int l = 0; l < p->paths.size(); ++l) {
 						++pathNumber;
 						p->paths[l].pathNumber = pathNumber;
 					}
@@ -278,17 +278,17 @@ namespace entities {
 		*file << "\n\nSymmetric: false";
 
 		*file << "\n\nR_Revenue: [";
-		for (int i = 0; i < data->customers.size(); ++i) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			*file << data->customers[i].revenue << " ";
 		}
 		*file << "]";
 
 		*file << "\n\nS_ServiceForCustomer: [";
 		int globalServiceNumber = 0;
-		for (int i = 0; i < data->customers.size(); ++i) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
 			*file << "\n [ ";
-			for (int j = 0; j < c->services.size(); ++j) {
+			for (unsigned int j = 0; j < c->services.size(); ++j) {
 				++globalServiceNumber;
 				*file << globalServiceNumber << " ";
 			}
@@ -297,9 +297,9 @@ namespace entities {
 		*file << "\n]";
 
 		*file << "\n\nY_AvailabilityReq: [\n";
-		for (int i = 0; i < data->customers.size(); ++i) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
-			for (int j = 0; j < c->services.size(); ++j) {
+			for (unsigned int j = 0; j < c->services.size(); ++j) {
 				*file << c->services[j].availability_req << " ";
 			}
 		}
@@ -307,22 +307,22 @@ namespace entities {
 
 
 		*file << "\n\nG_LatencyReq: [";
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
+			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
 				*file << data->customers[i].services[j].latency_req << " ";
 			}
 		}
 		*file << "]";
 
 		*file << "\n\nF_BandwidthCap: [";
-		for (int i = 0; i < data->network.arcs.size(); ++i) {
+		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
 			arc * a = &data->network.arcs[i];
 			*file << " (" << a->startNode + 1 << " " << a->endNode + 1 << ") " << a->bandwidth_cap;
 		}
 		*file << "]";
 
 		*file << "\n\nC_BackupCost: [";
-		for (int i = 0; i < data->network.arcs.size(); ++i) {
+		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			*file << " (" << a->startNode + 1 << " " << a->endNode + 1 << ") " << a->bandwidth_price;
 		}
@@ -338,15 +338,15 @@ namespace entities {
 
 		*file << "\n\nK_Paths: [";
 		int globalServiceNumber = 0;
-		for (int i = 0; i < data->customers.size(); ++i) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
-			for (int j = 0; j < c->services.size(); ++j) {
+			for (unsigned int j = 0; j < c->services.size(); ++j) {
 				service * s = &c->services[j];
 				++globalServiceNumber;
-				for (int k = 0; k < s->possible_placements.size(); ++k) {
+				for (unsigned int k = 0; k < s->possible_placements.size(); ++k) {
 					placement * p = &s->possible_placements[k];
 					*file << "\n (" << globalServiceNumber << " " << p->globalProviderIndex + 1 << ") [";
-					for (int l = 0; l < p->paths.size(); ++l) {
+					for (unsigned int l = 0; l < p->paths.size(); ++l) {
 						*file << p->paths[l].pathNumber << " ";
 					}
 					*file << "]";
@@ -357,7 +357,7 @@ namespace entities {
 		*file << "\n]";
 
 		*file << "\n\nL_PathsUsingLink: [\n";
-		for (int i = 0; i < data->network.arcs.size(); ++i) {
+		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			*file << " (" << a->startNode + 1 << " " << a->endNode + 1 << ") [";
 			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
@@ -371,7 +371,7 @@ namespace entities {
 		*file << "]";
 
 		*file << "\n\nU_PathBandwidthUsage: [\n";
-		for (int i = 0; i < data->network.arcs.size(); ++i) {
+		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
 				*file << " (" << a->startNode + 1 << " " << a->endNode + 1 << " " <<
@@ -387,11 +387,11 @@ namespace entities {
 		*file << "]";
 
 		*file << "\n\nD_PathAvailability: [";
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
+			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
+				for (unsigned int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
 					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths.size(); ++l) {
+					for (unsigned int l = 0; l < p->paths.size(); ++l) {
 						*file << p->paths[l].exp_availability << " ";
 					}
 				}
@@ -400,11 +400,11 @@ namespace entities {
 		*file << "]";
 
 		*file << "\n\nC_PathCost: [";
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
+			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
+				for (unsigned int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
 					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths.size(); ++l) {
+					for (unsigned int l = 0; l < p->paths.size(); ++l) {
 						*file << p->paths[l].cost << " ";
 					}
 				}
@@ -428,11 +428,11 @@ namespace entities {
 
 	int _assignGlobalMappingNumbers(dataContent * data) {
 		int mappingNumber = 0;
-		for (int i = 0; i < data->customers.size(); ++i) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
-			for (int j = 0; j < c->services.size(); ++j) {
+			for (unsigned int j = 0; j < c->services.size(); ++j) {
 				service * s = &c->services[j];
-				for (int k = 0; k < s->possible_mappings.size(); ++k) {
+				for (unsigned int k = 0; k < s->possible_mappings.size(); ++k) {
 					mapping * m = &s->possible_mappings[k];
 					++mappingNumber;
 					m->mappingNumber = mappingNumber;
@@ -450,13 +450,13 @@ namespace entities {
 		
 		*file << "\n\nK_Mappings: [";
 		int serviceNumber = 1;
-		for (int i = 0; i < data->customers.size(); ++i) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
-			for (int j = 0; j < c->services.size(); ++j) {
+			for (unsigned int j = 0; j < c->services.size(); ++j) {
 				service * s = &c->services[j];
 				*file << "\n (" << serviceNumber << ")";
 				*file << " [";
-				for (int l = 0; l < s->possible_mappings.size(); ++l) {
+				for (unsigned int l = 0; l < s->possible_mappings.size(); ++l) {
 					*file << s->possible_mappings[l].mappingNumber << " ";
 				}
 				*file << "]";
@@ -466,11 +466,11 @@ namespace entities {
 		*file << "\n]";
 
 		*file << "\n\nP_MappingPerPath: [\n";
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
+			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
+				for (unsigned int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
 					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths.size(); ++l) {
+					for (unsigned int l = 0; l < p->paths.size(); ++l) {
 						returnPath * path = &p->paths[l];
 						*file << "(" << p->paths[l].pathNumber << ") [";
 						for (list<mapping*>::const_iterator m = path->primary_mappings.begin(), mend = path->primary_mappings.end(); m != mend; ++m) {
@@ -484,11 +484,11 @@ namespace entities {
 		*file << "]";
 
 		*file << "\n\nB_MappingsPerBackupPath: [\n";
-		for (int i = 0; i < data->customers.size(); ++i) {
-			for (int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
+			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
+				for (unsigned int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
 					placement * p = &data->customers[i].services[j].possible_placements[k];
-					for (int l = 0; l < p->paths.size(); ++l) {
+					for (unsigned int l = 0; l < p->paths.size(); ++l) {
 						returnPath * path = &p->paths[l];
 						*file << "(" << p->paths[l].pathNumber << ") [";
 						for (list<mapping*>::const_iterator m = path->backup_mappings.begin(), mend = path->backup_mappings.end(); m != mend; ++m) {
@@ -531,13 +531,13 @@ namespace entities {
 
 		myfile << "\n\nK_Paths: [";
 		int serviceNumber = 1;
-		for (int i = 0; i < data->customers.size(); ++i) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
-			for (int j = 0; j < c->services.size(); ++j) {
+			for (unsigned int j = 0; j < c->services.size(); ++j) {
 				service * s = &c->services[j];
 				myfile << "\n (" << serviceNumber << ")";
 				myfile << " [";
-				for (int l = 0; l < s->possible_mappings.size(); ++l) {
+				for (unsigned int l = 0; l < s->possible_mappings.size(); ++l) {
 					myfile << s->possible_mappings[l].mappingNumber << " ";
 				}
 				myfile << "]";
@@ -547,7 +547,7 @@ namespace entities {
 		myfile << "\n]";
 
 		myfile << "\n\nL_PathsUsingLink: [\n";
-		for (int i = 0; i < data->network.arcs.size(); ++i) {
+		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
 			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
@@ -565,7 +565,7 @@ namespace entities {
 		myfile << "]";
 
 		myfile << "\n\nL_PathsUsingLinkBackup: [\n";
-		for (int i = 0; i < data->network.arcs.size(); ++i) {
+		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
 			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
@@ -583,7 +583,7 @@ namespace entities {
 		myfile << "]";
 
 		myfile << "\n\nU_PathBandwidthUsage: [\n";
-		for (int i = 0; i < data->network.arcs.size(); ++i) {
+		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
 				for (list<mapping*>::const_iterator k = (*j)->primary_mappings.begin(), kend = (*j)->primary_mappings.end(); k != kend; ++k) {
@@ -603,7 +603,7 @@ namespace entities {
 		myfile << "]";
 
 		myfile << "\n\nU_PathBandwidthUsageBackup: [\n";
-		for (int i = 0; i < data->network.arcs.size(); ++i) {
+		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
 			arc* a = &data->network.arcs[i];
 			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
 				for (list<mapping*>::const_iterator k = (*j)->backup_mappings.begin(), kend = (*j)->backup_mappings.end(); k != kend; ++k) {
@@ -623,11 +623,11 @@ namespace entities {
 		myfile << "]";
 
 		myfile << "\n\nC_PathCost: [";
-		for (int i = 0; i < data->customers.size(); ++i) {
+		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
-			for (int j = 0; j < c->services.size(); ++j) {
+			for (unsigned int j = 0; j < c->services.size(); ++j) {
 				service * s = &c->services[j];
-				for (int l = 0; l < s->possible_mappings.size(); ++l) {
+				for (unsigned int l = 0; l < s->possible_mappings.size(); ++l) {
 					mapping * m = &s->possible_mappings[l];
 					myfile << m->primary->cost << " ";
 				}
