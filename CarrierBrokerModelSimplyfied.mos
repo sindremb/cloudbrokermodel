@@ -19,7 +19,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/sm.txt';
+	Data = 'data/sm_arc.txt';
 	! Use thightened restrictions (v2) or not (v1)
 	TightenLP = false;
 end-parameters

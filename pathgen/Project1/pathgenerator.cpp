@@ -248,6 +248,8 @@ namespace pathgen {
 	}
 
 	void addFeasibleMappings(dataContent * data) {
+		int mappingNumber = 0;
+		int pathNumber = 0;
 		// loop through customers
 		for (unsigned int c = 0; c < data->customers.size(); ++c)
 		{
@@ -263,7 +265,7 @@ namespace pathgen {
 					// --- for each path at current placement
 					for (unsigned int a = 0; a < pl->paths.size(); ++a) {
 						returnPath * apath = &pl->paths[a];
-						bool used = false;
+						++pathNumber;
 						// check if feasible mapping alone
 						if(apath->exp_availability >= se->availability_req) {
 							// path offers sufficient availability alone -> dont add backup path
@@ -271,6 +273,7 @@ namespace pathgen {
 							m.primary = apath;
 							m.backup = NULL;
 							se->possible_mappings.push_back(m);
+							++mappingNumber;
 						}
 						// OR try combining with other path to placement as backup
 						else {
@@ -279,12 +282,13 @@ namespace pathgen {
 								returnPath * bpath = &pl->paths[b];
 								// calculate combo availability [ P(A)*P(B|A) ]
 								pathCombo combo = _pathComboForPaths(apath, bpath);
-								if(apath->exp_availability + apath->exp_availability - combo.exp_b_given_a >= se->availability_req) {
+								if(apath->exp_availability + bpath->exp_availability - combo.exp_b_given_a >= se->availability_req) {
 									// combination of a as primary and b as backup is feasible -> add routing
 									mapping m;
 									m.primary = apath;
 									m.backup = bpath;
 									se->possible_mappings.push_back(m);
+									++mappingNumber;
 								}
 							}
 						}

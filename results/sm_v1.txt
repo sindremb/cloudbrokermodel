@@ -1,0 +1,377 @@
+Building model...
+Model building completed in 0.0110002 seconds
+Solving model...
+Model solved in 3.092 seconds
+
+Total Profits: 3589
+
+Backup Costs: 335.5
+
+
+Customer 1 (node 1) is being served
+ - R_Revenue: 700
+ - profits: 435
+
+ - Service 1:
+  - Costs: 265
+  - placement: provider #3 (node 17) - Cost: 220
+    -Availability without backup: -0.0330861
+    -Availability requirement: -0.0100503
+   - UPLINK:
+      - owned bandwidth: 10, leased bandwidth: 0   (Req. 10)
+      - links usage:
+        - (1,11) : 10    (0 leased) - Cost: 5
+        - (7,17) : 10    (0 leased) - Cost: 10
+        - (11,7) : 10    (0 leased) - Cost: 7.5
+      - backup links:
+        - (1,11): 12
+        - (2,12): 13
+        - (3,13): 30
+        - (4,14): 12
+        - (5,13): 35
+        - (7,17): 35
+        - (7,18): 35
+        - (8,14): 35
+        - (11,7): 22
+        - (12,2): 10
+        - (13,3): 30
+        - (13,7): 35
+        - (14,4): 10
+        - (14,5): 35
+        - (18,8): 12
+   - DOWNLINK:
+      - owned bandwidth: 10, leased bandwidth: 0   (Req. 10)
+      - links usage:
+        - (7,11) : 10    (0 leased) - Cost: 7.5
+        - (11,1) : 10    (0 leased) - Cost: 5
+        - (17,7) : 10    (0 leased) - Cost: 10
+      - backup links:
+        - (2,12): 13
+        - (3,13): 30
+        - (4,14): 12
+        - (5,13): 35
+        - (6,11): 22
+        - (7,18): 35
+        - (8,12): 12
+        - (8,14): 35
+        - (11,1): 12
+        - (12,2): 10
+        - (12,6): 13
+        - (13,3): 30
+        - (13,7): 35
+        - (14,4): 10
+        - (14,5): 35
+        - (17,8): 35
+        - (18,8): 12
+
+
+Customer 2 (node 2) is being served
+ - R_Revenue: 600
+ - profits: 368.5
+
+ - Service 2:
+  - Costs: 231.5
+  - placement: provider #4 (node 18) - Cost: 160
+    -Availability without backup: -0.0451066
+    -Availability requirement: -0.0010005
+   - UPLINK:
+      - owned bandwidth: 13, leased bandwidth: 0   (Req. 13)
+      - links usage:
+        - (2,12) : 13    (0 leased) - Cost: 6.5
+        - (8,18) : 13    (0 leased) - Cost: 13
+        - (12,8) : 13    (0 leased) - Cost: 16.25
+      - backup links:
+        - (2,12): 13
+        - (5,13): 35
+        - (6,11): 22
+        - (7,17): 35
+        - (7,18): 35
+        - (8,14): 35
+        - (11,7): 22
+        - (12,6): 13
+        - (13,7): 35
+        - (14,5): 35
+        - (17,8): 35
+   - DOWNLINK:
+      - owned bandwidth: 3, leased bandwidth: 0   (Req. 3)
+      - links usage:
+        - (8,12) : 3    (0 leased) - Cost: 3.75
+        - (12,2) : 3    (0 leased) - Cost: 1.5
+        - (18,8) : 3    (0 leased) - Cost: 3
+      - backup links:
+        - (1,11): 12
+        - (4,14): 12
+        - (5,13): 35
+        - (7,17): 35
+        - (8,12): 12
+        - (8,14): 35
+        - (11,1): 12
+        - (12,2): 10
+        - (13,7): 35
+        - (14,4): 10
+        - (14,5): 35
+        - (17,8): 35
+        - (18,8): 12
+
+
+Customer 3 (node 3) is being served
+ - R_Revenue: 1100
+ - profits: 485
+
+ - Service 3:
+  - Costs: 615
+  - placement: provider #3 (node 17) - Cost: 450
+    -Availability without backup: -0.0254316
+    -Availability requirement: -0.0010005
+   - UPLINK:
+      - owned bandwidth: 30, leased bandwidth: 0   (Req. 30)
+      - links usage:
+        - (3,13) : 30    (0 leased) - Cost: 15
+        - (7,17) : 30    (0 leased) - Cost: 30
+        - (13,7) : 30    (0 leased) - Cost: 37.5
+      - backup links:
+        - (3,13): 30
+        - (7,17): 35
+        - (13,7): 35
+   - DOWNLINK:
+      - owned bandwidth: 30, leased bandwidth: 0   (Req. 30)
+      - links usage:
+        - (7,13) : 30    (0 leased) - Cost: 37.5
+        - (13,3) : 30    (0 leased) - Cost: 15
+        - (17,7) : 30    (0 leased) - Cost: 30
+      - backup links:
+        - (5,13): 35
+        - (8,14): 35
+        - (13,3): 30
+        - (14,5): 35
+        - (17,8): 35
+
+
+Customer 4 (node 4) is being served
+ - R_Revenue: 500
+ - profits: 266
+
+ - Service 4:
+  - Costs: 234
+  - placement: provider #4 (node 18) - Cost: 180
+    -Availability without backup: -0.0313756
+    -Availability requirement: -0.0100503
+   - UPLINK:
+      - owned bandwidth: 12, leased bandwidth: 0   (Req. 12)
+      - links usage:
+        - (4,14) : 12    (0 leased) - Cost: 6
+        - (8,18) : 12    (0 leased) - Cost: 12
+        - (14,8) : 12    (0 leased) - Cost: 9
+      - backup links:
+        - (3,13): 30
+        - (4,14): 12
+        - (5,13): 35
+        - (6,11): 22
+        - (7,17): 35
+        - (7,18): 35
+        - (8,12): 12
+        - (11,7): 22
+        - (12,6): 13
+        - (13,3): 30
+        - (13,7): 35
+        - (14,5): 35
+        - (17,8): 35
+   - DOWNLINK:
+      - owned bandwidth: 2, leased bandwidth: 0   (Req. 2)
+      - links usage:
+        - (8,14) : 2    (0 leased) - Cost: 1.5
+        - (14,4) : 2    (0 leased) - Cost: 1
+        - (18,8) : 2    (0 leased) - Cost: 2
+      - backup links:
+        - (1,11): 12
+        - (2,12): 13
+        - (6,11): 22
+        - (7,17): 35
+        - (8,12): 12
+        - (8,14): 35
+        - (11,1): 12
+        - (11,7): 22
+        - (12,2): 10
+        - (12,6): 13
+        - (14,4): 10
+        - (17,8): 35
+        - (18,8): 12
+
+
+Customer 5 (node 5) is being served
+ - R_Revenue: 2500
+ - profits: 1245
+
+ - Service 5:
+  - Costs: 747.5
+  - placement: provider #3 (node 17) - Cost: 590
+    -Availability without backup: -0.0222956
+    -Availability requirement: -0.0100503
+   - UPLINK:
+      - owned bandwidth: 35, leased bandwidth: 0   (Req. 35)
+      - links usage:
+        - (5,14) : 35    (0 leased) - Cost: 17.5
+        - (8,17) : 35    (0 leased) - Cost: 35
+        - (14,8) : 35    (0 leased) - Cost: 26.25
+      - backup links:
+        - (5,13): 35
+        - (7,17): 35
+        - (13,7): 35
+   - DOWNLINK:
+      - owned bandwidth: 35, leased bandwidth: 0   (Req. 35)
+      - links usage:
+        - (8,14) : 35    (0 leased) - Cost: 26.25
+        - (14,5) : 35    (0 leased) - Cost: 17.5
+        - (17,8) : 35    (0 leased) - Cost: 35
+      - backup links:
+        - (8,14): 35
+        - (14,5): 35
+        - (17,8): 35
+
+ - Service 6:
+  - Costs: 507.5
+  - placement: provider #4 (node 18) - Cost: 350
+    -Availability without backup: -0.0296849
+    -Availability requirement: -0.00501254
+   - UPLINK:
+      - owned bandwidth: 35, leased bandwidth: 0   (Req. 35)
+      - links usage:
+        - (5,14) : 35    (0 leased) - Cost: 17.5
+        - (8,18) : 35    (0 leased) - Cost: 35
+        - (14,8) : 35    (0 leased) - Cost: 26.25
+      - backup links:
+        - (5,13): 35
+        - (7,18): 35
+        - (13,7): 35
+   - DOWNLINK:
+      - owned bandwidth: 5, leased bandwidth: 0   (Req. 5)
+      - links usage:
+        - (8,14) : 5    (0 leased) - Cost: 3.75
+        - (14,5) : 5    (0 leased) - Cost: 2.5
+        - (18,8) : 5    (0 leased) - Cost: 5
+      - backup links:
+        - (1,11): 12
+        - (2,12): 13
+        - (4,14): 12
+        - (6,11): 22
+        - (7,17): 35
+        - (8,12): 12
+        - (8,14): 35
+        - (11,1): 12
+        - (11,7): 22
+        - (12,2): 10
+        - (12,6): 13
+        - (14,4): 10
+        - (14,5): 35
+        - (17,8): 35
+        - (18,8): 12
+
+
+Customer 6 (node 6) is being served
+ - R_Revenue: 1600
+ - profits: 967
+
+ - Service 7:
+  - Costs: 334
+  - placement: provider #3 (node 17) - Cost: 280
+    -Availability without backup: -0.0188418
+    -Availability requirement: -0.0100503
+   - UPLINK:
+      - owned bandwidth: 12, leased bandwidth: 0   (Req. 12)
+      - links usage:
+        - (6,11) : 12    (0 leased) - Cost: 6
+        - (7,17) : 12    (0 leased) - Cost: 12
+        - (11,7) : 12    (0 leased) - Cost: 9
+      - backup links:
+        - (1,11): 12
+        - (3,13): 30
+        - (5,13): 35
+        - (6,11): 22
+        - (7,17): 35
+        - (7,18): 35
+        - (8,14): 35
+        - (11,1): 12
+        - (11,7): 22
+        - (13,3): 30
+        - (13,7): 35
+        - (14,5): 35
+        - (18,8): 12
+   - DOWNLINK:
+      - owned bandwidth: 12, leased bandwidth: 0   (Req. 12)
+      - links usage:
+        - (7,11) : 12    (0 leased) - Cost: 9
+        - (11,6) : 12    (0 leased) - Cost: 6
+        - (17,7) : 12    (0 leased) - Cost: 12
+      - backup links:
+        - (1,11): 12
+        - (3,13): 30
+        - (5,13): 35
+        - (7,18): 35
+        - (8,12): 12
+        - (8,14): 35
+        - (11,1): 12
+        - (12,6): 13
+        - (13,3): 30
+        - (13,7): 35
+        - (14,5): 35
+        - (17,8): 35
+        - (18,8): 12
+
+ - Service 8:
+  - Costs: 299
+  - placement: provider #4 (node 18) - Cost: 200
+    -Availability without backup: -0.0236364
+    -Availability requirement: -0.00501254
+   - UPLINK:
+      - owned bandwidth: 22, leased bandwidth: 0   (Req. 22)
+      - links usage:
+        - (6,11) : 22    (0 leased) - Cost: 11
+        - (7,18) : 22    (0 leased) - Cost: 22
+        - (11,7) : 22    (0 leased) - Cost: 16.5
+      - backup links:
+        - (3,13): 30
+        - (5,13): 35
+        - (6,11): 22
+        - (7,17): 35
+        - (7,18): 35
+        - (8,14): 35
+        - (11,7): 22
+        - (13,3): 30
+        - (13,7): 35
+        - (14,5): 35
+        - (17,8): 35
+   - DOWNLINK:
+      - owned bandwidth: 4, leased bandwidth: 0   (Req. 4)
+      - links usage:
+        - (7,11) : 4    (0 leased) - Cost: 3
+        - (11,6) : 4    (0 leased) - Cost: 2
+        - (18,7) : 4    (0 leased) - Cost: 4
+      - backup links:
+        - (1,11): 12
+        - (2,12): 13
+        - (4,14): 12
+        - (8,12): 12
+        - (11,1): 12
+        - (12,2): 10
+        - (12,6): 13
+        - (14,4): 10
+        - (18,8): 12
+
+
+Arcs with high utilisation of capacity (>=90%):
+
+
+Arcs with medium utilisation of capacity (< 10%, < 90%):
+ - (2,12) 12.5 %
+ - (3,13) 20.6897 %
+ - (4,14) 12.5 %
+ - (5,14) 47.619 %
+ - (6,11) 28.3333 %
+ - (7,17) 39.0977 %
+ - (7,18) 25 %
+ - (8,17) 34.6535 %
+ - (8,18) 45.4545 %
+ - (11,7) 64.7059 %
+ - (12,8) 20.3125 %
+ - (13,7) 42.8571 %
+ - (14,8) 75.9259 %
