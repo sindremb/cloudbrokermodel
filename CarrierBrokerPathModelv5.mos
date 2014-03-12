@@ -306,51 +306,6 @@ forall(nn in Nodes, mm in Nodes) do
 	if(getsol(l_Lambda(nn,mm)) > 0.0) then
 		writeln("  - (", nn, ", ", mm, ") : ", getsol(l_Lambda(nn,mm)));
 	end-if
-end-do	
-
-(!
-forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-	temp := 0.0;
-	forall(cc in Customers) do
-		forall(ss in S_ServiceForCustomer(cc)) do
-			if(sum(pp in Providers | exists(K_Paths(ss,pp)))(
-					sum(kk in K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))(
-						U_PathBandwidthUsage(nn,mm,kk)
-						*
-						(
-							getsol(v_UseBackupPath(kk))
-							- getsol(u_UsePath(kk))
-						)
-					)		
-				) > temp) then
-				temp := sum(pp in Providers | exists(K_Paths(ss,pp)))(
-					sum(kk in K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))(
-						U_PathBandwidthUsage(nn,mm,kk)
-						*
-						(
-							getsol(v_UseBackupPath(kk))
-							- getsol(u_UsePath(kk))
-						)
-					)		
-				);
-			end-if
-		end-do
-	end-do
-	if(getsol(l_Lambda(nn,mm)) > 0.001) then
-		write(
-			strfmt("("+ nn+ ", "+ mm+ ")",10),
-			strfmt(+getsol(l_Lambda(nn,mm)), 10),
-			strfmt(temp, 10),
-			strfmt((sum(kk in L_PathsUsingLink(nn,mm))getsol(v_UseBackupPath(kk))*U_PathBandwidthUsage(nn,mm,kk)), 10),
-			strfmt(C_BackupCost(nn,mm), 10),
-			"     "
-		);
-		forall(kk in L_PathsUsingLink(nn,mm) | getsol(v_UseBackupPath(kk)) > 0.001) do
-			write(kk, ", ");
-		end-do
-		write("\n");
-	end-if
 end-do
-!)
 
 end-model

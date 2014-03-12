@@ -275,7 +275,12 @@ end-do
 ! bandwidth reserved for backup paths on an arc is at least a fraction of the total bandwidth of all
 ! backup paths using that arc
 forall( nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-	TotalBackup(nn,mm) := 0.3* sum(kk in L_PathsUsingLink(nn,mm))v_UseBackupPath(kk)*U_PathBandwidthUsage(nn,mm,kk) <= l_Lambda(nn,mm);
+	TotalBackup(nn,mm) := 
+		0.3
+		*sum(kk in L_PathsUsingLink(nn,mm)) (
+			U_PathBandwidthUsage(nn,mm,kk)*v_UseBackupPath(kk)
+		)
+		<= l_Lambda(nn,mm);
 end-do
 
 ! MIN BACKUP PATH BANDWIDTH CONSTRAINT
@@ -367,16 +372,16 @@ forall(cc in Customers, qq in Customers) do
 	end-do
 end-do
 
-writeln("Model building completed in ", timestamp - timetracker, " seconds");
+writeln("\nModel building completed in ", timestamp - timetracker, " seconds");
 
-writeln("Solving model...");
+writeln("\nSolving model...");
 timetracker := timestamp;
 maximize(Total_Profits);
 
 if (getprobstat=XPRS_OPT) then
-	writeln("Model solved in ", timestamp - timetracker," seconds");
+	writeln("\nModel solved in ", timestamp - timetracker," seconds");
 else
-	writeln("Model was not solved after ", timestamp - timetracker," seconds");
+	writeln("\nModel was not solved after ", timestamp - timetracker," seconds");
 end-if
 
 writeln("\nTotal Profits: ", getobjval);
@@ -388,7 +393,7 @@ forall(cc in Customers) do
 	! Check if customer is served
 	if (getsol(y_Serve(cc)) > 0.001) then
 		! output served customer and generated profits for customer
-		writeln("\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
+		writeln("\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
 			R_Revenue(cc)*getsol(y_Serve(cc)));
 		forall(ss in S_ServiceForCustomer(cc), pp in Providers | exists(K_Paths(ss,pp))) do
 			if(getsol(x_Placement(ss,pp)) > 0.001) then
@@ -429,9 +434,9 @@ writeln("\nTotal backup usage");
 writeln(
 	strfmt("arc ",10), 
 	strfmt("reserved",10),
-	strfmt("max",10),
-	strfmt("sum*",10),
-	strfmt("cost",10),
+	strfmt("max req",10),
+	strfmt("sum reqs*",10),
+	strfmt("cost/bw",10),
 	strfmt("paths",10)
 );
 
@@ -471,7 +476,7 @@ forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 			strfmt("("+ nn+ ", "+ mm+ ")",10),
 			strfmt(+getsol(l_Lambda(nn,mm)), 10),
 			strfmt(temp, 10),
-			strfmt((sum(kk in L_PathsUsingLink(nn,mm))getsol(v_UseBackupPath(kk))*U_PathBandwidthUsage(nn,mm,kk)), 10),
+			strfmt((sum(kk in L_PathsUsingLink(nn,mm))U_PathBandwidthUsage(nn,mm,kk)*getsol(v_UseBackupPath(kk))), 10),
 			strfmt(C_BackupCost(nn,mm), 10),
 			"     "
 		);
