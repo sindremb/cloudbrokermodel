@@ -269,9 +269,9 @@ namespace entities {
 
 	void _addCommonMoselData(dataContent * data, ofstream * file) {
 
-		*file << "\n\n!!!!!!!!!!!!!!! COMMON DATA !!!!!!!!!!!!!!!!!!!!!!!!!!";
+		*file << "!!!!!!!!!!!!!!! COMMON DATA !!!!!!!!!!!!!!!!!!!!!!!!!!";
 
-		*file << "n_Customers: " << data->n_customers;
+		*file << "\nn_Customers: " << data->n_customers;
 		*file << "\nn_Services: " << data->n_services;
 		*file << "\nn_Providers: " << data->n_providers;
 		*file << "\nn_Nodes: " << data->network.n_nodes;
@@ -465,7 +465,7 @@ namespace entities {
 		}
 		*file << "\n]";
 
-		*file << "\n\nP_MappingPerPath: [\n";
+		*file << "\n\nP_MappingsPerPath: [\n";
 		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
 				for (unsigned int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {

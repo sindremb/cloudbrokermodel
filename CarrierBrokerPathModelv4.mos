@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/sm_paths.txt';
+	Data = 'data/sm_multi.txt';
 end-parameters
 
 declarations
@@ -189,9 +189,9 @@ declarations
 	PathArcBandwidth:				dynamic array(Nodes,Nodes)					of linctr;
 	PathAvailability:				dynamic array(Services)						of linctr;
 	TotalBackup:					dynamic array(Nodes,Nodes)					of linctr;
-	MaximumBackup:					dynamic array(Nodes,Nodes,Paths)			of linctr;
-	BackupRequirement:				dynamic array(Services,Providers,Paths,Paths) of linctr;
-	BackupCombination:				dynamic array(Services,Providers,Paths)		of linctr;
+	MaximumBackup:					dynamic array(Nodes,Nodes,Services)			of linctr;
+	BackupRequirement:				dynamic array(Services,Providers) 			of linctr;
+	BackupComboRequirement:			dynamic array(Services,Providers,Paths,Paths) 		of linctr;
 	Overlap:						dynamic array(Nodes, Nodes, Services, Services)		of linctr;
 	ServiceOverlap:					dynamic array(Nodes, Nodes, Services, Services)		of linctr;
 end-declarations
@@ -284,8 +284,20 @@ end-do
 ! - if main path goes down elsewhere - sufficient bandwidth is released for the backup path
 !   at this arc
 forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-	forall(kk in L_PathsUsingLink(nn,mm)) do
-		MaximumBackup(nn,mm,kk) := U_PathBandwidthUsage(nn,mm,kk)*v_UseBackupPath(kk) <= l_Lambda(nn,mm);
+	forall(cc in Customers) do
+		forall(ss in S_ServiceForCustomer(cc)) do
+			MaximumBackup(nn,mm,ss) := 
+				sum(pp in Providers | exists(K_Paths(ss,pp)))(
+					sum(kk in K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))(
+						U_PathBandwidthUsage(nn,mm,kk)
+						*
+						(
+							v_UseBackupPath(kk)
+							- u_UsePath(kk)
+						)
+					)		
+				)<= l_Lambda(nn,mm);
+		end-do
 	end-do
 end-do
 
@@ -295,8 +307,16 @@ end-do
 forall(cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc), pp in Providers| exists(K_Paths(ss,pp))) do
 		forall(kk in K_Paths(ss,pp), bb in K_Paths(ss,pp)) do
-			BackupRequirement(ss,pp,kk,bb) := u_UsePath(kk) + v_UseBackupPath(bb) - 1 <= o_UseCombination(kk,bb);
+			BackupComboRequirement(ss,pp,kk,bb) := u_UsePath(kk) + v_UseBackupPath(bb) - 1 <= o_UseCombination(kk,bb);
 		end-do
+	end-do
+end-do
+
+! BACKUP PATH CONSTRAINT
+! can only select a backup path to a provider if also primary path to the same privder
+forall(cc in Customers) do
+	forall(ss in S_ServiceForCustomer(cc), pp in Providers| exists(K_Paths(ss,pp))) do
+		BackupRequirement(ss,pp) := sum(kk in K_Paths(ss,pp))u_UsePath(kk) - sum(kk in K_Paths(ss,pp))v_UseBackupPath(kk) >= 0;
 	end-do
 end-do
 
@@ -373,19 +393,93 @@ forall(cc in Customers) do
 		forall(ss in S_ServiceForCustomer(cc), pp in Providers | exists(K_Paths(ss,pp))) do
 			if(getsol(x_Placement(ss,pp)) > 0.001) then
 				writeln("  - Service ",ss," is placed at provider ",pp);
+				writeln("     - Availability req.: ", Y_AvailabilityReq(ss));
+				writeln(
+					"     - Exp. availability: ",
+					sum(kk in K_Paths(ss,pp)) (
+						D_PathAvailability(kk) 
+						*
+						(
+							getsol(u_UsePath(kk))
+							+
+							getsol(v_UseBackupPath(kk))
+						)
+					)
+					- 
+					! subtract P(A)P(B|A) if backup path is chosen
+					sum(kk in K_Paths(ss,pp), bb in K_Paths(ss,pp)) 
+						D_CombinationAvailability(kk,bb)*getsol(o_UseCombination(kk,bb))
+				);
 				forall(kk in K_Paths(ss,pp)) do
 					if (getsol(u_UsePath(kk)) > 0.001) then
-						writeln("	  - Path up: ", kk, " , cost: ",getsol(u_UsePath(kk))*C_PathCost(kk), " (", getsol(u_UsePath(kk))*100, " %)");
+						writeln("	  - Primary path: ", kk, " , cost: ",getsol(u_UsePath(kk))*C_PathCost(kk), " (", getsol(u_UsePath(kk))*100, " %)");
 					end-if
 				end-do
 				forall(kk in K_Paths(ss,pp)) do
-					if (getsol(v_UseBackupPath(kk)) > 0) then
+					if (getsol(v_UseBackupPath(kk)) > 0.001) then
 						writeln("	  - Backup path: ", kk, " (", getsol(v_UseBackupPath(kk))*100, " %)");
 					end-if
 				end-do
 			end-if
 		end-do
 	end-if
-end-do			
+end-do
+
+writeln("\nTotal backup usage");
+writeln(
+	strfmt("arc ",10), 
+	strfmt("reserved",10),
+	strfmt("max",10),
+	strfmt("sum*",10),
+	strfmt("cost",10),
+	strfmt("paths",10)
+);
+
+declarations
+	temp: real;
+end-declarations
+
+forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
+	temp := 0.0;
+	forall(cc in Customers) do
+		forall(ss in S_ServiceForCustomer(cc)) do
+			if(sum(pp in Providers | exists(K_Paths(ss,pp)))(
+					sum(kk in K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))(
+						U_PathBandwidthUsage(nn,mm,kk)
+						*
+						(
+							getsol(v_UseBackupPath(kk))
+							- getsol(u_UsePath(kk))
+						)
+					)		
+				) > temp) then
+				temp := sum(pp in Providers | exists(K_Paths(ss,pp)))(
+					sum(kk in K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))(
+						U_PathBandwidthUsage(nn,mm,kk)
+						*
+						(
+							getsol(v_UseBackupPath(kk))
+							- getsol(u_UsePath(kk))
+						)
+					)		
+				);
+			end-if
+		end-do
+	end-do
+	if(getsol(l_Lambda(nn,mm)) > 0.001) then
+		write(
+			strfmt("("+ nn+ ", "+ mm+ ")",10),
+			strfmt(+getsol(l_Lambda(nn,mm)), 10),
+			strfmt(temp, 10),
+			strfmt((sum(kk in L_PathsUsingLink(nn,mm))getsol(v_UseBackupPath(kk))*U_PathBandwidthUsage(nn,mm,kk)), 10),
+			strfmt(C_BackupCost(nn,mm), 10),
+			"     "
+		);
+		forall(kk in L_PathsUsingLink(nn,mm) | getsol(v_UseBackupPath(kk)) > 0.001) do
+			write(kk, ", ");
+		end-do
+		write("\n");
+	end-if
+end-do
 
 end-model

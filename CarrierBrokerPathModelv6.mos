@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/sm_mappings.txt';
+	Data = 'data/sm_multi.txt';
 end-parameters
 
 declarations
@@ -42,6 +42,8 @@ declarations
 	Nodes:					set of integer;
 	! Set of paths
 	Paths:					set of integer; 
+	! Set of mappings
+	Mappings:				set of integer;
 	
 end-declarations
 
@@ -76,10 +78,8 @@ declarations
 	F_BandwidthCap:				dynamic array(Nodes,Nodes)	 of real;
 	!set of paths  using each link
 	L_PathsUsingLink:			dynamic array(Nodes,Nodes) of set	of integer;
-	L_PathsUsingLinkBackup:		dynamic array(Nodes,Nodes) of set	of integer;
 	!bandwidth usage for path
 	U_PathBandwidthUsage:		dynamic array(Nodes,Nodes,Paths)	of real;
-	U_PathBandwidthUsageBackup:	dynamic array(Nodes,Nodes,Paths)	of real;
 	! cost of using path k
 	C_PathCost:					dynamic array(Paths)				of real;
 	! cost per bandwidth used for backup paths on arc
@@ -89,7 +89,7 @@ declarations
 	!Possible mappings for each pair of service and provider
 	K_Mappings:					dynamic array(Services) of set of integer;
 	! mappings using path as primary path
-	P_MappingPerPath:			dynamic array(Paths) of set of integer;
+	P_MappingsPerPath:			dynamic array(Paths) of set of integer;
 	! mappings using path as backup path
 	B_MappingsPerBackupPath:	dynamic array(Paths) of set of integer;
 end-declarations
@@ -100,9 +100,7 @@ initialisations from Data
 	F_BandwidthCap;	
 	K_Mappings;
 	L_PathsUsingLink;
-	L_PathsUsingLinkBackup;
 	U_PathBandwidthUsage;
-	U_PathBandwidthUsageBackup;
 	C_PathCost;
 	C_BackupCost;
 	S_ServiceForCustomer;
@@ -177,10 +175,8 @@ Total_Profits := sum (cc in Customers) (
 				)
 				-
 				! cost of bandwidth reserved to support backup paths
-				sum(nn in Nodes) (
-					sum(mm in Nodes) (
+				sum(nn in Nodes, mm in Nodes) (
 						C_BackupCost(nn, mm)*l_Lambda(nn, mm)
-					)
 				);
 
 write("DONE\n - use path cnstr. ..");	
@@ -211,7 +207,13 @@ write("DONE\n - backup path bw use cnstr. 1 ..");
 ! bandwidth reserved for backup paths on an arc is at least a fraction of the total bandwidth of all
 ! backup paths using that arc
 forall( nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-	TotalBackup(nn,mm) := 0.3* sum(kk in L_PathsUsingLinkBackup(nn,mm))U_PathBandwidthUsageBackup(nn,mm,kk)*(sum(pp in P_MappingsPerBackupPath(kk))u_UseMapping(pp))
+	TotalBackup(nn,mm) := 
+		0.3*
+		sum(kk in L_PathsUsingLink(nn,mm)) (
+			U_PathBandwidthUsage(nn,mm,kk)
+			*
+			sum(pp in B_MappingsPerBackupPath(kk))(u_UseMapping(pp))
+		)
 		<= l_Lambda(nn,mm);
 end-do
 
@@ -226,14 +228,19 @@ write("DONE\n - backup path bw use cnstr. 2 ..");
 !   at this arc
 forall (cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc)) do
-		forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLinkBackup(nn,mm))) do
+		forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 			MaximumBackup(nn,mm,ss) := 
 				!sum(pp in (P_MappingsPerPath(L_PathsUsingLinkBackup(nn,mm))*K_Mappings(ss)))
 				!(U_PathBandwidthUsageBackup(nn,mm,kk)-U_PathBandwidthUsage(nn,mm,kk))*u_UseMapping(pp) 
 				!<= l_Lambda(nn,mm);
-			 sum(kk in L_PathsUsingLinkBackup(nn,mm))(U_PathBandwidthUsageBackup(nn,mm,kk)-U_PathBandwidthUsage(nn,mm,kk))
-			 *sum(pp in P_MappingsPerPath(kk)*K_Mappings(ss))(u_UseMapping(pp)) 
-				<= l_Lambda(nn,mm); ) 
+				sum(kk in L_PathsUsingLink(nn,mm))(
+					U_PathBandwidthUsage(nn,mm,kk)
+					*sum(pp in B_MappingsPerBackupPath(kk)*K_Mappings(ss))(u_UseMapping(pp))
+					-
+					U_PathBandwidthUsage(nn,mm,kk)
+					*sum(pp in P_MappingsPerPath(kk)*K_Mappings(ss))(u_UseMapping(pp))
+			 	) 
+				<= l_Lambda(nn,mm);  
 		end-do
 	end-do
 end-do
@@ -243,30 +250,30 @@ writeln("DONE\n - service and backup overlap cnstrs.");
 forall(cc in Customers, qq in Customers) do
 	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz and ss < zz) do
 		writeln("  - service pair: ", ss, ", ", zz);
-		forall(nn in Nodes, mm in Nodes | 	exists(L_PathsUsingLink(nn,mm)) 				! There are some paths using this arc
-											!and K_Paths(ss)*L_PathsUsingLink(nn,mm) <> {}	! Service ss has paths using this link
+		forall(nn in Nodes, mm in Nodes | 	exists(L_PathsUsingLink(nn,mm)) 	! There is an entry for paths using this link
+											and L_PathsUsingLink(nn,mm) <> {}	! Entry of paths using link is not empty
 											!and K_Paths(zz)*L_PathsUsingLink(nn,mm) <> {}	! Service zz has paths using this link
 										) do
 		
 			! SERVICE PATH OVERLAP CONSTRAINTS
 			! Two services have overlapping primary paths if for any arc both paths are represented
 			ServiceOverlap(nn,mm,ss,zz):=
-				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(ss)*P_MappingsPerPath(kk)))(u_UseMapping(pp))
+				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(ss)*P_MappingsPerPath(kk))(u_UseMapping(pp)))
 				!sum(kk in (K_Paths(ss)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
 				+
-				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(zz)*P_MappingsPerPath(kk)))(u_UseMapping(pp))
+				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(zz)*P_MappingsPerPath(kk))(u_UseMapping(pp)))
 				!sum(kk in (K_Paths(zz)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
-				-1
-				<= l_Overlap(ss, zz);
+				-l_Overlap(ss, zz)
+				<= 1;
 			
 			! BACKUP PATH OVERLAP CONSTRAINT
 			! backup paths may not overlap at an arc if their primary paths overlap anywhere, unless
 			! one of the primary paths also overlap at that specific arc
 			Overlap(nn,mm,ss,zz):= 
-				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(ss)*P_MappingsPerBackupPath(kk)))(u_UseMapping(pp))
+				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(ss)*B_MappingsPerBackupPath(kk))(u_UseMapping(pp)))
 				!sum(kk in (K_Paths(ss)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
 				+
-				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(zz)*P_MappingsPerBackupPath(kk)))(u_UseMapping(pp))
+				sum(kk in L_PathsUsingLink(nn,mm))(sum(pp in K_Mappings(zz)*B_MappingsPerBackupPath(kk))(u_UseMapping(pp)))
 				!sum(kk in (K_Paths(zz)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
 				+ l_Overlap(ss, zz)
 				<= 2;
@@ -276,10 +283,6 @@ end-do
 
 writeln("  - DONE");
 
-
-
-
-!!!! Ikke endret utskrift enda!!!!
 writeln("Model building completed in ", timestamp - timetracker, " seconds");
 
 writeln("Solving model...");
@@ -297,21 +300,45 @@ writeln("\nTotal Profits: ", getobjval);
 writeln("\nTotal Backup Costs: ", sum(nn in Nodes)(sum(mm in Nodes)(C_BackupCost(nn, mm)*getsol(l_Lambda(nn, mm)))));
 
 ! for all customers
+
 forall(cc in Customers) do
 	! Check if customer is served
 	if (getsol(y_Serve(cc)) > 0.1) then
 		! output served customer and generated profits for customer
-		writeln("\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
-			R_Revenue(cc)*getsol(y_Serve(cc)));
-		forall(ss in S_ServiceForCustomer(cc) | exists(K_Paths(ss))) do
-			forall(kk in K_Paths(ss)) do
-				if (getsol(u_UsePath(kk)) > 0.1) then
-					writeln("  - Service ",ss," uses path ",kk," , cost: ",C_PathCost(kk));
+		writeln(
+			"\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
+			R_Revenue(cc)*getsol(y_Serve(cc))
+		);
+		forall(ss in S_ServiceForCustomer(cc)) do
+			forall(pp in K_Mappings(ss)) do
+				if (getsol(u_UseMapping(pp)) > 0.1) then
+					writeln("  - Service ",ss," uses mapping ",pp);
+					!" , cost: ",C_PathCost(kk));
+					forall(kk in Paths) do
+						forall(jj in P_MappingsPerPath(kk)) do
+							if(jj = pp) then
+								writeln("   - Primary path: ", kk, ", cost: ", C_PathCost(kk));
+							end-if
+						end-do
+					end-do
+					forall(kk in Paths) do
+						forall(jj in B_MappingsPerBackupPath(kk)) do
+							if(jj = pp) then
+								writeln("   - Backup path: ", kk);
+							end-if
+						end-do
+					end-do
 				end-if
 			end-do
 		end-do
 	end-if
 end-do
-				
+
+writeln("\nTotal backup usage");
+forall(nn in Nodes, mm in Nodes) do
+	if(getsol(l_Lambda(nn,mm)) > 0.0) then
+		writeln("  - (", nn, ", ", mm, ") : ", getsol(l_Lambda(nn,mm)));
+	end-if
+end-do
 
 end-model
