@@ -10,7 +10,7 @@ parameters
 	! Data file to read from
 	Data = 'data/ml_multi.txt';
 	! Minimum proportion of total backup requirement reserved on an arc
-	MinBackupProportion = 0.3;
+	MinBackupProportion = 1;
 end-parameters
 
 declarations
