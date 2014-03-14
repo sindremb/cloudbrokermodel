@@ -167,8 +167,8 @@ forall (pp in Paths, bb in Paths | exists(D_CombinationAvailability(pp,bb))) do
 	o_UseCombination(pp,bb) is_binary;
 end-do
 
-forall (nn in Nodes, mm in Nodes) do
-	create(l_Lambda(nn,mm));
+forall (jj in Nodes, ii in Nodes | exists(F_BandwidthCap(ii,jj))) do
+	create(l_Lambda(ii,jj));
 end-do
 
 forall (ss in Services, zz in Services) do

@@ -448,7 +448,7 @@ namespace entities {
 
 		*file << "\n\nn_Mappings: " << _assignGlobalMappingNumbers(data);
 		
-		*file << "\n\nK_Mappings: [";
+		*file << "\n\nM_MappingsPerService: [";
 		int serviceNumber = 1;
 		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
@@ -465,7 +465,7 @@ namespace entities {
 		}
 		*file << "\n]";
 
-		*file << "\n\nP_MappingsPerPath: [\n";
+		*file << "\n\nM_PrimaryMappingsPerPath: [\n";
 		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
 				for (unsigned int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {
@@ -483,7 +483,7 @@ namespace entities {
 		}
 		*file << "]";
 
-		*file << "\n\nB_MappingsPerBackupPath: [\n";
+		*file << "\n\nM_BackupMappingsPerPath: [\n";
 		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
 				for (unsigned int k = 0; k < data->customers[i].services[j].possible_placements.size(); ++k) {

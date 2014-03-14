@@ -169,7 +169,7 @@ Q_Overlap: [
 
 n_Mappings: 910
 
-K_Mappings: [
+M_MappingsPerService: [
  (1) [1 2 3 4 5 6 ]
  (2) []
  (3) []
@@ -180,7 +180,7 @@ K_Mappings: [
  (8) [907 908 909 910 ]
 ]
 
-P_MappingsPerPath: [
+M_PrimaryMappingsPerPath: [
 (1) []
 (2) [1 2 ]
 (3) [3 4 ]
@@ -308,7 +308,7 @@ P_MappingsPerPath: [
 (125) [910 ]
 ]
 
-B_MappingsPerBackupPath: [
+M_BackupMappingsPerPath: [
 (1) []
 (2) [3 5 ]
 (3) [1 6 ]
