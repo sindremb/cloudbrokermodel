@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/ml_multi.txt';
+	Data = 'data/sm_multi.txt';
 	! Minimum proportion of total backup requirement reserved on an arc
 	MinBackupProportion = 0.3;
 end-parameters
@@ -507,7 +507,7 @@ forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 			strfmt("("+ nn+ ", "+ mm+ ")",10),
 			strfmt(+getsol(l_Lambda(nn,mm)), 10),
 			strfmt(temp, 10),
-			strfmt((sum(kk in L_PathsUsingLink(nn,mm))U_PathBandwidthUsage(nn,mm,kk)*getsol(v_UseBackupPath(kk))), 10),
+			strfmt((sum(ss in Services)getsol(q_backupPerService(nn,mm,ss))), 10),
 			strfmt(C_BackupCost(nn,mm), 10),
 			"     "
 		);
