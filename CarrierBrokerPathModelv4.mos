@@ -139,6 +139,8 @@ declarations
 	o_UseCombination:	dynamic array(Paths,Paths)					of mpvar;
 	! - lambda: continous, amount of capacity reserved on a link for backup
 	l_Lambda:			dynamic array(Nodes,Nodes)					of mpvar;
+	! - q: continous, amount of backup capacity needed on an arc for a service
+	q_backupPerService:	dynamic array(Nodes, Nodes, Services)		of mpvar;
 	! - lambda: continous, amount of capacity reserved on a link for backup
 	l_Overlap:			dynamic array(Services,Services)			of mpvar;
 end-declarations
@@ -171,6 +173,10 @@ forall (jj in Nodes, ii in Nodes | exists(F_BandwidthCap(ii,jj))) do
 	create(l_Lambda(ii,jj));
 end-do
 
+forall (ii in Nodes, jj in Nodes, ss in Services | exists(F_BandwidthCap(ii,jj))) do
+	create(q_backupPerService(ii,jj,ss));
+end-do
+
 forall (ss in Services, zz in Services) do
 	create(l_Overlap(ss,zz));
 	l_Overlap(ss,zz) is_binary;
@@ -190,8 +196,9 @@ declarations
 	UsePath:						dynamic array(Services,Providers)			of linctr;
 	PathArcBandwidth:				dynamic array(Nodes,Nodes)					of linctr;
 	PathAvailability:				dynamic array(Services)						of linctr;
-	TotalBackup:					dynamic array(Nodes,Nodes)					of linctr;
-	MaximumBackup:					dynamic array(Nodes,Nodes,Services)			of linctr;
+	SumBackupLimit:					dynamic array(Nodes,Nodes)					of linctr;
+	MinBackupLimit:					dynamic array(Nodes,Nodes,Services)			of linctr;
+	BackupReqPerService:			dynamic array(Nodes,Nodes,Services)			of linctr;
 	BackupRequirement:				dynamic array(Services,Providers) 			of linctr;
 	BackupComboRequirement:			dynamic array(Services,Providers,Paths,Paths) 		of linctr;
 	Overlap:						dynamic array(Nodes, Nodes, Services, Services)		of linctr;
@@ -283,23 +290,36 @@ end-do
 ! bandwidth reserved for backup paths on an arc is at least a fraction of the total bandwidth of all
 ! backup paths using that arc
 forall( nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-	TotalBackup(nn,mm) := 
-		MinBackupProportion
-		*sum(kk in L_PathsUsingLink(nn,mm)) (
-			U_PathBandwidthUsage(nn,mm,kk)*v_UseBackupPath(kk)
+	SumBackupLimit(nn,mm) := 
+		MinBackupProportion*
+		sum(cc in Customers) (
+			sum(ss in S_ServiceForCustomer(cc)) (
+				q_backupPerService(nn,mm,ss)
+			)
 		)
 		<= l_Lambda(nn,mm);
 end-do
 
 ! MIN BACKUP PATH BANDWIDTH CONSTRAINT
 ! bandwidth reserved for backup paths must be at least as high as the bandwidth required by the
-! most demanding backup path alone not also having its main path at the same arc
-! - if main path goes down elsewhere - sufficient bandwidth is released for the backup path
-!   at this arc
+! the most demaning single service
+forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
+	forall (cc in Customers) do
+		forall(ss in S_ServiceForCustomer(cc)) do		
+			MinBackupLimit(ii,jj,ss) :=
+				q_backupPerService(ii,jj,ss) <= l_Lambda(ii,jj);  
+		end-do
+	end-do
+end-do
+
+! BACKUP REQUIREMENT FOR SERVICE AT ARC CONSTRAINT
+! a service will require a backup reservation at an arc equal to its backup link requirement
+! minus the capacity used by the primary path at the same link (as this capacity will be released
+! if the primary path goes down and the backup is needed)
 forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 	forall(cc in Customers) do
 		forall(ss in S_ServiceForCustomer(cc)) do
-			MaximumBackup(nn,mm,ss) := 
+			BackupReqPerService(nn,mm,ss) := 
 				! sum for all paths for service using this link
 				sum(pp in Providers | exists(K_Paths(ss,pp)))(
 					sum(kk in K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))(
@@ -311,7 +331,7 @@ forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
 						U_PathBandwidthUsage(nn,mm,kk)
 						*u_UsePath(kk)
 					)		
-				)<= l_Lambda(nn,mm);
+				)<= q_backupPerService(nn,mm,ss);
 		end-do
 	end-do
 end-do

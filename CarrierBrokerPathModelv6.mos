@@ -116,9 +116,11 @@ declarations
 	! - y: binary, serving of a customer
 	y_Serve:			dynamic array (Customers)					of mpvar;
 	! - u: binary, indicates which paths are used
-	w_UseMapping:		dynamic array (Mappings)						of mpvar; 
+	w_UseMapping:		dynamic array (Mappings)					of mpvar; 
 	! - lambda: continous, amount of capacity reserved on a link for backup
 	l_Lambda:			dynamic array(Nodes,Nodes)					of mpvar;
+	! - q: continous, amount of backup capacity needed on an arc for a service
+	q_backupPerService:	dynamic array(Nodes, Nodes, Services)		of mpvar;
 	! - l: binary, indicates if two services' primary paths overlap
 	l_Overlap:			dynamic array(Services,Services)			of mpvar;
 end-declarations
@@ -138,6 +140,10 @@ forall (ii in Nodes, jj in Nodes | exists(F_BandwidthCap(ii,jj))) do
 	create(l_Lambda(ii,jj));
 end-do
 
+forall (ii in Nodes, jj in Nodes, ss in Services | exists(F_BandwidthCap(ii,jj))) do
+	create(q_backupPerService(ii,jj,ss));
+end-do
+
 forall (ss in Services, zz in Services | ss < zz) do
 	create(l_Overlap(ss,zz));
 	l_Overlap(ss,zz) is_binary;
@@ -155,8 +161,9 @@ declarations
 ! Constraints
 	AllocateMapping:				dynamic array(Services)							of linctr;
 	PathArcBandwidth:				dynamic array(Nodes,Nodes)						of linctr;
-	TotalBackup:					dynamic array(Nodes,Nodes)						of linctr;
-	MaximumBackup:					dynamic array(Nodes,Nodes,Services)				of linctr;
+	SumBackupLimit:					dynamic array(Nodes,Nodes)						of linctr;
+	MinBackupLimit:					dynamic array(Nodes,Nodes,Services)				of linctr;
+	BackupReqPerService:			dynamic array(Nodes,Nodes,Services)				of linctr;
 	Overlap:						dynamic array(Nodes,Nodes,Services, Services)	of linctr;
 	ServiceOverlap:					dynamic array(Nodes,Nodes,Services, Services)	of linctr;
 end-declarations
@@ -219,11 +226,12 @@ write("DONE\n - backup path bw use cnstr. 1 ..");
 ! bandwidth reserved for backup paths on an arc is at least a fraction of the total bandwidth of all
 ! backup paths using that arc
 forall( ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
-	TotalBackup(ii,jj) := 
+	SumBackupLimit(ii,jj) := 
 		MinBackupProportion*
-		sum(kk in L_PathsUsingLink(ii,jj)) (
-			U_PathBandwidthUsage(ii,jj,kk)
-			* sum(mm in M_BackupMappingsPerPath(kk)) w_UseMapping(mm)
+		sum(cc in Customers) (
+			sum(ss in S_ServiceForCustomer(cc)) (
+				q_backupPerService(ii,jj,ss)
+			)
 		)
 		<= l_Lambda(ii,jj);
 end-do
@@ -232,13 +240,26 @@ write("DONE\n - backup path bw use cnstr. 2 ..");
 
 ! MIN BACKUP PATH BANDWIDTH CONSTRAINT
 ! bandwidth reserved for backup paths must be at least as high as the bandwidth required by the
-! most demanding backup path alone not also having its primary path at the same arc
-! - if primary path goes down elsewhere - sufficient bandwidth is released for the backup path
-!   at this arc
+! the most demaning single service
 forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
 	forall (cc in Customers) do
 		forall(ss in S_ServiceForCustomer(cc)) do		
-			MaximumBackup(ii,jj,ss) :=
+			MinBackupLimit(ii,jj,ss) :=
+				q_backupPerService(ii,jj,ss) <= l_Lambda(ii,jj);  
+		end-do
+	end-do
+end-do
+
+write("DONE\n - backup path bw use cnstr. 3 ..");
+
+! BACKUP REQUIREMENT FOR SERVICE AT ARC CONSTRAINT
+! a service will require a backup reservation at an arc equal to its backup link requirement
+! minus the capacity used by the primary path at the same link (as this capacity will be released
+! if the primary path goes down and the backup is needed)
+forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
+	forall (cc in Customers) do
+		forall(ss in S_ServiceForCustomer(cc)) do		
+			BackupReqPerService(ii,jj,ss) :=
 				! sum for all paths using this link
 				sum(kk in L_PathsUsingLink(ii,jj))(
 					! service's backup requirement on arc (if path is used)
@@ -249,7 +270,7 @@ forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
 					U_PathBandwidthUsage(ii,jj,kk)
 					*sum(mm in M_PrimaryMappingsPerPath(kk)*M_MappingsPerService(ss))(w_UseMapping(mm))
 			 	) 
-				<= l_Lambda(ii,jj);  
+				<= q_backupPerService(ii,jj,ss);  
 		end-do
 	end-do
 end-do
