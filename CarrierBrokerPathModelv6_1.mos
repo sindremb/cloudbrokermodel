@@ -412,7 +412,11 @@ forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
 			strfmt("("+ ii+ ", "+ jj+ ")",10),
 			strfmt(+getsol(l_Lambda(ii,jj)), 10),
 			strfmt(temp, 10),
-			!strfmt((sum(ss in Services)getsol(q_backupPerService(ii,jj,ss))), 10),
+			strfmt(sum(kk in L_PathsUsingLink(ii,jj)) (
+				! add bw req for path for each mapping using path being used
+				U_PathBandwidthUsage(ii,jj,kk)
+				*(sum(mm in M_PrimaryMappingsPerPath(kk))getsol(w_UseMapping(mm)))
+			), 10),
 			strfmt(C_BackupCost(ii,jj), 10),
 			"     "
 		);
