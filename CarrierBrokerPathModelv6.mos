@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/sm_multi.txt';
+	Data = 'data/medium_multi.txt';
 	! Minimum proportion of total backup requirement reserved on an arc
 	MinBackupProportion = 0.3;
 end-parameters
@@ -21,7 +21,7 @@ writeln("Building model...");
 timetracker := timestamp; ! assigns current "timestamp" to timetracker
 
 !setparam("XPRS_presolve", 0);	! uncomment to turn of presolve
-setparam("XPRS_maxtime", 3600); ! maximum number of seconds for optimisation
+!setparam("XPRS_maxtime", 3600); ! maximum number of seconds for optimisation
 
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! Sets

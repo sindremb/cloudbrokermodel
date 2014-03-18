@@ -1,0 +1,179 @@
+Model building completed in 47539.8 seconds
+
+Solving model...
+
+Model was not solved after 29343.2 seconds
+
+Total Profits: 8905
+
+Total Backup Costs: 2875
+
+Customer 1 (node 1) is being served
+ - R_Revenue: 2000
+  - Service 1 uses mapping 54
+   - Primary path: 2, cost: 300
+   - Backup path: 36
+  - Service 2 uses mapping 1290
+   - Primary path: 52, cost: 240
+
+Customer 2 (node 2) is being served
+ - R_Revenue: 1500
+  - Service 3 uses mapping 1347
+   - Primary path: 101, cost: 460
+   - Backup path: 115
+
+Customer 3 (node 3) is being served
+ - R_Revenue: 2000
+  - Service 4 uses mapping 2266
+   - Primary path: 143, cost: 540
+   - Backup path: 140
+
+Customer 4 (node 4) is being served
+ - R_Revenue: 1000
+  - Service 5 uses mapping 3751
+   - Primary path: 196, cost: 620
+
+Customer 5 (node 5) is being served
+ - R_Revenue: 1000
+  - Service 6 uses mapping 5144
+   - Primary path: 240, cost: 380
+   - Backup path: 249
+
+Customer 7 (node 7) is being served
+ - R_Revenue: 1000
+  - Service 9 uses mapping 8311
+   - Primary path: 390, cost: 460
+
+Customer 8 (node 8) is being served
+ - R_Revenue: 1000
+  - Service 10 uses mapping 9926
+   - Primary path: 440, cost: 460
+   - Backup path: 448
+
+Customer 9 (node 9) is being served
+ - R_Revenue: 1000
+  - Service 11 uses mapping 11134
+   - Primary path: 491, cost: 460
+   - Backup path: 497
+
+Customer 11 (node 11) is being served
+ - R_Revenue: 1000
+  - Service 13 uses mapping 14013
+   - Primary path: 591, cost: 300
+   - Backup path: 601
+  - Service 14 uses mapping 15138
+   - Primary path: 641, cost: 380
+
+Customer 12 (node 12) is being served
+ - R_Revenue: 1000
+  - Service 15 uses mapping 15228
+   - Primary path: 691, cost: 340
+
+Customer 13 (node 13) is being served
+ - R_Revenue: 1000
+  - Service 16 uses mapping 16709
+   - Primary path: 740, cost: 340
+   - Backup path: 752
+
+Customer 14 (node 14) is being served
+ - R_Revenue: 1000
+  - Service 17 uses mapping 18439
+   - Primary path: 791, cost: 460
+   - Backup path: 797
+
+Customer 15 (node 15) is being served
+ - R_Revenue: 1000
+  - Service 18 uses mapping 19854
+   - Primary path: 845, cost: 420
+   - Backup path: 851
+
+Customer 16 (node 16) is being served
+ - R_Revenue: 1000
+  - Service 19 uses mapping 21364
+   - Primary path: 894, cost: 380
+   - Backup path: 890
+
+Customer 17 (node 17) is being served
+ - R_Revenue: 1000
+  - Service 20 uses mapping 22814
+   - Primary path: 940, cost: 300
+   - Backup path: 942
+
+Customer 19 (node 19) is being served
+ - R_Revenue: 1000
+  - Service 23 uses mapping 26132
+   - Primary path: 1090, cost: 460
+   - Backup path: 1092
+
+Customer 20 (node 20) is being served
+ - R_Revenue: 1000
+  - Service 24 uses mapping 27721
+   - Primary path: 1141, cost: 420
+   - Backup path: 1154
+
+Total backup usage
+      arc   reserved   max req sum reqs*   cost/bw     paths
+   (1, 25)        20        20        20         1     36, 
+   (5, 22)        20        20        20         1     249, 
+   (8, 32)        20        20        20         4     448, 
+  (12, 41)        20        20        20         2     601, 
+  (12, 42)        20        20        20         1     601, 
+  (15, 45)        20        20        20         4     851, 
+  (16, 46)        20        20        20         3     890, 
+   (22, 5)        20        20        20         1     249, 
+  (22, 29)        20        20        20         1     249, 
+   (25, 1)         5         5         5         1     36, 
+  (25, 27)        20        20        20         2     36, 115, 
+  (27, 25)         5         5         5         2     36, 115, 
+  (27, 29)        20        20   66.6667         3     36, 115, 
+  (29, 22)        20        20        20         1     249, 
+  (29, 27)        20        20        45         3     36, 115, 
+  (29, 30)        20        20        20         2     448, 
+  (29, 37)        20        20   66.6667         1     36, 115, 249, 448, 
+  (30, 29)        20        20        20         2     448, 
+  (30, 32)        20        20        20         4     448, 
+   (32, 8)        20        20        20         4     448, 
+  (32, 30)        20        20        20         4     448, 
+  (35, 36)        20        20   66.6667         2     497, 
+  (35, 37)        20        20   66.6667         3     497, 
+  (36, 35)        20        20        20         2     497, 
+  (37, 29)        20        20        55         1     36, 115, 249, 448, 
+  (37, 35)        20        20   66.6667         3     497, 
+  (37, 38)        20        20   66.6667         3     115, 249, 
+  (37, 51)        20        20   66.6667         4     140, 448, 
+  (37, 52)        20        20   66.6667         4     36, 497, 
+  (38, 37)        20        20   66.6667         3     115, 249, 
+  (38, 52)        20        20        65         1     115, 249, 36, 
+  (39, 40)        20        20   66.6667         1     1092, 1154, 752, 
+  (39, 41)        20        20        20         1     601, 
+  (39, 43)        20        20        60         2     797, 851, 
+  (39, 49)        20        20        40         2     1154, 
+  (39, 53)        20        20   66.6667         3     797, 851, 
+  (39, 54)        20        20        20         2     601, 752, 
+  (40, 39)        20        20        60         1     752, 1092, 1154, 
+  (40, 44)        20        20        20         1     752, 
+  (40, 48)        20        20        20         2     942, 
+  (40, 53)        20        20        40         4     1092, 1154, 
+  (40, 54)        20        20        20         2     890, 942, 
+  (41, 12)        20        20        20         2     601, 
+  (41, 39)        20        20        20         1     601, 
+  (42, 12)        20        20        20         1     601, 
+  (43, 39)        20        20        60         2     797, 851, 
+  (43, 44)        20        20   66.6667         1     752, 797, 851, 
+  (44, 40)        20        20   66.6667         1     752, 
+  (44, 43)        20        20   66.6667         1     797, 851, 752, 
+  (44, 45)        20        20        40         3     851, 
+  (45, 15)        20        20        20         4     851, 
+  (45, 44)        20        20        20         3     851, 
+  (46, 16)        20        20        20         3     890, 
+  (48, 40)        20        20        20         2     942, 
+  (48, 49)        20        20        40         3     1154, 942, 
+  (49, 39)        20        20        40         2     1154, 
+  (49, 48)        20        20        60         3     942, 1154, 
+  (51, 37)        20        20   66.6667         4     140, 448, 
+  (52, 37)        20        20        65         4     36, 497, 
+  (52, 38)        20        20   66.6667         1     36, 115, 249, 
+  (53, 39)        20        20   66.6667         3     797, 851, 
+  (53, 40)        20        20   66.6667         4     1092, 1154, 
+  (54, 39)        20        20        40         2     601, 752, 
+  (54, 40)        20        20        20         2     890, 942, 

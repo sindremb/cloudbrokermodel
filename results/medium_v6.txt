@@ -1,0 +1,196 @@
+Model building completed in 100.76 seconds
+
+Solving model...
+
+Model solved in 14.256 seconds
+
+Total Profits: 42480
+
+Total Backup Costs: 80
+
+Customer 2 (node 2) is being served
+ - R_Revenue: 2600
+  - Service 3 uses mapping 62
+   - Primary path: 15, cost: 1250
+
+Customer 3 (node 3) is being served
+ - R_Revenue: 2500
+  - Service 4 uses mapping 74
+   - Primary path: 21, cost: 1310
+
+Customer 4 (node 4) is being served
+ - R_Revenue: 6800
+  - Service 5 uses mapping 85
+   - Primary path: 26, cost: 1310
+  - Service 6 uses mapping 92
+   - Primary path: 30, cost: 1300
+  - Service 7 uses mapping 132
+   - Primary path: 43, cost: 1310
+
+Customer 6 (node 6) is being served
+ - R_Revenue: 3100
+  - Service 9 uses mapping 166
+   - Primary path: 51, cost: 1250
+
+Customer 7 (node 7) is being served
+ - R_Revenue: 5000
+  - Service 10 uses mapping 180
+   - Primary path: 56, cost: 1250
+  - Service 11 uses mapping 191
+   - Primary path: 61, cost: 1300
+
+Customer 9 (node 9) is being served
+ - R_Revenue: 4900
+  - Service 14 uses mapping 276
+   - Primary path: 85, cost: 1310
+  - Service 15 uses mapping 297
+   - Primary path: 90, cost: 1380
+
+Customer 10 (node 10) is being served
+ - R_Revenue: 4200
+  - Service 16 uses mapping 338
+   - Primary path: 98, cost: 1250
+  - Service 17 uses mapping 353
+   - Primary path: 104, cost: 1380
+
+Customer 11 (node 11) is being served
+ - R_Revenue: 6100
+  - Service 18 uses mapping 395
+   - Primary path: 112, cost: 1250
+  - Service 19 uses mapping 409
+   - Primary path: 117, cost: 1300
+  - Service 20 uses mapping 459
+   - Primary path: 128, cost: 1250
+
+Customer 13 (node 13) is being served
+ - R_Revenue: 6900
+  - Service 25 uses mapping 606
+   - Primary path: 165, cost: 1310
+  - Service 26 uses mapping 620
+   - Primary path: 171, cost: 1380
+   - Backup path: 174
+  - Service 27 uses mapping 662
+   - Primary path: 183, cost: 1310
+
+Customer 14 (node 14) is being served
+ - R_Revenue: 2900
+  - Service 28 uses mapping 690
+   - Primary path: 190, cost: 1250
+
+Customer 16 (node 16) is being served
+ - R_Revenue: 4200
+  - Service 31 uses mapping 770
+   - Primary path: 211, cost: 1250
+  - Service 32 uses mapping 788
+   - Primary path: 217, cost: 1300
+
+Customer 17 (node 17) is being served
+ - R_Revenue: 8000
+  - Service 33 uses mapping 830
+   - Primary path: 226, cost: 1250
+  - Service 34 uses mapping 838
+   - Primary path: 231, cost: 1300
+  - Service 35 uses mapping 892
+   - Primary path: 246, cost: 1250
+
+Customer 18 (node 18) is being served
+ - R_Revenue: 4400
+  - Service 36 uses mapping 941
+   - Primary path: 255, cost: 1250
+  - Service 37 uses mapping 949
+   - Primary path: 260, cost: 1300
+
+Customer 19 (node 19) is being served
+ - R_Revenue: 2200
+  - Service 38 uses mapping 998
+   - Primary path: 269, cost: 1250
+
+Customer 20 (node 20) is being served
+ - R_Revenue: 2400
+  - Service 39 uses mapping 1012
+   - Primary path: 274, cost: 1250
+
+Customer 21 (node 21) is being served
+ - R_Revenue: 4800
+  - Service 40 uses mapping 1018
+   - Primary path: 278, cost: 1250
+  - Service 41 uses mapping 1024
+   - Primary path: 282, cost: 1300
+
+Customer 22 (node 22) is being served
+ - R_Revenue: 4200
+  - Service 42 uses mapping 1038
+   - Primary path: 288, cost: 1250
+  - Service 43 uses mapping 1044
+   - Primary path: 292, cost: 1300
+
+Customer 23 (node 23) is being served
+ - R_Revenue: 2200
+  - Service 44 uses mapping 1058
+   - Primary path: 298, cost: 1250
+
+Customer 24 (node 24) is being served
+ - R_Revenue: 2100
+  - Service 45 uses mapping 1066
+   - Primary path: 302, cost: 1250
+
+Customer 25 (node 25) is being served
+ - R_Revenue: 3300
+  - Service 46 uses mapping 1070
+   - Primary path: 306, cost: 1250
+  - Service 47 uses mapping 1074
+   - Primary path: 310, cost: 1300
+
+Customer 26 (node 26) is being served
+ - R_Revenue: 5700
+  - Service 48 uses mapping 1084
+   - Primary path: 316, cost: 1250
+  - Service 49 uses mapping 1088
+   - Primary path: 320, cost: 1300
+  - Service 50 uses mapping 1099
+   - Primary path: 327, cost: 1250
+
+Customer 29 (node 29) is being served
+ - R_Revenue: 1900
+  - Service 55 uses mapping 1228
+   - Primary path: 372, cost: 1580
+
+Customer 30 (node 30) is being served
+ - R_Revenue: 5500
+  - Service 56 uses mapping 1239
+   - Primary path: 378, cost: 1580
+  - Service 57 uses mapping 1246
+   - Primary path: 385, cost: 1640
+  - Service 58 uses mapping 1290
+   - Primary path: 409, cost: 1340
+
+Customer 32 (node 32) is being served
+ - R_Revenue: 1800
+  - Service 61 uses mapping 1357
+   - Primary path: 425, cost: 1580
+
+Customer 33 (node 33) is being served
+ - R_Revenue: 1900
+  - Service 62 uses mapping 1360
+   - Primary path: 428, cost: 1580
+
+Customer 37 (node 37) is being served
+ - R_Revenue: 5100
+  - Service 71 uses mapping 1575
+   - Primary path: 498, cost: 1580
+  - Service 72 uses mapping 1587
+   - Primary path: 505, cost: 1640
+
+Customer 38 (node 38) is being served
+ - R_Revenue: 3600
+  - Service 73 uses mapping 1600
+   - Primary path: 518, cost: 1580
+  - Service 74 uses mapping 1608
+   - Primary path: 526, cost: 1640
+
+Total backup usage
+      arc   reserved   max req sum reqs*   cost/bw     paths
+  (44, 45)        40        40        40       0.5     174, 
+  (45, 44)        40        40        40       0.5     174, 
+  (45, 56)        40        40       120       0.5     174, 
+  (56, 45)        40        40        80       0.5     174, 

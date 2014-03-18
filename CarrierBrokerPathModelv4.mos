@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/sm_multi.txt';
+	Data = 'data/ml_multi.txt';
 	! Minimum proportion of total backup requirement reserved on an arc
 	MinBackupProportion = 0.3;
 end-parameters
@@ -159,7 +159,7 @@ end-do
 
 forall(pp in Paths) do
 	create(u_UsePath(pp));
-	!u_UsePath(pp) is_binary;
+	u_UsePath(pp) is_binary;
 	create(v_UseBackupPath(pp));
 	v_UseBackupPath(pp) is_binary;
 end-do

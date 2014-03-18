@@ -1,0 +1,297 @@
+Building model...
+
+Model building completed in 8.475 seconds
+
+Solving model...
+
+Model solved in 92.056 seconds
+
+Total Profits: 42480
+
+Total Backup Costs: 80
+
+Customer 2 (node 2) is being served
+ - R_Revenue: 2600
+  - Service 3 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.99212
+	  - Primary path: 15 , cost: 1250 (100 %)
+
+Customer 3 (node 3) is being served
+ - R_Revenue: 2500
+  - Service 4 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.992122
+	  - Primary path: 21 , cost: 1310 (100 %)
+
+Customer 4 (node 4) is being served
+ - R_Revenue: 6800
+  - Service 5 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.993313
+	  - Primary path: 25 , cost: 1250 (100 %)
+  - Service 6 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.993114
+	  - Primary path: 30 , cost: 1300 (100 %)
+  - Service 7 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.994113
+	  - Primary path: 43 , cost: 1310 (100 %)
+
+Customer 6 (node 6) is being served
+ - R_Revenue: 3100
+  - Service 9 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.991924
+	  - Primary path: 52 , cost: 1310 (100 %)
+
+Customer 7 (node 7) is being served
+ - R_Revenue: 5000
+  - Service 10 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.99212
+	  - Primary path: 56 , cost: 1250 (100 %)
+  - Service 11 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.992319
+	  - Primary path: 61 , cost: 1300 (100 %)
+
+Customer 9 (node 9) is being served
+ - R_Revenue: 4900
+  - Service 14 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.990531
+	  - Primary path: 85 , cost: 1310 (100 %)
+  - Service 15 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.990531
+	  - Primary path: 90 , cost: 1380 (100 %)
+
+Customer 10 (node 10) is being served
+ - R_Revenue: 4200
+  - Service 16 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.991126
+	  - Primary path: 98 , cost: 1250 (100 %)
+  - Service 17 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.992122
+	  - Primary path: 104 , cost: 1380 (100 %)
+
+Customer 11 (node 11) is being served
+ - R_Revenue: 6100
+  - Service 18 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.990132
+	  - Primary path: 112 , cost: 1250 (100 %)
+  - Service 19 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.990132
+	  - Primary path: 117 , cost: 1300 (100 %)
+  - Service 20 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.990132
+	  - Primary path: 128 , cost: 1250 (100 %)
+
+Customer 13 (node 13) is being served
+ - R_Revenue: 6900
+  - Service 25 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.990034
+	  - Primary path: 165 , cost: 1310 (100 %)
+  - Service 26 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.995307
+	  - Primary path: 169 , cost: 1300 (100 %)
+  - Service 27 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.990034
+	  - Primary path: 183 , cost: 1310 (100 %)
+
+Customer 14 (node 14) is being served
+ - R_Revenue: 2900
+  - Service 28 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.992517
+	  - Primary path: 190 , cost: 1250 (100 %)
+
+Customer 16 (node 16) is being served
+ - R_Revenue: 4200
+  - Service 31 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.993812
+	  - Primary path: 211 , cost: 1250 (100 %)
+  - Service 32 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.99072
+	  - Primary path: 219 , cost: 1380 (100 %)
+	  - Backup path: 222 (100 %)
+
+Customer 17 (node 17) is being served
+ - R_Revenue: 8000
+  - Service 33 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.992118
+	  - Primary path: 226 , cost: 1250 (100 %)
+  - Service 34 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.992118
+	  - Primary path: 231 , cost: 1300 (100 %)
+  - Service 35 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.991919
+	  - Primary path: 246 , cost: 1250 (100 %)
+
+Customer 18 (node 18) is being served
+ - R_Revenue: 4400
+  - Service 36 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.992118
+	  - Primary path: 255 , cost: 1250 (100 %)
+  - Service 37 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.991919
+	  - Primary path: 260 , cost: 1300 (100 %)
+
+Customer 19 (node 19) is being served
+ - R_Revenue: 2200
+  - Service 38 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.990131
+	  - Primary path: 269 , cost: 1250 (100 %)
+
+Customer 20 (node 20) is being served
+ - R_Revenue: 2400
+  - Service 39 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.994908
+	  - Primary path: 274 , cost: 1250 (100 %)
+
+Customer 21 (node 21) is being served
+ - R_Revenue: 4800
+  - Service 40 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.994908
+	  - Primary path: 278 , cost: 1250 (100 %)
+  - Service 41 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.996005
+	  - Primary path: 282 , cost: 1300 (100 %)
+
+Customer 22 (node 22) is being served
+ - R_Revenue: 4200
+  - Service 42 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.995207
+	  - Primary path: 288 , cost: 1250 (100 %)
+  - Service 43 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.996305
+	  - Primary path: 292 , cost: 1300 (100 %)
+
+Customer 23 (node 23) is being served
+ - R_Revenue: 2200
+  - Service 44 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.993015
+	  - Primary path: 298 , cost: 1250 (100 %)
+
+Customer 24 (node 24) is being served
+ - R_Revenue: 2100
+  - Service 45 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.993214
+	  - Primary path: 302 , cost: 1250 (100 %)
+
+Customer 25 (node 25) is being served
+ - R_Revenue: 3300
+  - Service 46 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.99401
+	  - Primary path: 306 , cost: 1250 (100 %)
+  - Service 47 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.995106
+	  - Primary path: 310 , cost: 1300 (100 %)
+
+Customer 26 (node 26) is being served
+ - R_Revenue: 5700
+  - Service 48 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.994109
+	  - Primary path: 316 , cost: 1250 (100 %)
+  - Service 49 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.995205
+	  - Primary path: 320 , cost: 1300 (100 %)
+  - Service 50 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.995205
+	  - Primary path: 327 , cost: 1250 (100 %)
+
+Customer 29 (node 29) is being served
+ - R_Revenue: 1900
+  - Service 55 is placed at provider 1
+     - Availability req.: 0.99
+     - Exp. availability: 0.992216
+	  - Primary path: 372 , cost: 1580 (100 %)
+
+Customer 30 (node 30) is being served
+ - R_Revenue: 5500
+  - Service 56 is placed at provider 2
+     - Availability req.: 0.99
+     - Exp. availability: 0.996304
+	  - Primary path: 378 , cost: 1580 (100 %)
+  - Service 57 is placed at provider 2
+     - Availability req.: 0.99
+     - Exp. availability: 0.996304
+	  - Primary path: 385 , cost: 1640 (100 %)
+	  - Backup path: 385 (100 %)
+  - Service 58 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.992818
+	  - Primary path: 409 , cost: 1340 (100 %)
+
+Customer 32 (node 32) is being served
+ - R_Revenue: 1800
+  - Service 61 is placed at provider 2
+     - Availability req.: 0.99
+     - Exp. availability: 0.99411
+	  - Primary path: 425 , cost: 1580 (100 %)
+
+Customer 33 (node 33) is being served
+ - R_Revenue: 1900
+  - Service 62 is placed at provider 1
+     - Availability req.: 0.99
+     - Exp. availability: 0.994207
+	  - Primary path: 429 , cost: 1580 (100 %)
+
+Customer 37 (node 37) is being served
+ - R_Revenue: 5100
+  - Service 71 is placed at provider 1
+     - Availability req.: 0.99
+     - Exp. availability: 0.998301
+	  - Primary path: 498 , cost: 1580 (100 %)
+  - Service 72 is placed at provider 2
+     - Availability req.: 0.99
+     - Exp. availability: 0.996104
+	  - Primary path: 506 , cost: 1640 (100 %)
+
+Customer 38 (node 38) is being served
+ - R_Revenue: 3600
+  - Service 73 is placed at provider 2
+     - Availability req.: 0.99
+     - Exp. availability: 0.996205
+	  - Primary path: 518 , cost: 1580 (100 %)
+  - Service 74 is placed at provider 1
+     - Availability req.: 0.99
+     - Exp. availability: 0.993212
+	  - Primary path: 526 , cost: 1640 (100 %)
+
+Total backup usage
+      arc   reserved   max req sum reqs*   cost/bw     paths
+  (44, 45)        40        40       120       0.5     222, 
+  (45, 44)        40        40        80       0.5     222, 
+  (45, 57)        40        40        80       0.5     222, 
+  (57, 45)        40        40        40       0.5     222, 
