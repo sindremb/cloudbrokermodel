@@ -1,22 +1,22 @@
 Building model...
 
-Model building completed in 1.311 seconds
+Model building completed in 1.279 seconds
 
 Solving model...
 
-Model was not solved after 3602.14 seconds
+Model was not solved after 3601.55 seconds
 
-Total Profits: 4616.86
+Total Profits: 6125
 
-Total Backup Costs: 720
+Total Backup Costs: 860
 
 Customer 1 (node 1) is being served
  - R_Revenue: 2000
   - Service 1 is placed at provider 1
      - Availability req.: 0.99
-     - Exp. availability: 0.991289
+     - Exp. availability: 0.991334
 	  - Primary path: 3 , cost: 375 (100 %)
-	  - Backup path: 7 (100 %)
+	  - Backup path: 2 (100 %)
   - Service 2 is placed at provider 2
      - Availability req.: 0.95
      - Exp. availability: 0.986378
@@ -52,44 +52,58 @@ Customer 12 (node 12) is being served
 	  - Primary path: 452 , cost: 340 (100 %)
 	  - Backup path: 453 (100 %)
 
+Customer 13 (node 13) is being served
+ - R_Revenue: 1000
+  - Service 16 is placed at provider 4
+     - Availability req.: 0.99
+     - Exp. availability: 0.991382
+	  - Primary path: 498 , cost: 340 (100 %)
+	  - Backup path: 499 (100 %)
+
 Customer 16 (node 16) is being served
  - R_Revenue: 1000
   - Service 19 is placed at provider 4
      - Availability req.: 0.99
-     - Exp. availability: 0.99
-	  - Primary path: 634 , cost: 112.653 (29.6456 %)
-	  - Primary path: 636 , cost: 295.489 (70.3544 %)
+     - Exp. availability: 0.990895
+	  - Primary path: 636 , cost: 420 (100 %)
 
-Customer 18 (node 18) is being served
+Customer 17 (node 17) is being served
  - R_Revenue: 1000
-  - Service 21 is placed at provider 4
+  - Service 20 is placed at provider 4
      - Availability req.: 0.99
-     - Exp. availability: 0.994514
-	  - Primary path: 669 , cost: 380 (100 %)
-	  - Backup path: 671 (100 %)
-  - Service 22 is placed at provider 3
-     - Availability req.: 0.95
-     - Exp. availability: 0.978851
-	  - Primary path: 685 , cost: 340 (100 %)
+     - Exp. availability: 0.993672
+	  - Primary path: 653 , cost: 300 (100 %)
+	  - Backup path: 655 (100 %)
+
+Customer 20 (node 20) is being served
+ - R_Revenue: 1000
+  - Service 24 is placed at provider 3
+     - Availability req.: 0.99
+     - Exp. availability: 0.994417
+	  - Primary path: 717 , cost: 420 (100 %)
+	  - Backup path: 720 (100 %)
 
 Total backup usage
       arc   reserved   max req sum reqs*   cost/bw     paths
-  (24, 29)        20        20        40         2     7, 77, 
-  (25, 28)        20        20        20         3     7, 
-  (28, 25)         5         5         5         3     7, 
-  (28, 36)        20        20        20         3     7, 
-  (29, 24)         5         5        25         2     7, 77, 
-  (29, 25)        15        15        20         1     7, 
+  (24, 29)        20        20        20         2     2, 77, 
+  (29, 24)         5         5         5         2     2, 77, 
+  (29, 36)        20        20        20         1     2, 
   (29, 38)        20        20        20         4     77, 
-  (30, 37)        20        20        20         1     453, 
-  (34, 35)        20        20        20         3     671, 
-  (34, 37)        20        20        20         3     671, 
-  (35, 34)        20        20        20         3     671, 
-  (36, 28)         5         5         5         3     7, 
-  (36, 38)        20        20        20         1     7, 
-  (37, 30)        20        20        20         1     453, 
-  (37, 34)        20        20        20         3     671, 
+  (30, 37)        20        20   66.6667         1     453, 499, 720, 
+  (30, 40)        20        20        20         3     720, 
+  (34, 35)        20        20        40         3     720, 655, 
+  (34, 37)        20        20        20         3     655, 
+  (35, 34)        20        20        40         3     655, 720, 
+  (35, 37)        20        20        20         2     720, 
+  (36, 29)         5         5         5         1     2, 
+  (36, 38)        20        20        20         1     2, 
+  (37, 30)        20        20        60         1     720, 453, 499, 
+  (37, 34)        20        20        20         3     655, 
+  (37, 35)        20        20        20         2     720, 
   (37, 40)        20        20        20         1     453, 
+  (37, 41)        20        20        40         2     499, 655, 
   (38, 29)        20        20        20         4     77, 
-  (38, 36)         5         5         5         1     7, 
+  (38, 36)         5         5         5         1     2, 
+  (40, 30)        20        20        20         3     720, 
   (40, 37)        20        20        20         1     453, 
+  (41, 37)        20        20        20         2     499, 655, 

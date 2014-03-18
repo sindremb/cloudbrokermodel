@@ -152,13 +152,19 @@ forall (ss in Services, zz in Services | ss < zz) do
 	l_Overlap(ss,zz) is_binary;
 end-do
 
-!temp(1) :=0;
-forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
-	forall(kk in L_PathsUsingLink(ii,jj)) do
-		forall(mm in M_BackupMappingsPerPath(kk)) do
-			!temp(2) := U_PathBandwidthUsage(ii,jj,kk)-U_PathBandwidthUsage(ii,jj,kk);
-			Q_BackupReservation(ii,jj,mm) := maxlist(0,U_PathBandwidthUsage(ii,jj,kk)-U_PathBandwidthUsage(ii,jj,kk)) ;
-		end-do
+forall(mm in Mappings) do
+	forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
+		!forall(kk in L_PathsUsingLink(ii,jj)) do
+			!forall(dummy in M_BackupMappingsPerPath(kk) | dummy = mm) do
+			!forall(nn in M_BackupMappingsPerPath(kk) | mm = nn) do
+				Q_BackupReservation(ii,jj,mm) := maxlist(
+					0,
+					sum(kk in L_PathsUsingLink(ii,jj))(sum(nn in M_BackupMappingsPerPath(kk) | nn = mm)(U_PathBandwidthUsage(ii,jj,kk)))
+					-
+					sum(kk in L_PathsUsingLink(ii,jj))(sum(nn in M_PrimaryMappingsPerPath(kk) | nn = mm)(U_PathBandwidthUsage(ii,jj,kk)))
+				);
+			!end-do
+		!end-do
 	end-do
 end-do
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -173,7 +179,7 @@ declarations
 	AllocateMapping:				dynamic array(Services)							of linctr;
 	PathArcBandwidth:				dynamic array(Nodes,Nodes)						of linctr;
 	SumBackupLimit:					dynamic array(Nodes,Nodes)						of linctr;
-	MinBackupLimit:					dynamic array(Nodes,Nodes,Mappings)				of linctr;
+	MinBackupLimit:					dynamic array(Nodes,Nodes,Services)				of linctr;
 	BackupReqPerService:			dynamic array(Nodes,Nodes,Services)				of linctr;
 	Overlap:						dynamic array(Nodes,Nodes,Services, Services)	of linctr;
 	ServiceOverlap:					dynamic array(Nodes,Nodes,Services, Services)	of linctr;
@@ -251,8 +257,8 @@ write("DONE\n - backup path bw use cnstr. 2 ..");
 ! bandwidth reserved for backup paths must be at least as high as the bandwidth required by the
 ! the most demaning single service
 forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
-	forall (mm in Mappings) do
-		MinBackupLimit(ii,jj,mm) :=Q_BackupReservation(ii,jj,mm)*w_UseMapping(mm) <= l_Lambda(ii,jj);
+	forall (ss in Services) do
+		MinBackupLimit(ii,jj,ss) :=sum(mm in M_MappingsPerService(ss))(Q_BackupReservation(ii,jj,mm)*w_UseMapping(mm)) <= l_Lambda(ii,jj);
 	end-do
 end-do
 
