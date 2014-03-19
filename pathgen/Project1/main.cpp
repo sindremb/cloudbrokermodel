@@ -6,7 +6,6 @@
 #include <shlwapi.h>
 #include <objbase.h>
 
-#include "moseldataparser.h"
 #include "entities.h"
 #include "pathgenerator.h"
 

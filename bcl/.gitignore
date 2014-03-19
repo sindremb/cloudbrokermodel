@@ -1,0 +1,7 @@
+# ignore temporary object files
+*.o
+
+# ignore executable
+cloudbroker-bcl
+
+
