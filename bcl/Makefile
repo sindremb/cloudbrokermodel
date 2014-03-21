@@ -1,13 +1,17 @@
-CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 
+XPRESSDIR =/home/sindremo/xpress-bcl
+INCLUDEDIRS = -I$(XPRESSDIR)/include
+LIBDIRS = -L$(XPRESSDIR)/lib
 
-OBJS =		cloudbroker-bcl.o entities.o pathgenerator.o
+CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 $(INCLUDEDIRS)
 
-LIBS =		libjson/libjson.a
+OBJS =		cloudbroker-bcl.o entities.o pathgenerator.o bcltest.o
+
+LIBS =		libjson/libjson.a -lxprb $(XPRESSDIR)/lib/libxprl.so.x7.6 $(XPRESSDIR)/lib/libxprs.so.25.01
 
 TARGET =	cloudbroker-bcl
 
 $(TARGET):	$(OBJS)
-	$(CXX) -o $(TARGET) $(OBJS) $(LIBS)
+	$(CXX) $(LIBDIRS) -o $(TARGET) $(OBJS) $(LIBS)
 
 all:	$(TARGET)
 

@@ -12,12 +12,11 @@
 
 #include "entities.h"
 #include "pathgenerator.h"
+#include "bcltest.h"
 
 using namespace std;
 
 int main(void) {
-	//puts("Hello World!!!");
-	//return EXIT_SUCCESS;
 	entities::pathgenConfig config;
 		config.calcOverlaps = false;
 		config.calcComboAvailabilities = true;
@@ -26,7 +25,10 @@ int main(void) {
 		cout << "Welcome to network path generation bot v0.3";
 		while(true) {
 			int rootSelection;
-			cout << "\n\n Menu:\n (1) Load (JSON) file and generate paths\n (2) Load (JSON) file and generate primary/backup combos\n (3) Load (JSON) file and generate common path and mapping data\n (4) config \n (0) exit\n\nSelection: ";
+			cout << "\n\n Menu:\n (1) Load (JSON) file and generate paths\n";
+			cout << " (2) Load (JSON) file and generate primary/backup combos\n";
+			cout << " (3) Load (JSON) file and generate common path and mapping data\n";
+			cout << " (4) config \n (5) BCL-test (0) exit\n\nSelection: ";
 			cin >> rootSelection;
 
 			if(rootSelection == 1) {
@@ -128,6 +130,8 @@ int main(void) {
 						cout << "\n Unknown choice";
 					}
 				}
+			} else if(rootSelection == 5) {
+				bcltest::runBclTest();
 			} else if(rootSelection == 0) {
 				break;
 			} else {
