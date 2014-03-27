@@ -30,9 +30,10 @@ namespace entities {
 	service _parseJsonServiceObj(JSONNODE *n) {
 		service s;
 
-		JSONNODE_ITERATOR i = json_begin(n);
+		JSONNODE_ITERATOR i_itr = json_begin(n);
 
-		while (i != json_end(n)){
+		while (i_itr != json_end(n)){
+			JSONNODE *i = *i_itr;
 
 			// get the node name and value as a string
 			std::string node_name = json_name(i);
@@ -51,12 +52,14 @@ namespace entities {
 				s.availability_req = json_as_float(i);
 			}
 			else if (node_name == "placements") {
-				JSONNODE_ITERATOR j = json_begin(i);
-				while (j != json_end(i)){
+				JSONNODE_ITERATOR j_itr = json_begin(i);
+				while (j_itr != json_end(i)){
+					JSONNODE *j = *j_itr;
 					placement placement;
 
-					JSONNODE_ITERATOR p = json_begin(j);
-					while(p != json_end(j)) {
+					JSONNODE_ITERATOR p_itr = json_begin(j);
+					while(p_itr != json_end(j)) {
+						JSONNODE *p = *p_itr;
 						std::string node_name_p = json_name(p);
 						// find out where to store the values
 						if (node_name_p == "provider"){
@@ -66,17 +69,17 @@ namespace entities {
 							placement.price = json_as_float(p);
 						}
 
-						++p;
+						++p_itr;
 					}
 					
 					s.possible_placements.push_back(placement);
 
 					//increment the iterator
-					++j;
+					++j_itr;
 				}
 			}
 			//increment the iterator
-			++i;
+			++i_itr;
 		}
 		return s;
 	}
@@ -85,9 +88,11 @@ namespace entities {
 	customer _parseJsonCustomerObj(JSONNODE *n) {
 		customer customer;
 
-		JSONNODE_ITERATOR i = json_begin(n);
+		JSONNODE_ITERATOR i_itr = json_begin(n);
 
-		while (i != json_end(n)){
+		while (i_itr != json_end(n)){
+			JSONNODE *i = *i_itr;
+
 			// get the node name
 			std::string node_name = json_name(i);
 
@@ -96,32 +101,32 @@ namespace entities {
 				customer.revenue = json_as_int(i);
 			}
 			else if (node_name == "services"){
-				JSONNODE_ITERATOR j = json_begin(i);
-				while (j != json_end(i)){
-					customer.services.push_back(_parseJsonServiceObj(*j));
-					++j;
+				JSONNODE_ITERATOR j_itr = json_begin(i);
+				while (j_itr != json_end(i)){
+					customer.services.push_back(_parseJsonServiceObj(*j_itr));
+					++j_itr;
 				}
 			}
 
 			//increment the iterator
-			++i;
+			++i_itr;
 		}
 
 		return customer;
-	
 	}
 
 	void _parseJsonNetworkObj(JSONNODE *n,  networkStruct * net) {
 
 		bool symmetric = false;
 
-		JSONNODE_ITERATOR i = json_begin(n);
+		JSONNODE_ITERATOR i_itr = json_begin(n);
 
-		while (i != json_end(n)){
+		while (i_itr != json_end(n)){
 			// recursively call ourselves to dig deeper into the tree
 			//if (i->type() == JSON_ARRAY || i->type() == JSON_NODE){
 				//ParseJSON(*i);
 			//}
+			JSONNODE *i = *i_itr;
 
 			// get the node name and value as a string
 			std::string node_name = json_name(i);
@@ -134,15 +139,17 @@ namespace entities {
 				symmetric = json_as_int(i);
 			}
 			else if (node_name == "arcs") {
-				JSONNODE_ITERATOR j = json_begin(i);
+				JSONNODE_ITERATOR j_itr = json_begin(i);
 				// iterate over all arc json nodes
-				while (j != json_end(i)){
+				while (j_itr != json_end(i)){
 					// create arc object
+					JSONNODE *j = *j_itr;
 					arc arc;
 
 					// iterate over all arc attributes
-					JSONNODE_ITERATOR k = json_begin(j);
-					while(k != json_end(j)) {
+					JSONNODE_ITERATOR k_itr = json_begin(j);
+					while(k_itr != json_end(j)) {
+						JSONNODE *k = *k_itr;
 						// get the node name and value as a string
 						std::string node_name_k = json_name(k);
 
@@ -166,18 +173,19 @@ namespace entities {
 							arc.exp_availability = json_as_float(k);
 						}
 
-						k++;
+						//increment the iterator
+						k_itr++;
 					}
 
 					net->arcs.push_back(arc);
 
 					//increment the iterator
-					++j;
+					++j_itr;
 				}
 			}
 
 			//increment the iterator
-			++i;
+			++i_itr;
 		}
 
 		if(symmetric) {
@@ -207,35 +215,37 @@ namespace entities {
 
 	void _parseJsonObject(JSONNODE *n, dataContent *data) {
 
-		JSONNODE_ITERATOR i = json_begin(n);
+		JSONNODE_ITERATOR i_itr = json_begin(n);
 
-		while (i != json_end(n)){
+		while (i_itr != json_end(n)){
+			JSONNODE *i = *i_itr;
 			// get the node name
-			std::string node_name = json_name(*i);
+			std::string node_name = json_name(i);
 
 			// find out where to store the values
 			if (node_name == "numCustomers"){
-				data->n_customers = json_as_int(*i);
+				data->n_customers = json_as_int(i);
 			}
 			else if (node_name == "numServices"){
-				data->n_services = json_as_int(*i);
+				data->n_services = json_as_int(i);
 			}
 			else if (node_name == "numProviders") {
-				data->n_providers = json_as_int(*i);
+				data->n_providers = json_as_int(i);
 			}
 			else if (node_name == "network") {
-				 _parseJsonNetworkObj(*i, &data->network);
+				 _parseJsonNetworkObj(i, &data->network);
 			}
 			else if (node_name == "customers") {
-				JSONNODE_ITERATOR j = json_begin(*i);
-				while(j != json_end(i)) {
-					data->customers.push_back(_parseJsonCustomerObj(*j));
-					j++;
+
+				JSONNODE_ITERATOR j_itr = json_begin(i);
+				while(j_itr != json_end(i)) {
+					data->customers.push_back(_parseJsonCustomerObj(*j_itr));
+					j_itr++;
 				}
 			}
 
 			//increment the iterator
-			++i;
+			++i_itr;
 		}
 	}
 
@@ -252,7 +262,7 @@ namespace entities {
 
 	}
 
-	int _assignGlobalPathNumbers(dataContent * data) {
+	int assignGlobalPathNumbers(dataContent * data) {
 		int pathNumber = 0;
 		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
@@ -335,9 +345,8 @@ namespace entities {
 	void _addPathMoselData(dataContent * data, ofstream * file) {
 		
 		*file << "\n\n!!!!!!!!!!!!!!! GENERATED PATHS DATA !!!!!!!!!!!!!!!!!!!!!!!!!!";
-
-		int n_paths = _assignGlobalPathNumbers(data);
-		*file << "\n\nn_Paths: " << n_paths;
+;
+		*file << "\n\nn_Paths: " << data->n_paths;
 
 		*file << "\n\nK_Paths: [";
 		int globalServiceNumber = 0;
@@ -426,30 +435,13 @@ namespace entities {
 			*file << " (" << i->a->pathNumber << " " << i->b->pathNumber << ") 1";
 		}
 		*file << "\n]";
-
-	}
-
-	int _assignGlobalMappingNumbers(dataContent * data) {
-		int mappingNumber = 0;
-		for (unsigned int i = 0; i < data->customers.size(); ++i) {
-			customer * c = &data->customers[i];
-			for (unsigned int j = 0; j < c->services.size(); ++j) {
-				service * s = &c->services[j];
-				for (unsigned int k = 0; k < s->possible_mappings.size(); ++k) {
-					mapping * m = &s->possible_mappings[k];
-					++mappingNumber;
-					m->mappingNumber = mappingNumber;
-				}
-			}
-		}
-		return mappingNumber;
 	}
 
 	void _addMappingMoselData(dataContent * data, ofstream * file) {
 
 		*file << "\n\n!!!!!!!!!!!!!!! GENERATED MAPPINGS DATA !!!!!!!!!!!!!!!!!!!!!!!!!!";
 
-		*file << "\n\nn_Mappings: " << _assignGlobalMappingNumbers(data);
+		*file << "\n\nn_Mappings: " << data->n_mappings;
 		
 		*file << "\n\nM_MappingsPerService: [";
 		int serviceNumber = 1;
@@ -460,7 +452,7 @@ namespace entities {
 				*file << "\n (" << serviceNumber << ")";
 				*file << " [";
 				for (unsigned int l = 0; l < s->possible_mappings.size(); ++l) {
-					*file << s->possible_mappings[l].mappingNumber << " ";
+					*file << s->possible_mappings[l].globalMappingNumber << " ";
 				}
 				*file << "]";
 				++serviceNumber;
@@ -477,7 +469,7 @@ namespace entities {
 						returnPath * path = &p->paths[l];
 						*file << "(" << p->paths[l].pathNumber << ") [";
 						for (list<mapping*>::const_iterator m = path->primary_mappings.begin(), mend = path->primary_mappings.end(); m != mend; ++m) {
-							*file << (*m)->mappingNumber << " ";
+							*file << (*m)->globalMappingNumber << " ";
 						}
 						*file << "]\n";
 					}
@@ -495,7 +487,7 @@ namespace entities {
 						returnPath * path = &p->paths[l];
 						*file << "(" << p->paths[l].pathNumber << ") [";
 						for (list<mapping*>::const_iterator m = path->backup_mappings.begin(), mend = path->backup_mappings.end(); m != mend; ++m) {
-							*file << (*m)->mappingNumber << " ";
+							*file << (*m)->globalMappingNumber << " ";
 						}
 						*file << "]\n";
 					}
@@ -506,145 +498,6 @@ namespace entities {
 	}
 
 	void toMoselDataFile(const char * filename, dataContent * data) {
-
-		ofstream myfile;
-		myfile.open(filename);
-
-		_addCommonMoselData(data, &myfile);
-		_addPathMoselData(data, &myfile);
-
-		myfile.close();
-		
-		return;
-	}
-
-	void toMoselDataFileV2(const char * filename, dataContent * data) {
-
-		ofstream myfile;
-		myfile.open(filename);
-
-		_addCommonMoselData(data, &myfile);
-
-		/*
-			Following data uses the term path for mappings.. needed to support mosel model v5
-		*/
-		myfile << "\n\n!!!!!!!!!!!!!!! LEGACY MAPPING DATA (as paths) !!!!!!!!!!!!!!!!!!!!!!!!!!";
-
-		myfile << "\n\nn_Paths: " << _assignGlobalMappingNumbers(data);
-
-		myfile << "\n\nK_Paths: [";
-		int serviceNumber = 1;
-		for (unsigned int i = 0; i < data->customers.size(); ++i) {
-			customer * c = &data->customers[i];
-			for (unsigned int j = 0; j < c->services.size(); ++j) {
-				service * s = &c->services[j];
-				myfile << "\n (" << serviceNumber << ")";
-				myfile << " [";
-				for (unsigned int l = 0; l < s->possible_mappings.size(); ++l) {
-					myfile << s->possible_mappings[l].mappingNumber << " ";
-				}
-				myfile << "]";
-				++serviceNumber;
-			}
-		}
-		myfile << "\n]";
-
-		myfile << "\n\nL_PathsUsingLink: [\n";
-		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
-			arc* a = &data->network.arcs[i];
-			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
-			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
-				for (list<mapping*>::const_iterator k = (*j)->primary_mappings.begin(), kend = (*j)->primary_mappings.end(); k != kend; ++k) {
-					myfile << (*k)->mappingNumber << " ";
-				}
-			}
-			for (list<returnPath*>::const_iterator j = a->down_paths.begin(), end = a->down_paths.end(); j != end; ++j) {
-				for (list<mapping*>::const_iterator k = (*j)->primary_mappings.begin(), kend = (*j)->primary_mappings.end(); k != kend; ++k) {
-					myfile << (*k)->mappingNumber << " ";
-				}
-			}
-			myfile << "]\n";
-		}
-		myfile << "]";
-
-		myfile << "\n\nL_PathsUsingLinkBackup: [\n";
-		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
-			arc* a = &data->network.arcs[i];
-			myfile << " (" << a->startNode +1 << " " << a->endNode +1 << ") [";
-			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
-				for (list<mapping*>::const_iterator k = (*j)->backup_mappings.begin(), kend = (*j)->backup_mappings.end(); k != kend; ++k) {
-					myfile << (*k)->mappingNumber << " ";
-				}
-			}
-			for (list<returnPath*>::const_iterator j = a->down_paths.begin(), end = a->down_paths.end(); j != end; ++j) {
-				for (list<mapping*>::const_iterator k = (*j)->backup_mappings.begin(), kend = (*j)->backup_mappings.end(); k != kend; ++k) {
-					myfile << (*k)->mappingNumber << " ";
-				}
-			}
-			myfile << "]\n";
-		}
-		myfile << "]";
-
-		myfile << "\n\nU_PathBandwidthUsage: [\n";
-		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
-			arc* a = &data->network.arcs[i];
-			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
-				for (list<mapping*>::const_iterator k = (*j)->primary_mappings.begin(), kend = (*j)->primary_mappings.end(); k != kend; ++k) {
-					myfile << " (" << a->startNode + 1 << " " << a->endNode + 1 << " " <<
-						(*k)->mappingNumber << ") " << (*j)->bandwidth_usage_up;
-				}
-			}
-			for (list<returnPath*>::const_iterator j = a->down_paths.begin(), end = a->down_paths.end(); j != end; ++j) {
-				for (list<mapping*>::const_iterator k = (*j)->primary_mappings.begin(), kend = (*j)->primary_mappings.end(); k != kend; ++k) {
-					myfile << " (" << a->startNode + 1 << " " << a->endNode + 1 << " " <<
-						(*k)->mappingNumber << ") " << (*j)->bandwidth_usage_down;
-				}
-			}
-			if(a->up_paths.size() > 0)
-				myfile << "\n";
-		}
-		myfile << "]";
-
-		myfile << "\n\nU_PathBandwidthUsageBackup: [\n";
-		for (unsigned int i = 0; i < data->network.arcs.size(); ++i) {
-			arc* a = &data->network.arcs[i];
-			for (list<returnPath*>::const_iterator j = a->up_paths.begin(), end = a->up_paths.end(); j != end; ++j) {
-				for (list<mapping*>::const_iterator k = (*j)->backup_mappings.begin(), kend = (*j)->backup_mappings.end(); k != kend; ++k) {
-					myfile << " (" << a->startNode + 1 << " " << a->endNode + 1 << " " <<
-						(*k)->mappingNumber << ") " << (*j)->bandwidth_usage_up;
-				}
-			}
-			for (list<returnPath*>::const_iterator j = a->down_paths.begin(), end = a->down_paths.end(); j != end; ++j) {
-				for (list<mapping*>::const_iterator k = (*j)->backup_mappings.begin(), kend = (*j)->backup_mappings.end(); k != kend; ++k) {
-					myfile << " (" << a->startNode + 1 << " " << a->endNode + 1 << " " <<
-						(*k)->mappingNumber << ") " << (*j)->bandwidth_usage_down;
-				}
-			}
-			if(a->up_paths.size() > 0)
-				myfile << "\n";
-		}
-		myfile << "]";
-
-		myfile << "\n\nC_PathCost: [";
-		for (unsigned int i = 0; i < data->customers.size(); ++i) {
-			customer * c = &data->customers[i];
-			for (unsigned int j = 0; j < c->services.size(); ++j) {
-				service * s = &c->services[j];
-				for (unsigned int l = 0; l < s->possible_mappings.size(); ++l) {
-					mapping * m = &s->possible_mappings[l];
-					myfile << m->primary->cost << " ";
-				}
-			}
-		}
-		myfile << "]";
-
-		myfile.close();
-		
-		return;
-	}
-
-	
-	void toMoselDataFileV3(const char * filename, dataContent * data) {
 
 		ofstream myfile;
 		myfile.open(filename);

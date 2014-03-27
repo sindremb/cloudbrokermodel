@@ -4,7 +4,7 @@ LIBDIRS = -L$(XPRESSDIR)/lib
 
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 $(INCLUDEDIRS)
 
-OBJS =		cloudbroker-bcl.o entities.o pathgenerator.o bcltest.o
+OBJS =		cloudbroker-bcl.o entities.o pathgenerator.o bcltest.o CloudBrokerModelV6.o
 
 LIBS =		libjson/libjson.a -lxprb $(XPRESSDIR)/lib/libxprl.so.x7.6 $(XPRESSDIR)/lib/libxprs.so.25.01
 

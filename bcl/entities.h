@@ -12,7 +12,6 @@ namespace entities {
 	typedef struct mapping MAPPING;
 
 	struct pathgenConfig {
-		bool calcOverlaps;
 		bool calcComboAvailabilities;
 		int maxPathsPerPlacement;
 	};
@@ -87,7 +86,7 @@ namespace entities {
 
 	struct mapping {
 		// assigned mapping number
-		int mappingNumber;
+		int globalMappingNumber;
 
 		// mappings primary path
 		returnPath * primary;
@@ -144,6 +143,8 @@ namespace entities {
 		int n_customers;
 		int n_providers;
 		int n_services;
+		int n_mappings;
+		int n_paths;
 		
 		// list of customers in network
 		std::vector<customer> customers;
@@ -162,9 +163,6 @@ namespace entities {
 
 	void toMoselDataFile(const char *, dataContent *);
 
-	void toMoselDataFileV2(const char *, dataContent *);
-
-	void toMoselDataFileV3(const char *, dataContent *);
 }
 
 #endif

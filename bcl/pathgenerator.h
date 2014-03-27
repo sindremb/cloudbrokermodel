@@ -7,7 +7,6 @@ namespace pathgen {
 	
 	void generatePaths(entities::dataContent *, entities::pathgenConfig);
 	void addPathComboAvailabilities(entities::dataContent * data);
-	void addPathOverlaps(entities::dataContent * data);
 	void addFeasibleMappings(entities::dataContent *);
 }
 
