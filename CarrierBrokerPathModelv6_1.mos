@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/mini_multi.txt';
+	Data = 'data/sm_multi.txt';
 	! Minimum proportion of total backup requirement reserved on an arc
 	MinBackupProportion = 0.3;
 end-parameters
@@ -215,7 +215,7 @@ write("DONE\n - use path cnstr. ..");
 ! All services of a customer that is to be served must be allocated one mapping
 forall(cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc) | exists(M_MappingsPerService(ss))) do
-		AllocateMapping(ss) := sum(kk in M_MappingsPerService(ss)) w_UseMapping(kk) = y_Serve(cc);
+		AllocateMapping(ss) := sum(kk in M_MappingsPerService(ss)) w_UseMapping(kk) - y_Serve(cc) = 0.0;
 	end-do
 end-do
 
