@@ -194,8 +194,9 @@ namespace cloudbrokermodels {
 			++d_itr;
 		}
 
-		/* Set expression as objective */
+		/* create final objective function */
 		this->z_objective = this->master_problem.newCtr("OBJ", z_obj_expression);
+		/* set objective function for problem */
 		this->master_problem.setObj(this->z_objective);
 
 		/******* CREATE CONSTRAINTS *******/
@@ -211,24 +212,36 @@ namespace cloudbrokermodels {
 		w_itr = this->w_useMappingVars.begin();
 		y_itr = this->y_serveCustomerVars.begin();
 		int serviceNumber = 0;
+
+		/* for every customer */
 		for(int cc = 0; cc < n_customers; ++cc) {
 			customer * c = &data->customers[cc];
+
+			/* for every service of customer */
 			for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
 				service * s = &c->services[ss];
 				++serviceNumber;
 
-				/* Build lhs terms */
-				XPRBexpr map_service_exp;
+				/* NEW CONSTRAINT: lhs expression */
+				XPRBexpr map_service_expr;
+
+				/* for every mapping of service*/
 				for(unsigned int mm = 0; mm < s->possible_mappings.size(); ++mm) {
-					map_service_exp += (*w_itr);
+
+					/* add mapping selection var */
+					map_service_expr += (*w_itr);
+
 					++w_itr;
 				}
 
-				/* create constraint */
+				/* subtract serve customer var */
+				map_service_expr -= (*y_itr);
+
+				/* create final constraint */
 				this->serveCustomerCtr.push_back(
 					this->master_problem.newCtr(
 							XPRBnewname("serve_customer_ctr_%d", serviceNumber),
-							map_service_exp == (*y_itr)
+							map_service_expr == 0.0
 					)
 				);
 			}
@@ -242,13 +255,16 @@ namespace cloudbrokermodels {
 		 *   for: every arc a
 		 */
 		cout <<	"  - ARC CAPACITY CONSTRAINTS..";
+
+		/* for every arc */
 		d_itr = this->d_arcBackupUsage.begin();
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			arc * a = &data->network.arcs[aa];
 
-			/* build lhs terms */
+			/* NEW CONSTRAINT: lhs expression*/
 			XPRBexpr arc_bw_usage;
 
+			/* for every mapping */
 			w_itr = this->w_useMappingVars.begin();
 			for(int cc = 0; cc < n_customers; ++cc) {
 				customer * c = &data->customers[cc];
@@ -256,19 +272,23 @@ namespace cloudbrokermodels {
 					service * s = &c->services[ss];
 					for(unsigned int mm = 0; mm < s->possible_mappings.size(); ++mm) {
 						mapping * m = &s->possible_mappings[mm];
+
+						/* add bandwidth used by used mappings on arc */
 						arc_bw_usage += Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a,m)*(*w_itr);
+
 						++w_itr;
 					}
 				}
 			}
 
+			/* add bandwidth reserved for backup on arc */
 			arc_bw_usage += (*d_itr);
 
-			/* create constraint */
+			/* create final constraint */
 			this->arcCapacityCtr.push_back(
 				this->master_problem.newCtr(
 					XPRBnewname("arc_capacity_ctr_%d_%d", a->startNode, a->endNode),
-					arc_bw_usage <= a->bandwidth_cap
+					arc_bw_usage <= Parameters::F_BandwidthCapacityForArc(a)
 				)
 			);
 			++d_itr;
@@ -279,30 +299,44 @@ namespace cloudbrokermodels {
 		 * - backup capacity reserved on an arc must be large enough to support any single backup
 		 *   path using that arc
 		 *
-		 *   for: every customer
-		 *   	for: every customer's service
-		 *   		for: every arc
+		 *   for: every arc
+		 *   	for: every customer
+		 *   		for: every customer's servicek
 		 */
 		cout <<	"  - SINGLE BACKUP RESERVATION CONSTRAINTS..";
+
+		/* for every arc		*/
 		d_itr = this->d_arcBackupUsage.begin();
-		for(int aa = 0; aa < n_arcs; ++aa) { 								/* for every arc		*/
+		for(int aa = 0; aa < n_arcs; ++aa) {
 			arc * a = &data->network.arcs[aa];
+
+			/* for every customer */
 			serviceNumber = 0;
 			w_itr = this->w_useMappingVars.begin();
-			for(int cc = 0; cc < n_customers; ++cc) {						/* for every customer 	*/
+			for(int cc = 0; cc < n_customers; ++cc) {
 				customer * c = &data->customers[cc];
+
+				/* for every service of customer */
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {	/* for every service 	*/
 					service * s = &c->services[ss];
 					++serviceNumber;
+
+					/* NEW CONSTRAINT: lhs expression */
 					XPRBexpr service_backup_req_on_arc;
-					/* build lhs terms */
+
+					/* for every mapping */
 					for(unsigned int mm = 0; mm < s->possible_mappings.size(); ++mm) {
 						mapping* m = &s->possible_mappings[mm];
+
+						/* add backup requirement on arc for mapping */
 						service_backup_req_on_arc += (Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m))*(*w_itr);
+
 						++w_itr;
 					}
 
-					/* create constraint */
+					/* subtract */
+
+					/* create final constraint */
 					this->backupSingleCtr.push_back(
 						this->master_problem.newCtr(
 							XPRBnewname("backup_single_ctr_%d_%d_%d", a->startNode, a->endNode, serviceNumber),
@@ -320,11 +354,16 @@ namespace cloudbrokermodels {
 		 * for: every arc
 		 */
 		cout << "  - SUM BACKUP RESERVATION CONSTRAINTS..";
-		d_itr = this->d_arcBackupUsage.begin();
-		for(int aa = 0; aa < n_arcs; ++aa) { 							/* for every arc		*/
-			arc * a = &data->network.arcs[aa];
-			XPRBexpr total_backup_req;
 
+		/* for every arc */
+		d_itr = this->d_arcBackupUsage.begin();
+		for(int aa = 0; aa < n_arcs; ++aa) {
+			arc * a = &data->network.arcs[aa];
+
+			/* NEW CONSTRAINT: lhs expression*/
+			XPRBexpr total_backup_req_expr;
+
+			/* for every mapping */
 			w_itr = this->w_useMappingVars.begin();
 			for(int cc = 0; cc < n_customers; ++cc) {
 				customer * c = &data->customers[cc];
@@ -332,16 +371,23 @@ namespace cloudbrokermodels {
 					service * s = &c->services[ss];
 					for(unsigned int mm = 0; mm < s->possible_mappings.size(); ++mm) {
 						mapping *m = &s->possible_mappings[mm];
-						total_backup_req += Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m)*(*w_itr);
+
+						/* add backup req on arc for used mappings */
+						total_backup_req_expr += Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m)*(*w_itr);
+
 						++w_itr;
 					}
 				}
 			}
 
+			/* subtract backup reservation on arc variable*/
+			total_backup_req_expr-= (*d_itr);
+
+			/* create final constraint */
 			this->backupSumCtr.push_back(
 				this->master_problem.newCtr(
 					XPRBnewname("backup_sum_ctr_%d_%d", a->startNode, a->endNode),
-					beta_backupres * total_backup_req <= (*d_itr)
+					beta_backupres * total_backup_req_expr <= 0.0
 				)
 			);
 
@@ -356,6 +402,8 @@ namespace cloudbrokermodels {
 		 *   for: every pair of two services services
 		 */
 		cout << "  - PRIMARY OVERLAP CONSTRAINTS..";
+
+		/* for every pair of two services */
 		l_itr = this->l_servicesOverlapVars.begin();
 		int snum1 = 0;
 		for(int cc1 = 0; cc1 < n_customers; ++cc1) {
@@ -370,26 +418,42 @@ namespace cloudbrokermodels {
 						service *t = &c2->services[tt];
 						++snum2;
 						if(snum1 < snum2) {
+
+							/* for every arc */
 							for(int aa = 0; aa < n_arcs; ++aa) {
 								arc *a = &data->network.arcs[aa];
-								XPRBexpr primary_overlap;
+
+								/* NEW CONSTRAINT: lhs expression */
+								XPRBexpr primary_overlap_expr;
+
+								/* for every mapping of service s using arc for primary */
 								for(unsigned int mm = 0; mm < s->possible_mappings.size(); ++mm) {
 									mapping * m = &s->possible_mappings[mm];
 									if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) > 0.0) {
-										primary_overlap += *this->mappingVarForMappingNumber(m->globalMappingNumber);
+
+										/* add mapping selection var for mapping */
+										primary_overlap_expr += *this->mappingVarForMappingNumber(m->globalMappingNumber);
 									}
 								}
+
+								/* for every mapping of service t using arc for primary */
 								for(unsigned int mm = 0; mm < t->possible_mappings.size(); ++mm) {
 									mapping * m = &t->possible_mappings[mm];
 									if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) > 0.0) {
-										primary_overlap += *this->mappingVarForMappingNumber(m->globalMappingNumber);
+
+										/* add mapping selection var for mapping */
+										primary_overlap_expr += *this->mappingVarForMappingNumber(m->globalMappingNumber);
 									}
 								}
-								primary_overlap -= (*l_itr);
+
+								/* subtract primary overlap var for service pair (s, t)*/
+								primary_overlap_expr -= (*l_itr);
+
+								/* create final constraint */
 								this->primaryOverlapCtr.push_back(
 									this->master_problem.newCtr(
 										XPRBnewname("primary_overlap_ctr_%d_%d", a->startNode, a->endNode),
-										primary_overlap <= 1.0
+										primary_overlap_expr <= 1.0
 									)
 								);
 							}
@@ -410,6 +474,8 @@ namespace cloudbrokermodels {
 		cout << "  - BACKUP OVERLAP CONSTRAINTS..";
 		l_itr = this->l_servicesOverlapVars.begin();
 		snum1 = 0;
+
+		/* for every pair of two services */
 		for(int cc1 = 0; cc1 < n_customers; ++cc1) {
 			customer * c1 = &data->customers[cc1];
 			for(unsigned int ss = 0; ss < c1->services.size(); ++ss) {
@@ -422,26 +488,42 @@ namespace cloudbrokermodels {
 						service *t = &c2->services[tt];
 						++snum2;
 						if(snum1 < snum2) {
+
+							/* for every  */
 							for(int aa = 0; aa < n_arcs; ++aa) {
 								arc *a = &data->network.arcs[aa];
-								XPRBexpr backup_overlap;
+
+								/* NEW CONSTRAINT: lhs expression */
+								XPRBexpr backup_overlap_expr;
+
+								/* for every mapping of service s using arc */
 								for(unsigned int mm = 0; mm < s->possible_mappings.size(); ++mm) {
 									mapping * m = &s->possible_mappings[mm];
-									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0) {
-										backup_overlap += *this->mappingVarForMappingNumber(m->globalMappingNumber);
+									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0001) {
+
+										/* add mapping selection var for mapping */
+										backup_overlap_expr += *this->mappingVarForMappingNumber(m->globalMappingNumber);
 									}
 								}
+
+								/* for every mapping of service t using arc */
 								for(unsigned int mm = 0; mm < t->possible_mappings.size(); ++mm) {
 									mapping * m = &t->possible_mappings[mm];
-									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0) {
-										backup_overlap += *this->mappingVarForMappingNumber(m->globalMappingNumber);
+									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0001) {
+
+										/* add mapping selection var for mapping */
+										backup_overlap_expr += *this->mappingVarForMappingNumber(m->globalMappingNumber);
 									}
 								}
-								backup_overlap += (*l_itr);
+
+								/* add primary overlap var for service pair (s, t) */
+								backup_overlap_expr += (*l_itr);
+
+								/* create final constraint */
 								this->backupOverlapCtr.push_back(
 									this->master_problem.newCtr(
 										XPRBnewname("backup_overlap_ctr_%d_%d", a->startNode, a->endNode),
-										backup_overlap <= 2.0
+										backup_overlap_expr <= 2.0
 									)
 								);
 							}
