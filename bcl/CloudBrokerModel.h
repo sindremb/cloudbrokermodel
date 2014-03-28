@@ -18,7 +18,7 @@ namespace cloudbrokermodels {
 
 	class CloudBrokerModel {
 	private:
-		::dashoptimization::XPRBprob _prob;
+		::dashoptimization::XPRBprob master_problem;
 
 		::dashoptimization::XPRBctr z_objective;
 
@@ -34,7 +34,7 @@ namespace cloudbrokermodels {
 		std::list< ::dashoptimization::XPRBctr> primaryOverlapCtr;	/* every arc, every pair of services */
 		std::list< ::dashoptimization::XPRBctr> backupOverlapCtr;	/* every arc, every pair of services */
 
-		entities::dataContent *_data;
+		entities::dataContent *data;
 
 		::dashoptimization::XPRBvar* mappingVarForMappingNumber(int mappingNumber);
 

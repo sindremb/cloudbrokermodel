@@ -50,17 +50,17 @@ namespace cloudbrokermodels {
 	 */
 	class Parameters {
 		public:
-			static double U_PrimaryBandwidthUsageOnArcForMapping(arc * a, mapping * m);
-			static double Q_BackupBandwidthUsageOnArcForMapping(arc * a, mapping * m);
-			static double R_RevenueForCustomer(customer * c);
-			static double E_PrimaryPathCost(returnPath * k);
-			static double E_PerBandwidthCostForArc(arc * a);
-			static double F_BandwidthCapacityForArc(arc * a);
+			static double U_PrimaryBandwidthUsageOnArcForMapping(arc *a, mapping *m);
+			static double Q_BackupBandwidthUsageOnArcForMapping(arc *a, mapping *m);
+			static double R_RevenueForCustomer(customer *c);
+			static double E_PrimaryPathCost(returnPath *k);
+			static double E_PerBandwidthCostForArc(arc *a);
+			static double F_BandwidthCapacityForArc(arc *a);
 	};
 
 	CloudBrokerModel::CloudBrokerModel() :
 			// member initialisation
-			_prob("Cloud Broker Optimisation")
+			master_problem("Cloud Broker Optimisation")
 	{
 
 	}
@@ -76,7 +76,7 @@ namespace cloudbrokermodels {
 
 		/********* SETUP **********/
 
-		this->_data = data;
+		this->data = data;
 
 		/* Problem dimensions */
 		int n_customers = data->n_customers;
@@ -99,7 +99,7 @@ namespace cloudbrokermodels {
 		 */
 		for(int cc = 0; cc < n_customers; cc++) {
 			this->y_serveCustomerVars.push_back(
-				this->_prob.newVar(XPRBnewname("y_serve_customer_%d", cc+1), XPRB_BV, 0, 1)
+				this->master_problem.newVar(XPRBnewname("y_serve_customer_%d", cc+1), XPRB_BV, 0, 1)
 			);
 		}
 		cout << "   - created " << this->y_serveCustomerVars.size() << " y-variables\n";
@@ -114,7 +114,7 @@ namespace cloudbrokermodels {
 		 */
 		for(int mm = 0; mm < n_mappings; mm++) {
 			this->w_useMappingVars.push_back(
-				this->_prob.newVar(
+				this->master_problem.newVar(
 					XPRBnewname("m_use_mapping_%d", mm+1),
 					XPRB_BV, 0, 1
 				)
@@ -129,7 +129,7 @@ namespace cloudbrokermodels {
 		for(int ss = 0; ss < n_services; ss++) {
 			for(int tt = ss+1; tt < n_services; tt++) {
 				this->l_servicesOverlapVars.push_back(
-					this->_prob.newVar(
+					this->master_problem.newVar(
 						XPRBnewname("l_service_overlaps_%d_%d", ss+1, tt+1),
 						XPRB_BV, 0, 1
 					)
@@ -144,7 +144,7 @@ namespace cloudbrokermodels {
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			arc * a = &data->network.arcs[aa];
 			this->d_arcBackupUsage.push_back(
-				this->_prob.newVar(
+				this->master_problem.newVar(
 					XPRBnewname("d_backup_usage_%d_%d", a->startNode, a->endNode),
 					XPRB_PL, 0, a->bandwidth_cap
 				)
@@ -195,8 +195,8 @@ namespace cloudbrokermodels {
 		}
 
 		/* Set expression as objective */
-		this->z_objective = this->_prob.newCtr("OBJ", z_obj_expression);
-		this->_prob.setObj(this->z_objective);
+		this->z_objective = this->master_problem.newCtr("OBJ", z_obj_expression);
+		this->master_problem.setObj(this->z_objective);
 
 		/******* CREATE CONSTRAINTS *******/
 		cout << "DONE!\n - creating constraints..\n";
@@ -226,7 +226,7 @@ namespace cloudbrokermodels {
 
 				/* create constraint */
 				this->serveCustomerCtr.push_back(
-					this->_prob.newCtr(
+					this->master_problem.newCtr(
 							XPRBnewname("serve_customer_ctr_%d", serviceNumber),
 							map_service_exp == (*y_itr)
 					)
@@ -266,7 +266,7 @@ namespace cloudbrokermodels {
 
 			/* create constraint */
 			this->arcCapacityCtr.push_back(
-				this->_prob.newCtr(
+				this->master_problem.newCtr(
 					XPRBnewname("arc_capacity_ctr_%d_%d", a->startNode, a->endNode),
 					arc_bw_usage <= a->bandwidth_cap
 				)
@@ -304,7 +304,7 @@ namespace cloudbrokermodels {
 
 					/* create constraint */
 					this->backupSingleCtr.push_back(
-						this->_prob.newCtr(
+						this->master_problem.newCtr(
 							XPRBnewname("backup_single_ctr_%d_%d_%d", a->startNode, a->endNode, serviceNumber),
 								service_backup_req_on_arc <= (*d_itr)
 						)
@@ -339,7 +339,7 @@ namespace cloudbrokermodels {
 			}
 
 			this->backupSumCtr.push_back(
-				this->_prob.newCtr(
+				this->master_problem.newCtr(
 					XPRBnewname("backup_sum_ctr_%d_%d", a->startNode, a->endNode),
 					beta_backupres * total_backup_req <= (*d_itr)
 				)
@@ -387,7 +387,7 @@ namespace cloudbrokermodels {
 								}
 								primary_overlap -= (*l_itr);
 								this->primaryOverlapCtr.push_back(
-									this->_prob.newCtr(
+									this->master_problem.newCtr(
 										XPRBnewname("primary_overlap_ctr_%d_%d", a->startNode, a->endNode),
 										primary_overlap <= 1.0
 									)
@@ -439,7 +439,7 @@ namespace cloudbrokermodels {
 								}
 								backup_overlap += (*l_itr);
 								this->backupOverlapCtr.push_back(
-									this->_prob.newCtr(
+									this->master_problem.newCtr(
 										XPRBnewname("backup_overlap_ctr_%d_%d", a->startNode, a->endNode),
 										backup_overlap <= 2.0
 									)
@@ -454,33 +454,33 @@ namespace cloudbrokermodels {
 		cout << "DONE! (" << this->backupOverlapCtr.size() << " created)\n";
 
 		// set problem to maximise objective
-		this->_prob.setSense(XPRB_MAXIM);
+		this->master_problem.setSense(XPRB_MAXIM);
 
 		return;
 	}
 
 	void CloudBrokerModel::RunModel(bool enforce_integer) {
 		if(enforce_integer) {
-			this->_prob.mipOptimise();
+			this->master_problem.mipOptimise();
 		} else {
-			this->_prob.lpOptimise();
+			this->master_problem.lpOptimise();
 		}
 	}
 
 	void CloudBrokerModel::RunModelColumnGeneration() {
 		int itercount = 0;
-		XPRSsetintcontrol(this->_prob.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts - we use our own */
-		XPRSsetintcontrol(this->_prob.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
+		XPRSsetintcontrol(this->master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts - we use our own */
+		XPRSsetintcontrol(this->master_problem.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
 		while(itercount < 100) {
 			bool foundColumn = false;
 			this->RunModel(false);
-			XPRBbasis basis = this->_prob.saveBasis();
+			XPRBbasis basis = this->master_problem.saveBasis();
 
 			CloudBrokerModel::dual_vals duals = this->getDualVals();
 
 			// use duals to generate column(s) for each service
-			for(int cc = 0; cc < this->_data->n_customers; ++cc) {
-				customer *c = &this->_data->customers[cc];
+			for(int cc = 0; cc < this->data->n_customers; ++cc) {
+				customer *c = &this->data->customers[cc];
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
 					service *s = &c->services[ss];
 					if(this->generateMappingColumnBruteForce(s, &duals)) foundColumn = true;
@@ -489,7 +489,7 @@ namespace cloudbrokermodels {
 
 			if(!foundColumn) break; /* no new column was found -> end column generation */
 
-			this->_prob.loadBasis(basis);
+			this->master_problem.loadBasis(basis);
 			++itercount;
 		}
 		this->RunModel(true);
@@ -606,8 +606,8 @@ namespace cloudbrokermodels {
 		// - A^Ty:
 		//   + a_s
 		int dual_index = 0;
-		for(int cc = 0; cc < this->_data->n_customers; ++cc) {
-			customer *c = &this->_data->customers[cc];
+		for(int cc = 0; cc < this->data->n_customers; ++cc) {
+			customer *c = &this->data->customers[cc];
 			for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
 				service *s = &c->services[ss];
 				if(s == owner) {
@@ -629,8 +629,8 @@ namespace cloudbrokermodels {
 
 	void CloudBrokerModel::OutputResults() {
 		/* Problem dimensions */
-		int n_customers = this->_data->n_customers;
-		int n_arcs = this->_data->network.arcs.size();
+		int n_customers = this->data->n_customers;
+		int n_arcs = this->data->network.arcs.size();
 
 		/* Model variable iterators */
 		list<XPRBvar>::iterator y_itr;
@@ -639,12 +639,12 @@ namespace cloudbrokermodels {
 
 		cout << "\n=========== RESULTS =============\n";
 
-		cout << "\nProfits: " << this->_prob.getObjVal() << "\n";
+		cout << "\nProfits: " << this->master_problem.getObjVal() << "\n";
 
 		double backup_costs = 0.0;
 		d_itr = this->d_arcBackupUsage.begin();
 		for(int aa = 0; aa < n_arcs; ++aa) {
-			arc *a = &this->_data->network.arcs[aa];
+			arc *a = &this->data->network.arcs[aa];
 			backup_costs += a->bandwidth_price * (*d_itr).getSol();
 			++d_itr;
 		}
@@ -654,7 +654,7 @@ namespace cloudbrokermodels {
 		w_itr = this->w_useMappingVars.begin();
 		int serviceNumber = 0;
 		for(int cc = 0; cc < n_customers; ++cc) {
-			customer *c = &this->_data->customers[cc];
+			customer *c = &this->data->customers[cc];
 			if((*y_itr).getSol() > 0.01) {
 				cout << "\nCustomer #" << cc+1 << " is being served (" << (*y_itr).getSol() << ")\n";
 				cout << "- Revenue: " << c->revenue << "\n";
@@ -681,7 +681,7 @@ namespace cloudbrokermodels {
 		d_itr = this->d_arcBackupUsage.begin();
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			if((*d_itr).getSol() > 0.00001) {
-				arc *a = &this->_data->network.arcs[aa];
+				arc *a = &this->data->network.arcs[aa];
 				cout << "(" << a->startNode << ", " << a->endNode << ") : " << (*d_itr).getSol() << "\n";
 			}
 			++d_itr;
