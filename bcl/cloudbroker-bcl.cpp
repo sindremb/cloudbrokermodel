@@ -49,24 +49,25 @@ int main(void) {
 
 				// STEP 1: import data
 				entities::dataContent data;
-				entities::loadFromJSONFile(inputfilename.c_str(), &data);
+				if(entities::loadFromJSONFile(inputfilename.c_str(), &data)) {
 
-				string outputfilename;
-				cout << "\nJSON data loaded..\n\nEnter filename for storing generated data and press enter to start path generation: ";
-				cin >> outputfilename;
+					string outputfilename;
+					cout << "\nJSON data loaded..\n\nEnter filename for storing generated data and press enter to start path generation: ";
+					cin >> outputfilename;
 
-				// STEP 2: generate paths and additional data as configured
-				pathgen::generatePaths(&data, config);
-				if (config.calcComboAvailabilities) pathgen::addPathComboAvailabilities(&data);
+					// STEP 2: generate paths and additional data as configured
+					pathgen::generatePaths(&data, config);
+					if (config.calcComboAvailabilities) pathgen::addPathComboAvailabilities(&data);
 
-				// STEP 3: find and add feasible mappings from generated paths
-				pathgen::addFeasibleMappings(&data);
+					// STEP 3: find and add feasible mappings from generated paths
+					pathgen::addFeasibleMappings(&data);
 
-				// STEP 4: store to generated file
-				cout << "\n\nWriting to mosel data file..";
-				entities::toMoselDataFile(outputfilename.c_str(), &data);
+					// STEP 4: store to generated file
+					cout << "\n\nWriting to mosel data file..";
+					entities::toMoselDataFile(outputfilename.c_str(), &data);
 
-				cout << "\n\nPaths generated and data stored to " << outputfilename;
+					cout << "\n\nPaths generated and data stored to " << outputfilename;
+				}
 #ifndef EXCLUDE_BCL
 			} else if(rootSelection == 2) {
 				string inputfilename;
@@ -75,24 +76,25 @@ int main(void) {
 
 				// STEP 1: import data
 				entities::dataContent data;
-				entities::loadFromJSONFile(inputfilename.c_str(), &data);
+				if(entities::loadFromJSONFile(inputfilename.c_str(), &data)) {
 
-				// STEP 2: generate paths+mappings and additional data as configured
-				pathgen::generatePaths(&data, config);
-				if (config.calcComboAvailabilities) pathgen::addPathComboAvailabilities(&data);
-				pathgen::addFeasibleMappings(&data);
+					// STEP 2: generate paths+mappings and additional data as configured
+					pathgen::generatePaths(&data, config);
+					if (config.calcComboAvailabilities) pathgen::addPathComboAvailabilities(&data);
+					pathgen::addFeasibleMappings(&data);
 
-				// STEP 3: build model from data
-				cout << "\nSTEP3: build model!";
-				cloudbrokermodels::CloudBrokerModel model;
-				cout << "\n Starting to build model..\n";
-				model.BuildModel(&data);
-				cout << "\n Finished building model!\n";
+					// STEP 3: build model from data
+					cout << "\nSTEP3: build model!";
+					cloudbrokermodels::CloudBrokerModel model;
+					cout << "\n Starting to build model..\n";
+					model.BuildModel(&data);
+					cout << "\n Finished building model!\n";
 
-				// STEP 4: run optimisation
-				model.RunModel(true);
+					// STEP 4: run optimisation
+					model.RunModel(true);
 
-				model.OutputResults();
+					model.OutputResults();
+				}
 			} else if(rootSelection == 3) {
 				string inputfilename;
 				cout << "\n\nType filename for data to import and press \'enter\' to start: ";
@@ -100,23 +102,24 @@ int main(void) {
 
 				// STEP 1: import data
 				entities::dataContent data;
-				entities::loadFromJSONFile(inputfilename.c_str(), &data);
+				if(entities::loadFromJSONFile(inputfilename.c_str(), &data)) {
 
-				// STEP 2: generate paths+mappings and additional data as configured
-				pathgen::generatePaths(&data, config);
-				if (config.calcComboAvailabilities) pathgen::addPathComboAvailabilities(&data);
+					// STEP 2: generate paths+mappings and additional data as configured
+					pathgen::generatePaths(&data, config);
+					if (config.calcComboAvailabilities) pathgen::addPathComboAvailabilities(&data);
 
-				// STEP 3: build model from data
-				cout << "\nSTEP3: build model!";
-				cloudbrokermodels::CloudBrokerModel model;
-				cout << "\n Starting to build model..\n";
-				model.BuildModel(&data);
-				cout << "\n Finished building model!\n";
+					// STEP 3: build model from data
+					cout << "\nSTEP3: build model!";
+					cloudbrokermodels::CloudBrokerModel model;
+					cout << "\n Starting to build model..\n";
+					model.BuildModel(&data);
+					cout << "\n Finished building model!\n";
 
-				// STEP 4: run optimisation
-				model.RunModelColumnGeneration();
+					// STEP 4: run optimisation
+					model.RunModelColumnGeneration();
 
-				model.OutputResults();
+					model.OutputResults();
+				}
 			} else if(rootSelection == 4) {
 				bcltest::runBclTest();
 #endif

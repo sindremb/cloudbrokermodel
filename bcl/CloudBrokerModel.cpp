@@ -77,6 +77,7 @@ namespace cloudbrokermodels {
 		/********* SETUP **********/
 
 		this->data = data;
+		this->beta = beta_backupres;
 
 		/* Problem dimensions */
 		int n_customers = data->n_customers;
@@ -310,13 +311,11 @@ namespace cloudbrokermodels {
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			arc * a = &data->network.arcs[aa];
 
-			/* for every customer */
+			/* for every service */
 			serviceNumber = 0;
 			w_itr = this->w_useMappingVars.begin();
 			for(int cc = 0; cc < n_customers; ++cc) {
 				customer * c = &data->customers[cc];
-
-				/* for every service of customer */
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {	/* for every service 	*/
 					service * s = &c->services[ss];
 					++serviceNumber;
@@ -499,7 +498,7 @@ namespace cloudbrokermodels {
 								/* for every mapping of service s using arc */
 								for(unsigned int mm = 0; mm < s->possible_mappings.size(); ++mm) {
 									mapping * m = &s->possible_mappings[mm];
-									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0001) {
+									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0) {
 
 										/* add mapping selection var for mapping */
 										backup_overlap_expr += *this->mappingVarForMappingNumber(m->globalMappingNumber);
@@ -509,7 +508,7 @@ namespace cloudbrokermodels {
 								/* for every mapping of service t using arc */
 								for(unsigned int mm = 0; mm < t->possible_mappings.size(); ++mm) {
 									mapping * m = &t->possible_mappings[mm];
-									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0001) {
+									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0) {
 
 										/* add mapping selection var for mapping */
 										backup_overlap_expr += *this->mappingVarForMappingNumber(m->globalMappingNumber);
@@ -677,36 +676,263 @@ namespace cloudbrokermodels {
 		return false;
 	}
 
-	void CloudBrokerModel::addMappingToModel(entities::mapping *m, entities::service *s) {
+	void CloudBrokerModel::addMappingToModel(entities::mapping *m, entities::service *owner) {
 
-	}
+		// increment number of mappings count, add a global number to mapping
+		++this->data->n_mappings;
+		m->globalMappingNumber = this->data->n_mappings;
 
-	double CloudBrokerModel::_bruteForceEvalMapping(entities::mapping *m, entities::service *owner, dual_vals *duals) {
-		// c
-		double eval = m->primary->cost;
+		// create new w variable
+		this->w_useMappingVars.push_back(
+			this->master_problem.newVar(
+				XPRBnewname("m_use_mapping_%d", m->globalMappingNumber),
+				XPRB_BV, 0, 1
+			)
+		);
 
-		// - A^Ty:
-		//   + a_s
-		int dual_index = 0;
+		// pointer to the newly created w variable
+		XPRBvar *w = &this->w_useMappingVars.back();
+
+		// objective function
+		this->z_objective -= Parameters::E_PrimaryPathCost(m->primary) * (*w);
+
+		// serve customer constraint
+		list<XPRBctr>::iterator ctr_itr = this->serveCustomerCtr.begin();
+		/* find the serve customer constraint for owner service */
 		for(int cc = 0; cc < this->data->n_customers; ++cc) {
 			customer *c = &this->data->customers[cc];
 			for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
 				service *s = &c->services[ss];
 				if(s == owner) {
-					eval += duals->serveCustomerDuals[dual_index];
+
+					/* add w variable to owners serve customer constraint */
+					*ctr_itr += *w;
+				}
+				++ctr_itr;
+			}
+		}
+
+		// arc cap constraint
+		/* for every arc */
+		ctr_itr = this->arcCapacityCtr.begin();
+		for(unsigned int aa = 0; aa < this->data->network.arcs.size(); ++aa) {
+			arc * a = &this->data->network.arcs[aa];
+
+			/* add w term to arc cap constraint */
+			*ctr_itr += Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) * (*w);
+
+			++ctr_itr;
+		}
+
+		// single backup constraint
+		/* for every arc */
+		ctr_itr = this->backupSingleCtr.begin();
+		for(unsigned int aa = 0; aa < this->data->network.arcs.size(); ++aa) {
+			arc * a = &this->data->network.arcs[aa];
+
+			/* find owners */
+			for(int ss = 0; ss < this->data->n_services; ++ss) {
+				/* add w term to single backup constraint for arc */
+				*ctr_itr += Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) * (*w);
+
+				++ctr_itr;
+			}
+		}
+
+		// sum backup constraint
+		/* for every arc */
+		ctr_itr = this->backupSumCtr.begin();
+		for(unsigned int aa = 0; aa < this->data->network.arcs.size(); ++aa) {
+			arc * a = &this->data->network.arcs[aa];
+
+			/* add w term to single backup constraint for arc */
+			*ctr_itr += this->beta * Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) * (*w);
+
+			++ctr_itr;
+		}
+
+
+		// primary overlap constraint
+		/* for every service pair where owner service takes part */
+		ctr_itr = this->primaryOverlapCtr.begin();
+		int snum1 = 0;
+		for(int cc1 = 0; cc1 < this->data->n_customers; ++cc1) {
+			customer * c1 = &data->customers[cc1];
+			for(unsigned int ss = 0; ss < c1->services.size(); ++ss) {
+				service *s = &c1->services[ss];
+				++snum1;
+				int snum2 = 0;
+				for(int cc2 = 0; cc2 < this->data->n_customers; ++cc2) {
+					customer * c2 = &data->customers[cc2];
+					for(unsigned int tt = 0; tt < c2->services.size(); ++tt) {
+						service *t = &c2->services[tt];
+						++snum2;
+						if(snum1 < snum2) {
+
+							/* for every arc */
+							for(unsigned int aa = 0; aa < this->data->network.arcs.size(); ++aa) {
+
+								if(s == owner || t == owner) {
+									arc *a = &this->data->network.arcs[aa];
+
+									/* check if mapping uses arc for primary */
+									if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) > 0) {
+										/* add w var to overlap constraint if arc is used */
+										*ctr_itr = *w;
+									}
+								}
+								++ctr_itr;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// backup overlap constraint
+		/* for every service pair where owner service takes part */
+		ctr_itr = this->backupOverlapCtr.begin();
+		snum1 = 0;
+		for(int cc1 = 0; cc1 < this->data->n_customers; ++cc1) {
+			customer * c1 = &data->customers[cc1];
+			for(unsigned int ss = 0; ss < c1->services.size(); ++ss) {
+				service *s = &c1->services[ss];
+				++snum1;
+				int snum2 = 0;
+				for(int cc2 = 0; cc2 < this->data->n_customers; ++cc2) {
+					customer * c2 = &data->customers[cc2];
+					for(unsigned int tt = 0; tt < c2->services.size(); ++tt) {
+						service *t = &c2->services[tt];
+						++snum2;
+						if(snum1 < snum2) {
+
+							/* for every arc */
+							for(unsigned int aa = 0; aa < this->data->network.arcs.size(); ++aa) {
+
+								if(s == owner || t == owner) {
+									arc *a = &this->data->network.arcs[aa];
+
+									/* check if mapping uses arc for backup */
+									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0) {
+										/* add w var to overlap constraint if arc is used */
+										*ctr_itr = *w;
+									}
+								}
+								++ctr_itr;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	double CloudBrokerModel::_bruteForceEvalMapping(entities::mapping *m, entities::service *owner, dual_vals *duals) {
+		/**** c ****/
+		double c = - m->primary->cost;
+
+		/**** A^Ty: *****/
+		double At_y = 0.0;
+
+		//   - a_s
+		int dual_index = 0;
+		/* find the serve customer constraint for owner service */
+		for(int cc = 0; cc < this->data->n_customers; ++cc) {
+			customer *c = &this->data->customers[cc];
+			for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
+				service *s = &c->services[ss];
+				if(s == owner) {
+
+					/* add dual cost from owner's serve customer constraint */
+					At_y += duals->serveCustomerDuals[dual_index];
 				}
 				++dual_index;
 			}
 		}
 
 		// dual price primary
+		/* for every arc */
+		for(unsigned int aa = 0; aa < this->data->network.arcs.size(); ++aa) {
+			arc * a = &this->data->network.arcs[aa];
 
-		// dual price backup
+			/* add dual cost for use on this arc for this mapping */
+			At_y += Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) * duals->arcCapacityDuals[aa];
+		}
 
-		// dual price primary overlap
+		// dual price sum backup
+		/* for every arc */
+		for(unsigned int aa = 0; aa < this->data->network.arcs.size(); ++aa) {
+			arc * a = &this->data->network.arcs[aa];
 
-		// dual price backup overlap
-		return 0.0;
+			/* add dual cost for backup use on arc for mapping */
+			double backup_usage = Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m);
+			At_y += this->beta * backup_usage * duals->backupSumDuals[aa];
+		}
+
+		// dual price single backup
+		/* for every arc */
+		dual_index = 0;
+		for(unsigned int aa = 0; aa < this->data->network.arcs.size(); ++aa) {
+			arc * a = &this->data->network.arcs[aa];
+
+			/*find owner service's dual val for arc*/
+			for(int ss = 0; ss < this->data->n_services; ++ss) {
+
+				double backup_usage = Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m);
+				At_y += backup_usage * duals->backupSingleDuals[dual_index];
+
+				++dual_index;
+			}
+		}
+
+
+		// dual price overlaps
+		/* for every service pair where owner service takes part */
+		int snum1 = 0;
+		dual_index = 0;
+		for(int cc1 = 0; cc1 < this->data->n_customers; ++cc1) {
+			customer * c1 = &data->customers[cc1];
+			for(unsigned int ss = 0; ss < c1->services.size(); ++ss) {
+				service *s = &c1->services[ss];
+				++snum1;
+				int snum2 = 0;
+				for(int cc2 = 0; cc2 < this->data->n_customers; ++cc2) {
+					customer * c2 = &data->customers[cc2];
+					for(unsigned int tt = 0; tt < c2->services.size(); ++tt) {
+						service *t = &c2->services[tt];
+						++snum2;
+						if(snum1 < snum2) {
+							if(s == owner || t == owner) {
+
+								/* for every arc */
+								for(unsigned int aa = 0; aa < this->data->network.arcs.size(); ++aa) {
+									arc *a = &this->data->network.arcs[aa];
+
+									/* check if mapping uses arc for primary */
+									if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) > 0) {
+										/* add primary dual price for service pair on arc */
+										At_y += duals->primaryOverlapDuals[dual_index];
+									}
+
+									/* check if mapping uses arc for backup */
+									if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0) {
+										/* add backup dual price for service pair on arc */
+										At_y += duals->backupOverlapDuals[dual_index];
+									}
+									++dual_index;
+								}
+
+							} else {
+								// skip all duals for this service pair
+								dual_index += this->data->network.arcs.size();
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return c - At_y;
 	}
 
 	void CloudBrokerModel::OutputResults() {
@@ -764,7 +990,7 @@ namespace cloudbrokermodels {
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			if((*d_itr).getSol() > 0.00001) {
 				arc *a = &this->data->network.arcs[aa];
-				cout << "(" << a->startNode << ", " << a->endNode << ") : " << (*d_itr).getSol() << "\n";
+				cout << "(" << a->startNode+1 << ", " << a->endNode+1 << ") : " << (*d_itr).getSol() << "\n";
 			}
 			++d_itr;
 		}

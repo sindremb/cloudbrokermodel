@@ -249,27 +249,31 @@ namespace entities {
 		}
 	}
 
-	void loadFromJSONFile(const char * filename, dataContent * data) {
+	bool loadFromJSONFile(const char * filename, dataContent * data) {
 
 		string json = _fileAsString(filename);
 
 		if(json.length() == 0) {
-			cout << "\nError: no content found in file: " << filename << " - returning empty data..\n";
-			return;
+			cout << "\nError: no content found in file: " << filename << "\n";
+			return false;
 		}
 
-		const char* cjson; cjson = json.c_str();
-
 		try {
+			const char* cjson;
+			cjson = json.c_str();
+
 			JSONNODE *n = json_parse(cjson);
+
+			if(n == NULL) throw 1;
 
 			_parseJsonObject(n, data);
 
 			json_delete(n);
 		} catch(...) {
-			cout << "\nError: could not parse json from file: " << filename << " - returning empty data..\n";
+			cout << "\nError: could not parse json from file: " << filename << "\n";
+			return false;
 		}
-
+		return true;
 	}
 
 	int assignGlobalPathNumbers(dataContent * data) {

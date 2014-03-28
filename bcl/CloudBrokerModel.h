@@ -35,6 +35,7 @@ namespace cloudbrokermodels {
 		std::list< ::dashoptimization::XPRBctr> backupOverlapCtr;	/* every arc, every pair of services */
 
 		entities::dataContent *data;
+		double beta;
 
 		::dashoptimization::XPRBvar* mappingVarForMappingNumber(int mappingNumber);
 

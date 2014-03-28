@@ -159,7 +159,7 @@ namespace entities {
 
 	};
 
-	void loadFromJSONFile(const char *, dataContent *);
+	bool loadFromJSONFile(const char *, dataContent *);
 
 	void toMoselDataFile(const char *, dataContent *);
 
