@@ -8,7 +8,7 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/mini_multi.txt';
+	Data = 'data/sm_multi.txt';
 	! Minimum proportion of total backup requirement reserved on an arc
 	MinBackupProportion = 0.3;
 end-parameters
@@ -159,9 +159,17 @@ forall(mm in Mappings) do
 			!forall(nn in M_BackupMappingsPerPath(kk) | mm = nn) do
 				Q_BackupReservation(ii,jj,mm) := maxlist(
 					0,
-					sum(kk in L_PathsUsingLink(ii,jj))(sum(nn in M_BackupMappingsPerPath(kk) | nn = mm)(U_PathBandwidthUsage(ii,jj,kk)))
+					sum(kk in L_PathsUsingLink(ii,jj)) (
+						sum(nn in M_BackupMappingsPerPath(kk) | nn = mm)(
+							U_PathBandwidthUsage(ii,jj,kk)
+						)
+					)
 					-
-					sum(kk in L_PathsUsingLink(ii,jj))(sum(nn in M_PrimaryMappingsPerPath(kk) | nn = mm)(U_PathBandwidthUsage(ii,jj,kk)))
+					sum(kk in L_PathsUsingLink(ii,jj))(
+						sum(nn in M_PrimaryMappingsPerPath(kk) | nn = mm)(
+							U_PathBandwidthUsage(ii,jj,kk)
+						)
+					)
 				);
 			!end-do
 		!end-do
@@ -181,8 +189,8 @@ declarations
 	SumBackupLimit:					dynamic array(Nodes,Nodes)						of linctr;
 	MinBackupLimit:					dynamic array(Nodes,Nodes,Services)				of linctr;
 	BackupReqPerService:			dynamic array(Nodes,Nodes,Services)				of linctr;
-	Overlap:						dynamic array(Nodes,Nodes,Services, Services)	of linctr;
-	ServiceOverlap:					dynamic array(Nodes,Nodes,Services, Services)	of linctr;
+	BackupServiceOverlap:			dynamic array(Nodes,Nodes,Services, Services)	of linctr;
+	PrimaryServiceOverlap:			dynamic array(Nodes,Nodes,Services, Services)	of linctr;
 end-declarations
 
 write(" - obj. fn. ..");	
@@ -215,7 +223,7 @@ write("DONE\n - use path cnstr. ..");
 ! All services of a customer that is to be served must be allocated one mapping
 forall(cc in Customers) do
 	forall(ss in S_ServiceForCustomer(cc) | exists(M_MappingsPerService(ss))) do
-		AllocateMapping(ss) := sum(kk in M_MappingsPerService(ss)) w_UseMapping(kk) = y_Serve(cc);
+		AllocateMapping(ss) := sum(kk in M_MappingsPerService(ss)) w_UseMapping(kk) - y_Serve(cc) = 0.0;
 	end-do
 end-do
 
@@ -274,16 +282,16 @@ forall(cc in Customers, qq in Customers) do
 		
 			! SERVICE PATH OVERLAP CONSTRAINTS
 			! Two services have overlapping primary paths if for any arc both paths are represented
-			ServiceOverlap(ii,jj,ss,zz):=
+			PrimaryServiceOverlap(ii,jj,ss,zz):=
 				sum(kk in L_PathsUsingLink(ii,jj))(
-					sum(mm in M_MappingsPerService(ss)*M_PrimaryMappingsPerPath(kk) | Q_BackupReservation(ii,jj,mm) > 0)(
+					sum(mm in M_MappingsPerService(ss)*M_PrimaryMappingsPerPath(kk))(
 						w_UseMapping(mm)
 					)
 				)
 				!sum(kk in (K_Paths(ss)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
 				+
 				sum(kk in L_PathsUsingLink(ii,jj))(
-					sum(mm in M_MappingsPerService(zz)*M_PrimaryMappingsPerPath(kk) | Q_BackupReservation(ii,jj,mm) > 0)(
+					sum(mm in M_MappingsPerService(zz)*M_PrimaryMappingsPerPath(kk))(
 						w_UseMapping(mm)
 					)
 				)
@@ -293,11 +301,19 @@ forall(cc in Customers, qq in Customers) do
 			
 			! BACKUP PATH OVERLAP CONSTRAINT
 			! backup paths may not overlap at an arc if their primary paths overlap anywhere
-			Overlap(ii,jj,ss,zz):= 
-				sum(kk in L_PathsUsingLink(ii,jj))(sum(mm in M_MappingsPerService(ss)*M_BackupMappingsPerPath(kk))(w_UseMapping(mm)))
+			BackupServiceOverlap(ii,jj,ss,zz):= 
+				sum(kk in L_PathsUsingLink(ii,jj))(
+					sum(mm in M_MappingsPerService(ss)*M_BackupMappingsPerPath(kk) | Q_BackupReservation(ii,jj,mm) > 0)(
+						w_UseMapping(mm)
+					)
+				)
 				!sum(kk in (K_Paths(ss)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
 				+
-				sum(kk in L_PathsUsingLink(ii,jj))(sum(mm in M_MappingsPerService(zz)*M_BackupMappingsPerPath(kk))(w_UseMapping(mm)))
+				sum(kk in L_PathsUsingLink(ii,jj))(
+					sum(mm in M_MappingsPerService(zz)*M_BackupMappingsPerPath(kk) | Q_BackupReservation(ii,jj,mm) > 0)(
+						w_UseMapping(mm)
+					)
+				)
 				!sum(kk in (K_Paths(zz)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
 				+ l_Overlap(ss, zz)
 				<= 2;

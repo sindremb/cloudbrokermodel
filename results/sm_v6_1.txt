@@ -1,0 +1,55 @@
+Model building completed in 9.594 seconds
+
+Solving model...
+
+Model solved in 0.234 seconds
+
+Total Profits: 2703.5
+
+Total Backup Costs: 307
+
+Customer 1 (node 1) is being served
+ - R_Revenue: 700
+  - Service 1 uses mapping 3
+   - Primary path: 3, cost: 285
+   - Backup path: 2
+
+Customer 4 (node 4) is being served
+ - R_Revenue: 500
+  - Service 4 uses mapping 7
+   - Primary path: 46, cost: 211.5
+   - Backup path: 48
+
+Customer 5 (node 5) is being served
+ - R_Revenue: 2500
+  - Service 5 uses mapping 11
+   - Primary path: 50, cost: 747.5
+   - Backup path: 49
+  - Service 6 uses mapping 46
+   - Primary path: 63, cost: 440
+   - Backup path: 62
+
+Customer 6 (node 6) is being served
+ - R_Revenue: 1600
+  - Service 7 uses mapping 654
+   - Primary path: 104, cost: 334
+  - Service 8 uses mapping 907
+   - Primary path: 123, cost: 271.5
+   - Backup path: 124
+
+Total backup usage
+      arc   reserved   max req sum reqs*   cost/bw     paths
+   (5, 13)        35        354.53859e-012       0.5     49, 62, 
+   (6, 11)        22        22        12       0.5     124, 
+   (7, 11)         4         4        22      0.75     2, 124, 
+   (7, 13)        35        356.4837e-013      1.25     48, 49, 62, 
+   (7, 17)        35        35        12         1     2, 49, 
+   (7, 18)        35        35         0         1     48, 62, 124, 
+   (11, 6)         4         4        12       0.5     124, 
+   (11, 7)        22        22        22      0.75     2, 124, 
+   (13, 5)        35        356.4837e-013       0.5     49, 62, 
+   (13, 7)        35        354.53859e-012      1.25     48, 49, 62, 
+  (13, 14)         2         2         0         3     48, 
+  (14, 13)        12        12         0         3     48, 
+   (17, 7)        35        35        12         1     2, 49, 
+   (18, 7)         5         5         0         1     48, 62, 124, 
