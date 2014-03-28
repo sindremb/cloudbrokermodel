@@ -18,7 +18,7 @@
 
 #ifndef EXCLUDE_BCL
 #include "bcltest.h"
-#include "CloudBrokerModelV6.h"
+#include "CloudBrokerModel.h"
 #endif
 
 using namespace std;
@@ -35,7 +35,7 @@ int main(void) {
 					" (1) Load (JSON) file and generate common path and mapping mosel data file\n";
 #ifndef EXCLUDE_BCL
 			cout << " (2) Generate mappings and run cloudbroker opt bcl version\n"
-					" (3) Generate paths and run cloudbroker opt mapping column generation bcl version\n "
+					" (3) Generate paths and run cloudbroker opt mapping column generation bcl version\n"
 					" (4) BCL-test\n";
 #endif
 			cout << " (5) Config\n"
@@ -84,7 +84,7 @@ int main(void) {
 
 				// STEP 3: build model from data
 				cout << "\nSTEP3: build model!";
-				cloudbrokermodels::CloudBrokerModelV6 model;
+				cloudbrokermodels::CloudBrokerModel model;
 				cout << "\n Starting to build model..\n";
 				model.BuildModel(&data);
 				cout << "\n Finished building model!\n";
@@ -108,7 +108,7 @@ int main(void) {
 
 				// STEP 3: build model from data
 				cout << "\nSTEP3: build model!";
-				cloudbrokermodels::CloudBrokerModelV6 model;
+				cloudbrokermodels::CloudBrokerModel model;
 				cout << "\n Starting to build model..\n";
 				model.BuildModel(&data);
 				cout << "\n Finished building model!\n";

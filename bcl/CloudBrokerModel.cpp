@@ -1,4 +1,4 @@
-#include "CloudBrokerModelV6.h"
+#include "CloudBrokerModel.h"
 #include "entities.h"
 #include "xprb_cpp.h"
 #include "xprs.h"
@@ -11,6 +11,38 @@ using namespace ::dashoptimization;
 using namespace std;
 
 namespace cloudbrokermodels {
+
+	/*
+	 * TEMPORARILY STOLEN FROM PATHGENERATOR: should make classes from entities, and add as method to returnPath ??
+	 */
+	pathCombo _pathComboForPaths(returnPath * a, returnPath * b) {
+		pathCombo combo;
+		combo.a = a;
+		combo.b = b;
+		combo.exp_b_given_a = a->exp_availability;
+
+		// calculate prop b up given a up
+		vector<arc*> unique;
+
+		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
+			bool found = false;
+			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
+				if(*i == *j) {
+					found = true;
+					break;
+				}
+			}
+			if(!found) {
+				unique.push_back(*i);
+			}
+		}
+
+		for(unsigned int i = 0; i < unique.size(); ++i) {
+			combo.exp_b_given_a *= unique[i]->exp_availability;
+		}
+
+		return combo;
+	}
 
 	/****** Parameters: ******
 	 * - Utility class used to translate data entities to model parameters
@@ -26,7 +58,10 @@ namespace cloudbrokermodels {
 			static double F_BandwidthCapacityForArc(arc * a);
 	};
 
-	CloudBrokerModelV6::CloudBrokerModelV6() : _prob("Cloud Broker Optimisation") {
+	CloudBrokerModel::CloudBrokerModel() :
+			// member initialisation
+			_prob("Cloud Broker Optimisation")
+	{
 
 	}
 
@@ -37,7 +72,7 @@ namespace cloudbrokermodels {
 	 *
 	 * Builds the MIP-model from the provided dataContent and beta model parameter
 	 */
-	void CloudBrokerModelV6::BuildModel(dataContent * data, double beta_backupres) {
+	void CloudBrokerModel::BuildModel(dataContent * data, double beta_backupres) {
 
 		/********* SETUP **********/
 
@@ -424,7 +459,7 @@ namespace cloudbrokermodels {
 		return;
 	}
 
-	void CloudBrokerModelV6::RunModel(bool enforce_integer) {
+	void CloudBrokerModel::RunModel(bool enforce_integer) {
 		if(enforce_integer) {
 			this->_prob.mipOptimise();
 		} else {
@@ -432,22 +467,27 @@ namespace cloudbrokermodels {
 		}
 	}
 
-	CloudBrokerModelV6::dual_vals CloudBrokerModelV6::getDualVals() {
-		CloudBrokerModelV6::dual_vals duals;
-
-		return duals;
-	}
-
-	void CloudBrokerModelV6::RunModelColumnGeneration() {
+	void CloudBrokerModel::RunModelColumnGeneration() {
 		int itercount = 0;
 		XPRSsetintcontrol(this->_prob.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts - we use our own */
 		XPRSsetintcontrol(this->_prob.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
 		while(itercount < 100) {
+			bool foundColumn = false;
 			this->RunModel(false);
 			XPRBbasis basis = this->_prob.saveBasis();
-			CloudBrokerModelV6::dual_vals duals = this->getDualVals();
+
+			CloudBrokerModel::dual_vals duals = this->getDualVals();
 
 			// use duals to generate column(s) for each service
+			for(int cc = 0; cc < this->_data->n_customers; ++cc) {
+				customer *c = &this->_data->customers[cc];
+				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
+					service *s = &c->services[ss];
+					if(this->generateMappingColumnBruteForce(s, &duals)) foundColumn = true;
+				}
+			}
+
+			if(!foundColumn) break; /* no new column was found -> end column generation */
 
 			this->_prob.loadBasis(basis);
 			++itercount;
@@ -455,11 +495,139 @@ namespace cloudbrokermodels {
 		this->RunModel(true);
 	}
 
-	void CloudBrokerModelV6::generateMappingColumnBruteForce(entities::service *s, dual_vals *duals){
-		// to be implemented
+	CloudBrokerModel::dual_vals CloudBrokerModel::getDualVals() {
+		CloudBrokerModel::dual_vals duals;
+
+		duals.serveCustomerDuals.resize(this->serveCustomerCtr.size(), 0.0);
+		list<XPRBctr>::iterator ctr = this->serveCustomerCtr.begin();
+		for(unsigned int i = 0; i < this->serveCustomerCtr.size(); ++i) {
+			duals.serveCustomerDuals[i] = (*ctr).getDual();
+			++ctr;
+		}
+
+		duals.arcCapacityDuals.resize(this->arcCapacityCtr.size(), 0.0);
+		ctr = this->arcCapacityCtr.begin();
+		for(unsigned int i = 0; i < this->arcCapacityCtr.size(); ++i) {
+			duals.arcCapacityDuals[i] = (*ctr).getDual();
+			++ctr;
+		}
+
+		duals.backupSingleDuals.resize(this->backupSingleCtr.size(), 0.0);
+		ctr = this->backupSingleCtr.begin();
+		for(unsigned int i = 0; i < this->backupSingleCtr.size(); ++i) {
+			duals.backupSingleDuals[i] = (*ctr).getDual();
+			++ctr;
+		}
+
+		duals.backupSumDuals.resize(this->backupSumCtr.size(), 0.0);
+		ctr = this->backupSumCtr.begin();
+		for(unsigned int i = 0; i < this->backupSumCtr.size(); ++i) {
+			duals.backupSumDuals[i] = (*ctr).getDual();
+			++ctr;
+		}
+
+		duals.primaryOverlapDuals.resize(this->primaryOverlapCtr.size(), 0.0);
+		ctr = this->primaryOverlapCtr.begin();
+		for(unsigned int i = 0; i < this->primaryOverlapCtr.size(); ++i) {
+			duals.primaryOverlapDuals[i] = (*ctr).getDual();
+			++ctr;
+		}
+
+		duals.backupOverlapDuals.resize(this->backupOverlapCtr.size(), 0.0);
+		ctr = this->backupOverlapCtr.begin();
+		for(unsigned int i = 0; i < this->backupOverlapCtr.size(); ++i) {
+			duals.backupOverlapDuals[i] = (*ctr).getDual();
+			++ctr;
+		}
+
+		return duals;
 	}
 
-	void CloudBrokerModelV6::OutputResults() {
+	bool CloudBrokerModel::generateMappingColumnBruteForce(entities::service *s, dual_vals *duals){
+
+		mapping bestFound;
+		double best_eval = 0.0;
+
+		// to be implemented
+		for(unsigned int pp = 0; pp < s->possible_placements.size(); ++pp) {
+			placement *p = &s->possible_placements[pp];
+			for(unsigned int kk = 0; kk < p->paths.size(); ++kk) {
+				returnPath *k = &p->paths[kk];
+				// check if feasible mapping alone
+				if(k->exp_availability >= s->availability_req) {
+					// path offers sufficient availability alone -> dont add backup path
+					mapping m;
+					m.primary = k;
+					m.backup = NULL;
+					double eval = this->_bruteForceEvalMapping(&m, s, duals);
+					if(eval > best_eval) {
+						best_eval = eval;
+						bestFound = m;
+					}
+				}
+				// OR try combining with other path to placement as backup
+				else {
+					// path does not offer sufficient availability -> look for possible backup paths
+					for (unsigned int bb = 0; bb < p->paths.size(); ++bb) {
+						returnPath * b = &p->paths[bb];
+						// calculate combo availability [ P(A)*P(B|A) ]
+						pathCombo combo = _pathComboForPaths(k, b);
+						if(k->exp_availability + b->exp_availability - combo.exp_b_given_a >= s->availability_req) {
+							// combination of a as primary and b as backup is feasible -> add routing
+							mapping m;
+							m.primary = k;
+							m.backup = b;
+							double eval = this->_bruteForceEvalMapping(&m, s, duals);
+							if(eval > best_eval) {
+								best_eval = eval;
+								bestFound = m;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if(best_eval > 0.00001) {
+			this->addMappingToModel(&bestFound, s);
+			return true;
+		}
+		return false;
+	}
+
+	void CloudBrokerModel::addMappingToModel(entities::mapping *m, entities::service *s) {
+
+	}
+
+	double CloudBrokerModel::_bruteForceEvalMapping(entities::mapping *m, entities::service *owner, dual_vals *duals) {
+		// c
+		double eval = m->primary->cost;
+
+		// - A^Ty:
+		//   + a_s
+		int dual_index = 0;
+		for(int cc = 0; cc < this->_data->n_customers; ++cc) {
+			customer *c = &this->_data->customers[cc];
+			for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
+				service *s = &c->services[ss];
+				if(s == owner) {
+					eval += duals->serveCustomerDuals[dual_index];
+				}
+				++dual_index;
+			}
+		}
+
+		// dual price primary
+
+		// dual price backup
+
+		// dual price primary overlap
+
+		// dual price backup overlap
+		return 0.0;
+	}
+
+	void CloudBrokerModel::OutputResults() {
 		/* Problem dimensions */
 		int n_customers = this->_data->n_customers;
 		int n_arcs = this->_data->network.arcs.size();
@@ -509,7 +677,7 @@ namespace cloudbrokermodels {
 			++y_itr;
 		}
 
-		cout << "\n Arc backup reservations (non-zero)\n";
+		cout << "\nArc backup reservations (non-zero)\n";
 		d_itr = this->d_arcBackupUsage.begin();
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			if((*d_itr).getSol() > 0.00001) {
@@ -520,7 +688,7 @@ namespace cloudbrokermodels {
 		}
 	}
 
-	XPRBvar* CloudBrokerModelV6::mappingVarForMappingNumber(int mappingNumber) {
+	XPRBvar* CloudBrokerModel::mappingVarForMappingNumber(int mappingNumber) {
 		list<XPRBvar>::iterator w_itr = this->w_useMappingVars.begin();
 		for(int i = 1; i < mappingNumber; i++) {
 			++w_itr;

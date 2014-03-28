@@ -200,7 +200,6 @@ namespace pathgen {
 
 	void addFeasibleMappings(dataContent * data) {
 		int mappingNumber = 0;
-		int pathNumber = 0;
 		// loop through customers
 		for (unsigned int c = 0; c < data->customers.size(); ++c)
 		{
@@ -217,7 +216,6 @@ namespace pathgen {
 					// --- for each path at current placement
 					for (unsigned int a = 0; a < pl->paths.size(); ++a) {
 						returnPath * apath = &pl->paths[a];
-						++pathNumber;
 						// check if feasible mapping alone
 						if(apath->exp_availability >= se->availability_req) {
 							// path offers sufficient availability alone -> dont add backup path
