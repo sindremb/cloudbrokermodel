@@ -86,7 +86,7 @@ namespace entities {
 
 	struct mapping {
 		// assigned mapping number
-		int globalMappingNumber;
+		int globalMappingIndex;
 
 		// mappings primary path
 		returnPath * primary;
@@ -123,11 +123,13 @@ namespace entities {
 		double latency_req;
 		double availability_req;
 
+		int globalServiceIndex;
+
 		// possible service placements
 		std::vector<placement> possible_placements;
 
 		// possible service mappings
-		std::vector<mapping> possible_mappings;
+		std::list<mapping> mappings;
 	};
 
 	struct customer {

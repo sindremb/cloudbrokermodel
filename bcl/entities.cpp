@@ -10,6 +10,8 @@ namespace entities {
 
 	using namespace std;
 
+	int serviceCount = 0;
+
 	string _fileAsString(const char * filename) {
 		string line;
 		string content;
@@ -103,7 +105,10 @@ namespace entities {
 			else if (node_name == "services"){
 				JSONNODE_ITERATOR j_itr = json_begin(i);
 				while (j_itr != json_end(i)){
-					customer.services.push_back(_parseJsonServiceObj(*j_itr));
+					service s = _parseJsonServiceObj(*j_itr);
+					s.globalServiceIndex = serviceCount;
+					customer.services.push_back(s);
+					++serviceCount;
 					++j_itr;
 				}
 			}
@@ -216,6 +221,8 @@ namespace entities {
 	void _parseJsonObject(JSONNODE *n, dataContent *data) {
 
 		JSONNODE_ITERATOR i_itr = json_begin(n);
+
+		serviceCount = 0;
 
 		while (i_itr != json_end(n)){
 			JSONNODE *i = *i_itr;
@@ -465,8 +472,8 @@ namespace entities {
 				service * s = &c->services[j];
 				*file << "\n (" << serviceNumber << ")";
 				*file << " [";
-				for (unsigned int l = 0; l < s->possible_mappings.size(); ++l) {
-					*file << s->possible_mappings[l].globalMappingNumber << " ";
+				for (list<mapping>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
+					*file << m_itr->globalMappingIndex+1 << " ";
 				}
 				*file << "]";
 				++serviceNumber;
@@ -483,7 +490,7 @@ namespace entities {
 						returnPath * path = &p->paths[l];
 						*file << "(" << p->paths[l].pathNumber << ") [";
 						for (list<mapping*>::const_iterator m = path->primary_mappings.begin(), mend = path->primary_mappings.end(); m != mend; ++m) {
-							*file << (*m)->globalMappingNumber << " ";
+							*file << (*m)->globalMappingIndex +1 << " ";
 						}
 						*file << "]\n";
 					}
@@ -501,7 +508,7 @@ namespace entities {
 						returnPath * path = &p->paths[l];
 						*file << "(" << p->paths[l].pathNumber << ") [";
 						for (list<mapping*>::const_iterator m = path->backup_mappings.begin(), mend = path->backup_mappings.end(); m != mend; ++m) {
-							*file << (*m)->globalMappingNumber << " ";
+							*file << (*m)->globalMappingIndex +1 << " ";
 						}
 						*file << "]\n";
 					}

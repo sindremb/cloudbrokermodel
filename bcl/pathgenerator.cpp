@@ -199,7 +199,7 @@ namespace pathgen {
 	}
 
 	void addFeasibleMappings(dataContent * data) {
-		int mappingNumber = 0;
+		int mappingCount = 0;
 		// loop through customers
 		for (unsigned int c = 0; c < data->customers.size(); ++c)
 		{
@@ -208,7 +208,7 @@ namespace pathgen {
 			for (unsigned int s = 0; s < cu->services.size(); ++s) 
 			{
 				service * se = &cu->services[s];
-				se->possible_mappings.clear();
+				se->mappings.clear();
 				// -- for each service's placement		
 				for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
 				{
@@ -219,12 +219,12 @@ namespace pathgen {
 						// check if feasible mapping alone
 						if(apath->exp_availability >= se->availability_req) {
 							// path offers sufficient availability alone -> dont add backup path
-							++mappingNumber;
 							mapping m;
-							m.globalMappingNumber = mappingNumber;
+							m.globalMappingIndex = mappingCount;
 							m.primary = apath;
 							m.backup = NULL;
-							se->possible_mappings.push_back(m);
+							se->mappings.push_back(m);
+							++mappingCount;
 
 						}
 						// OR try combining with other path to placement as backup
@@ -236,30 +236,30 @@ namespace pathgen {
 								pathCombo combo = _pathComboForPaths(apath, bpath);
 								if(apath->exp_availability + bpath->exp_availability - combo.exp_b_given_a >= se->availability_req) {
 									// combination of a as primary and b as backup is feasible -> add routing
-									++mappingNumber;
 									mapping m;
-									m.globalMappingNumber = mappingNumber;
+									m.globalMappingIndex = mappingCount;
 									m.primary = apath;
 									m.backup = bpath;
-									se->possible_mappings.push_back(m);
+									se->mappings.push_back(m);
+									++mappingCount;
 								}
 							}
 						}
 					}
 				}
+
 				// register mappings for service at used paths
-				for (unsigned int i = 0; i < se->possible_mappings.size(); ++i) {
-					mapping * m = &se->possible_mappings[i];
-					m->primary->primary_mappings.push_back(m);
-					if(m->backup != NULL) {
-						m->backup->backup_mappings.push_back(m);
+				for (list<mapping>::iterator m_itr = se->mappings.begin(), m_end = se->mappings.end(); m_itr != m_end; ++m_itr) {
+					m_itr->primary->primary_mappings.push_back(&(*m_itr));
+					if(m_itr->backup != NULL) {
+						m_itr->backup->backup_mappings.push_back(&(*m_itr));
 					}
 				}
-				cout << " - # total availability feasible routings (primary[+backup]): " << se->possible_mappings.size() << "\n";
+				cout << " - # total availability feasible routings (primary[+backup]): " << se->mappings.size() << "\n";
 			}
 		}
 
-		data->n_mappings = mappingNumber;
+		data->n_mappings = mappingCount;
 
 		return;
 	}

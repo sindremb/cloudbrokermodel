@@ -1,5 +1,5 @@
 /*
- * bcltest.h
+ * CloudBrokerModel.h
  *
  *  Created on: Mar 20, 2014
  *      Author: sindremo
@@ -22,34 +22,35 @@ namespace cloudbrokermodels {
 
 		::dashoptimization::XPRBctr z_objective;
 
-		std::list< ::dashoptimization::XPRBvar> y_serveCustomerVars;
-		std::list< ::dashoptimization::XPRBvar> l_servicesOverlapVars;
-		std::list< ::dashoptimization::XPRBvar> d_arcBackupUsage;
-		std::list< ::dashoptimization::XPRBvar> w_useMappingVars;
+		std::vector< ::dashoptimization::XPRBvar > 					y_serveCustomerVars; 	/* for every customer*/
+		std::vector< std::vector< ::dashoptimization::XPRBvar > > 	l_servicesOverlapVars;	/* for every pair of two customers */
+		std::vector< ::dashoptimization::XPRBvar>					d_arcBackupUsage;		/* for every arc */
+		std::list< ::dashoptimization::XPRBvar >					w_useMappingVars;		/* for every service, for every mapping of service */
 
-		std::list< ::dashoptimization::XPRBctr> serveCustomerCtr;	/* every customer, every service of customer */
-		std::list< ::dashoptimization::XPRBctr> arcCapacityCtr;		/* every arc */
-		std::list< ::dashoptimization::XPRBctr> backupSumCtr;		/* every arc */
-		std::list< ::dashoptimization::XPRBctr> backupSingleCtr;	/* every arc, every service */
-		std::list< ::dashoptimization::XPRBctr> primaryOverlapCtr;	/* every arc, every pair of services */
-		std::list< ::dashoptimization::XPRBctr> backupOverlapCtr;	/* every arc, every pair of services */
+		std::vector< ::dashoptimization::XPRBctr> 								 serveCustomerCtr;	/* for every service of customer */
+		std::vector< ::dashoptimization::XPRBctr> 								 arcCapacityCtr;	/* for every arc */
+		std::vector< ::dashoptimization::XPRBctr> 								 backupSumCtr;		/* for every arc */
+		std::vector< std::vector< ::dashoptimization::XPRBctr> > 				 backupSingleCtr;	/* for every arc, for every service */
+		std::vector< std::vector< std::vector < ::dashoptimization::XPRBctr> > > primaryOverlapCtr;	/* for every arc, for every pair of services */
+		std::vector< std::vector< std::vector < ::dashoptimization::XPRBctr> > > backupOverlapCtr;	/* for every arc, for every pair of services */
 
 		entities::dataContent *data;
+
 		double beta;
 
-		::dashoptimization::XPRBvar* mappingVarForMappingNumber(int mappingNumber);
-
 		struct dual_vals {
-					std::vector<double> serveCustomerDuals;	/* every customer, every service of customer */
-					std::vector<double> arcCapacityDuals;	/* every arc */
-					std::vector<double> backupSumDuals;		/* every arc */
-					std::vector<double> backupSingleDuals;	/* every arc, every service */
-					std::vector<double> primaryOverlapDuals;/* every arc, every pair of services */
-					std::vector<double> backupOverlapDuals;	/* every arc, every pair of services */
+					std::vector<double> 				serveCustomerDuals;	/* every customer, every service of customer */
+					std::vector<double> 				arcCapacityDuals;	/* every arc */
+					std::vector<double> 				backupSumDuals;		/* every arc */
+					std::vector<std::vector<double> >	backupSingleDuals;	/* every arc, every service */
+					std::vector<std::vector<std::vector<double> > >	primaryOverlapDuals;/* every arc, every pair of services */
+					std::vector<std::vector<std::vector<double> > >	backupOverlapDuals;	/* every arc, every pair of services */
 
 				};
 
 		dual_vals getDualVals();
+
+		::dashoptimization::XPRBvar* mappingVarForMappingIndex(int mappingIndex);
 
 		void addMappingToModel(entities::mapping *m, entities::service *s);
 
