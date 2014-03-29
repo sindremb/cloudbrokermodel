@@ -1,7 +1,9 @@
 #include "CloudBrokerModel.h"
 #include "entities.h"
+
 #include "xprb_cpp.h"
 #include "xprs.h"
+
 #include <list>
 #include <iostream>
 #include <algorithm>
@@ -14,16 +16,17 @@ namespace cloudbrokermodels {
 
 	/*
 	 * TEMPORARILY STOLEN FROM PATHGENERATOR: should make classes from entities, and add as method to returnPath ??
+	 * Calculates the P(A)P(B|A) availability term for paths *a and *b, wrapped in a pathCombo struct
 	 */
-	pathCombo _pathComboForPaths(returnPath * a, returnPath * b) {
+	pathCombo _pathComboForPaths(returnPath *a, returnPath *b) {
 		pathCombo combo;
 		combo.a = a;
 		combo.b = b;
-		combo.exp_b_given_a = a->exp_availability;
+		combo.exp_b_given_a = a->exp_availability; // intitial: P(A)
 
-		// calculate prop b up given a up
+		// *P(B|A)
+		// -  find all arcs unique to *b
 		vector<arc*> unique;
-
 		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
 			bool found = false;
 			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
@@ -36,7 +39,7 @@ namespace cloudbrokermodels {
 				unique.push_back(*i);
 			}
 		}
-
+		// - multiply with P(B|A) by multiplying availability of all unique arcs
 		for(unsigned int i = 0; i < unique.size(); ++i) {
 			combo.exp_b_given_a *= unique[i]->exp_availability;
 		}
@@ -58,8 +61,11 @@ namespace cloudbrokermodels {
 			static double F_BandwidthCapacityForArc(arc *a);
 	};
 
+	/* CloudBrokerModel constructor
+	 * - Includes necessary class initialisations
+	 */
 	CloudBrokerModel::CloudBrokerModel() :
-			// member initialisation
+			/* --- class member initialisations ---- */
 			master_problem("Cloud Broker Optimisation")
 	{
 
@@ -85,13 +91,13 @@ namespace cloudbrokermodels {
 		int n_arcs = data->network.arcs.size();
 		int n_mappings = data->n_mappings;
 
-		vector<service*> services_by_global_index;
-		services_by_global_index.reserve(n_services);
+		/* collection of all services to simplify code */
+		vector<service*> all_services(n_services);
 		for(int cc = 0; cc < n_customers; cc++) {
 			customer * c = &data->customers[cc];
 			for(unsigned int ss = 0; ss < c->services.size(); ss++) {
 				service * s = &c->services[ss];
-				services_by_global_index[s->globalServiceIndex] = s;
+				all_services[s->globalServiceIndex] = s;
 			}
 		}
 
@@ -114,10 +120,12 @@ namespace cloudbrokermodels {
 		cout << "   - created " << y_serveCustomerVars.size() << " y-variables\n";
 
 		/* Use Mapping variables
-		 *
-		 * for: every customer
-		 *  for: every service of customer
-		 *   for: every mapping of service
+		 * for: every mapping
+		 * [shorthand for:
+		 * 	for: every customer
+		 *	 for: every service of customer
+		 *	  for: every mapping of service
+		 * ]
 		 */
 		for(int mm = 0; mm < n_mappings; mm++) {
 			w_useMappingVars.push_back(
@@ -130,8 +138,8 @@ namespace cloudbrokermodels {
 		cout << "   - created " << w_useMappingVars.size() << " w-variables\n";
 
 		/* Services overlap variables
-		 * for: every pair of two services (s1, s2)
-		 *      - assume services are ordered, each combination of services where s1 < s2
+		 * for: every pair of two services (s, t)
+		 *      - assume services are ordered, each combination of services where s < t
 		 */
 		int l_count = 0;
 		/* for every service s (except last service) */
@@ -154,7 +162,7 @@ namespace cloudbrokermodels {
 		cout << "   - created " << l_count << " l-variables\n";
 
 		/* Arc Backup Usage variable
-		 * for: every arc (i,j)
+		 * for: every arc a
 		 */
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			arc * a = &data->network.arcs[aa];
@@ -182,7 +190,7 @@ namespace cloudbrokermodels {
 		}
 
 		/*	Second term:
-		 *  - sum cost from all used primary paths
+		 *  - sum cost from all used mappings' primary paths
 		 */
 		w_itr = w_useMappingVars.begin();
 		for(int cc = 0; cc < n_customers; cc++) {
@@ -197,7 +205,7 @@ namespace cloudbrokermodels {
 		}
 
 		/* Third term:
-		 * - sum costs of total reserved capacity for backup paths
+		 * - sum costs of total reserved capacity for backup paths on all arcs
 		 */
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			arc * a = &data->network.arcs[aa];
@@ -209,10 +217,11 @@ namespace cloudbrokermodels {
 		/* set objective function for problem */
 		master_problem.setObj(z_objective);
 
-		/******* CREATE CONSTRAINTS *******/
+		/********************* CREATE CONSTRAINTS *************************/
+
 		cout << "DONE!\n - creating constraints..\n";
 
-		/* SERVE CUSTOMER CONSTRAINT
+		/* SERVE CUSTOMER CONSTRAINTS
 		 * - If customer is to be served - and generate revenue - all services of that customer
 		 *   must be assigned a mapping
 		 * for: every customer
@@ -247,8 +256,8 @@ namespace cloudbrokermodels {
 				map_service_expr -= y_serveCustomerVars[cc];
 
 				/* create final constraint */
-				this->serveCustomerCtr.push_back(
-					this->master_problem.newCtr(
+				serveCustomerCtr.push_back(
+					master_problem.newCtr(
 							XPRBnewname("serve_customer_ctr_%d", serviceNumber),
 							map_service_expr == 0.0
 					)
@@ -265,14 +274,15 @@ namespace cloudbrokermodels {
 		cout <<	"  - ARC CAPACITY CONSTRAINTS..";
 
 		/* for every arc */
+		arcCapacityCtr.reserve(n_arcs);
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			arc * a = &data->network.arcs[aa];
 
 			/* NEW CONSTRAINT: lhs expression*/
 			XPRBexpr arc_bw_usage;
 
-			/* for every mapping */
-			w_itr = this->w_useMappingVars.begin();
+			/* sum bandwidth use of all used mappings' primary paths */
+			w_itr = w_useMappingVars.begin();
 			for(int cc = 0; cc < n_customers; ++cc) {
 				customer * c = &data->customers[cc];
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
@@ -292,14 +302,14 @@ namespace cloudbrokermodels {
 			arc_bw_usage += d_arcBackupUsage[aa];
 
 			/* create final constraint */
-			this->arcCapacityCtr.push_back(
-				this->master_problem.newCtr(
+			arcCapacityCtr.push_back(
+				master_problem.newCtr(
 					XPRBnewname("arc_capacity_ctr_%d_%d", a->startNode, a->endNode),
 					arc_bw_usage <= Parameters::F_BandwidthCapacityForArc(a)
 				)
 			);
 		}
-		cout << "DONE! (" << this->arcCapacityCtr.size() << " created) \n";
+		cout << "DONE! (" << arcCapacityCtr.size() << " created) \n";
 
 		/* SINGLE BACKUP RESERVATION CONSTRAINT
 		 * - backup capacity reserved on an arc must be large enough to support any single backup
@@ -318,8 +328,9 @@ namespace cloudbrokermodels {
 			arc * a = &data->network.arcs[aa];
 
 			/* for every service */
+			backupSingleCtr[aa].reserve(n_customers);
 			serviceNumber = 0;
-			w_itr = this->w_useMappingVars.begin();
+			w_itr = w_useMappingVars.begin();
 			for(int cc = 0; cc < n_customers; ++cc) {
 				customer * c = &data->customers[cc];
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {	/* for every service 	*/
@@ -343,8 +354,8 @@ namespace cloudbrokermodels {
 					service_backup_req_on_arc -= d_arcBackupUsage[aa];
 
 					/* create final constraint */
-					this->backupSingleCtr[aa].push_back(
-						this->master_problem.newCtr(
+					backupSingleCtr[aa].push_back(
+						master_problem.newCtr(
 							XPRBnewname("backup_single_ctr_%d_%d_%d", a->startNode, a->endNode, serviceNumber),
 								service_backup_req_on_arc <= 0.0
 						)
@@ -362,6 +373,7 @@ namespace cloudbrokermodels {
 		cout << "  - SUM BACKUP RESERVATION CONSTRAINTS..";
 
 		/* for every arc */
+		backupSumCtr.reserve(n_arcs);
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			arc * a = &data->network.arcs[aa];
 
@@ -369,7 +381,7 @@ namespace cloudbrokermodels {
 			XPRBexpr total_backup_req_expr;
 
 			/* for every mapping */
-			w_itr = this->w_useMappingVars.begin();
+			w_itr = w_useMappingVars.begin();
 			for(int cc = 0; cc < n_customers; ++cc) {
 				customer * c = &data->customers[cc];
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
@@ -389,7 +401,7 @@ namespace cloudbrokermodels {
 			total_backup_req_expr-= d_arcBackupUsage[aa];
 
 			/* create final constraint */
-			this->backupSumCtr.push_back(
+			backupSumCtr.push_back(
 				this->master_problem.newCtr(
 					XPRBnewname("backup_sum_ctr_%d_%d", a->startNode, a->endNode),
 					beta_backupres * total_backup_req_expr <= 0.0
@@ -414,10 +426,10 @@ namespace cloudbrokermodels {
 
 			/* for every pair of two services (s, t) */
 			for(int ss = 0; ss < n_services-1; ++ss) {
-				service *s = services_by_global_index[ss];
+				service *s = all_services[ss];
 				primaryOverlapCtr[aa][ss].reserve(n_services-1-ss);
 				for(int tt = ss+1; tt < n_services; ++tt) {
-					service *t = services_by_global_index[tt];
+					service *t = all_services[tt];
 
 					/* NEW CONSTRAINT: lhs expression */
 					XPRBexpr primary_overlap_expr;
@@ -470,10 +482,10 @@ namespace cloudbrokermodels {
 
 			/* for every pair of two services (s, t) */
 			for(int ss = 0; ss < n_services-1; ++ss) {
-				service *s = services_by_global_index[ss];
+				service *s = all_services[ss];
 				backupOverlapCtr[aa][ss].reserve(n_services-1-ss);
 				for(int tt = ss+1; tt < n_services; ++tt) {
-					service *t = services_by_global_index[tt];
+					service *t = all_services[tt];
 
 					/* NEW CONSTRAINT: lhs expression */
 					XPRBexpr backup_overlap_expr;
@@ -515,24 +527,25 @@ namespace cloudbrokermodels {
 		cout << "DONE! (" << backupOverlapCtrCount  << " created)\n";
 
 		// set problem to maximise objective
-		this->master_problem.setSense(XPRB_MAXIM);
+		master_problem.setSense(XPRB_MAXIM);
 
 		return;
 	}
 
 	void CloudBrokerModel::RunModel(bool enforce_integer) {
 		if(enforce_integer) {
-			this->master_problem.mipOptimise();
+			master_problem.mipOptimise();
 		} else {
-			this->master_problem.lpOptimise();
+			master_problem.lpOptimise();
 		}
 	}
 
 	void CloudBrokerModel::RunModelColumnGeneration() {
-		int itercount = 0;
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts - we use our own */
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
-		master_problem.setMsgLevel(1);
+		master_problem.setMsgLevel(1);											/* disable default XPRS messages */
+
+		int itercount = 0;
 		while(itercount < 100) {
 			bool foundColumn = false;
 			cout << "running lp-relaxation\n";
@@ -556,7 +569,10 @@ namespace cloudbrokermodels {
 			master_problem.loadBasis(basis);
 			++itercount;
 		}
-		cout << "running MIP-model\n";
+
+		cout << "added " << w_useMappingVars.size() << " mappings in total!\n";
+
+		cout << "running MIP-model..\n";
 		this->RunModel(true);
 	}
 
@@ -611,63 +627,11 @@ namespace cloudbrokermodels {
 		return duals;
 	}
 
-	bool CloudBrokerModel::generateMappingColumnBruteForce(entities::service *s, dual_vals *duals){
-
-		mapping bestFound;
-		double best_eval = 0.0;
-
-		// to be implemented
-		for(unsigned int pp = 0; pp < s->possible_placements.size(); ++pp) {
-			placement *p = &s->possible_placements[pp];
-			for(unsigned int kk = 0; kk < p->paths.size(); ++kk) {
-				returnPath *k = &p->paths[kk];
-				// check if feasible mapping alone
-				if(k->exp_availability >= s->availability_req) {
-					// path offers sufficient availability alone -> dont add backup path
-					mapping m;
-					m.primary = k;
-					m.backup = NULL;
-					double eval = this->_bruteForceEvalMapping(&m, s, duals);
-					if(eval > best_eval) {
-						best_eval = eval;
-						bestFound = m;
-					}
-				}
-				// OR try combining with other path to placement as backup
-				else {
-					// path does not offer sufficient availability -> look for possible backup paths
-					for (unsigned int bb = 0; bb < p->paths.size(); ++bb) {
-						returnPath * b = &p->paths[bb];
-						// calculate combo availability [ P(A)*P(B|A) ]
-						pathCombo combo = _pathComboForPaths(k, b);
-						if(k->exp_availability + b->exp_availability - combo.exp_b_given_a >= s->availability_req) {
-							// combination of a as primary and b as backup is feasible -> add routing
-							mapping m;
-							m.primary = k;
-							m.backup = b;
-							double eval = this->_bruteForceEvalMapping(&m, s, duals);
-							if(eval > best_eval) {
-								best_eval = eval;
-								bestFound = m;
-							}
-						}
-					}
-				}
-			}
-		}
-
-		if(best_eval > 0.00001) {
-			this->addMappingToModel(&bestFound, s);
-			return true;
-		}
-		return false;
-	}
-
 	void CloudBrokerModel::addMappingToModel(entities::mapping *m, entities::service *owner) {
 
 		// increment number of mappings count, add a global number to mapping
-		owner->mappings.push_back(*m);
 		m->globalMappingIndex = this->data->n_mappings;
+		owner->mappings.push_back(*m);
 		++this->data->n_mappings;
 
 		// create new w variable
@@ -744,6 +708,58 @@ namespace cloudbrokermodels {
 
 			}
 		}
+	}
+
+	bool CloudBrokerModel::generateMappingColumnBruteForce(entities::service *s, dual_vals *duals){
+
+		mapping bestFound;
+		double best_eval = 0.0;
+
+		// to be implemented
+		for(unsigned int pp = 0; pp < s->possible_placements.size(); ++pp) {
+			placement *p = &s->possible_placements[pp];
+			for(unsigned int kk = 0; kk < p->paths.size(); ++kk) {
+				returnPath *k = &p->paths[kk];
+				// check if feasible mapping alone
+				if(k->exp_availability >= s->availability_req) {
+					// path offers sufficient availability alone -> dont add backup path
+					mapping m;
+					m.primary = k;
+					m.backup = NULL;
+					double eval = this->_bruteForceEvalMapping(&m, s, duals);
+					if(eval > best_eval) {
+						best_eval = eval;
+						bestFound = m;
+					}
+				}
+				// OR try combining with other path to placement as backup
+				else {
+					// path does not offer sufficient availability -> look for possible backup paths
+					for (unsigned int bb = 0; bb < p->paths.size(); ++bb) {
+						returnPath * b = &p->paths[bb];
+						// calculate combo availability [ P(A)*P(B|A) ]
+						pathCombo combo = _pathComboForPaths(k, b);
+						if(k->exp_availability + b->exp_availability - combo.exp_b_given_a >= s->availability_req) {
+							// combination of a as primary and b as backup is feasible -> add routing
+							mapping m;
+							m.primary = k;
+							m.backup = b;
+							double eval = this->_bruteForceEvalMapping(&m, s, duals);
+							if(eval > best_eval) {
+								best_eval = eval;
+								bestFound = m;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if(best_eval > 0.00001) {
+			this->addMappingToModel(&bestFound, s);
+			return true;
+		}
+		return false;
 	}
 
 	double CloudBrokerModel::_bruteForceEvalMapping(entities::mapping *m, entities::service *owner, dual_vals *duals) {
@@ -830,41 +846,41 @@ namespace cloudbrokermodels {
 		int n_customers = this->data->n_customers;
 		int n_arcs = this->data->network.arcs.size();
 
-		/* Model variable iterators */
-		list<XPRBvar>::iterator w_itr;
-
 		cout << "\n=========== RESULTS =============\n";
 
-		cout << "\nProfits: " << this->master_problem.getObjVal() << "\n";
+		cout << "\nProfits: " << master_problem.getObjVal() << "\n";
 
 		double backup_costs = 0.0;
 		for(int aa = 0; aa < n_arcs; ++aa) {
-			arc *a = &this->data->network.arcs[aa];
+			arc *a = &data->network.arcs[aa];
 			backup_costs += a->bandwidth_price * d_arcBackupUsage[aa].getSol();
 		}
 		cout << "\nBackup costs: " << backup_costs << "\n";
 
-		w_itr = this->w_useMappingVars.begin();
-		int serviceNumber = 0;
+		cout << "\nBackup beta: " << beta << "\n";
+
 		for(int cc = 0; cc < n_customers; ++cc) {
-			customer *c = &this->data->customers[cc];
+			customer *c = &data->customers[cc];
 			if(y_serveCustomerVars[cc].getSol() > 0.01) {
 				cout << "\nCustomer #" << cc+1 << " is being served (" << y_serveCustomerVars[cc].getSol() << ")\n";
 				cout << "- Revenue: " << c->revenue << "\n";
-			}
-			for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
-				service *s = &c->services[ss];
-				++serviceNumber;
-				for (list<mapping>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
-					mapping * m = &(*m_itr);
-					if((*w_itr).getSol() > 0.01) {
-						cout << " - Service #" << serviceNumber << " -> mapping #" << m->globalMappingIndex+1 << "\n";
-						cout << "  - primary path: " << m->primary->pathNumber << ", cost: " << m->primary->cost << "\n";
-						if(m->backup != NULL) {
-							cout << "  - backup path: " << m->backup->pathNumber << "\n";
+				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
+					service *s = &c->services[ss];
+					cout << " - Service #" << s->globalServiceIndex +1 << " - number of potential mappings: " << s->mappings.size() << "\n";
+					for (list<mapping>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
+						mapping * m = &(*m_itr);
+						XPRBvar *w = mappingVarForMappingIndex(m->globalMappingIndex);
+						if(w == NULL) {
+							cout <<  "  !! mapping #" << m->globalMappingIndex+1 << " has no related w_useMapping variable\n";
+						}
+						else if(w->getSol() > 0.01) {
+							cout <<  "  -> mapping #" << m->globalMappingIndex+1 << "\n";
+							cout << "   - primary path: " << m->primary->pathNumber << ", cost: " << m->primary->cost << "\n";
+							if(m->backup != NULL) {
+								cout << "   - backup path: " << m->backup->pathNumber << "\n";
+							}
 						}
 					}
-					++w_itr;
 				}
 			}
 		}
@@ -872,13 +888,17 @@ namespace cloudbrokermodels {
 		cout << "\nArc backup reservations (non-zero)\n";
 		for(int aa = 0; aa < n_arcs; ++aa) {
 			if(d_arcBackupUsage[aa].getSol() > 0.00001) {
-				arc *a = &this->data->network.arcs[aa];
+				arc *a = &data->network.arcs[aa];
 				cout << "(" << a->startNode+1 << ", " << a->endNode+1 << ") : " << d_arcBackupUsage[aa].getSol() << "\n";
 			}
 		}
 	}
 
 	XPRBvar* CloudBrokerModel::mappingVarForMappingIndex(int mappingIndex) {
+		if(mappingIndex < 0 || mappingIndex >= (int) this->w_useMappingVars.size()) {
+			return NULL;
+		}
+
 		list<XPRBvar>::iterator w_itr = this->w_useMappingVars.begin();
 		for(int i = 0; i < mappingIndex; i++) {
 			++w_itr;

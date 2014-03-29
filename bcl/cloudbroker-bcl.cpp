@@ -87,7 +87,7 @@ int main(void) {
 					cout << "\nSTEP3: build model!";
 					cloudbrokermodels::CloudBrokerModel model;
 					cout << "\n Starting to build model..\n";
-					model.BuildModel(&data);
+					model.BuildModel(&data, 0.3);
 					cout << "\n Finished building model!\n";
 
 					// STEP 4: run optimisation
@@ -112,7 +112,7 @@ int main(void) {
 					cout << "\nSTEP3: build model!";
 					cloudbrokermodels::CloudBrokerModel model;
 					cout << "\n Starting to build model..\n";
-					model.BuildModel(&data);
+					model.BuildModel(&data, 0.3);
 					cout << "\n Finished building model!\n";
 
 					// STEP 4: run optimisation
