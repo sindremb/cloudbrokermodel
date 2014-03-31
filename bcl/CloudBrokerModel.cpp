@@ -62,7 +62,7 @@ namespace cloudbrokermodels {
 	};
 
 	/* CloudBrokerModel constructor
-	 * - Includes necessary class initialisations
+	 * - Includes necessary class member initialisations
 	 */
 	CloudBrokerModel::CloudBrokerModel() :
 			/* --- class member initialisations ---- */
@@ -229,7 +229,6 @@ namespace cloudbrokermodels {
 		 */
 		cout << "  - SERVE CUSTOMER CONSTRAINTS..";
 		w_itr = w_useMappingVars.begin();
-		int serviceNumber = 0;
 		serveCustomerCtr.reserve(n_services);
 		/* for every customer */
 		for(int cc = 0; cc < n_customers; ++cc) {
@@ -238,7 +237,6 @@ namespace cloudbrokermodels {
 			/* for every service of customer */
 			for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
 				service * s = &c->services[ss];
-				++serviceNumber;
 
 				/* NEW CONSTRAINT: lhs expression */
 				XPRBexpr map_service_expr;
@@ -258,7 +256,7 @@ namespace cloudbrokermodels {
 				/* create final constraint */
 				serveCustomerCtr.push_back(
 					master_problem.newCtr(
-							XPRBnewname("serve_customer_ctr_%d", serviceNumber),
+							XPRBnewname("serve_customer_ctr_%d", s->globalServiceIndex+1),
 							map_service_expr == 0.0
 					)
 				);
@@ -281,7 +279,7 @@ namespace cloudbrokermodels {
 			/* NEW CONSTRAINT: lhs expression*/
 			XPRBexpr arc_bw_usage;
 
-			/* sum bandwidth use of all used mappings' primary paths */
+			/* sum bandwidth use from all used mappings' primary paths */
 			w_itr = w_useMappingVars.begin();
 			for(int cc = 0; cc < n_customers; ++cc) {
 				customer * c = &data->customers[cc];
@@ -298,10 +296,10 @@ namespace cloudbrokermodels {
 				}
 			}
 
-			/* add bandwidth reserved for backup on arc */
+			/* add bandwidth reserved for backup paths on arc */
 			arc_bw_usage += d_arcBackupUsage[aa];
 
-			/* create final constraint */
+			/* create final constraint: arc bandwidth usage <= arc capacity */
 			arcCapacityCtr.push_back(
 				master_problem.newCtr(
 					XPRBnewname("arc_capacity_ctr_%d_%d", a->startNode, a->endNode),
@@ -329,34 +327,32 @@ namespace cloudbrokermodels {
 
 			/* for every service */
 			backupSingleCtr[aa].reserve(n_customers);
-			serviceNumber = 0;
 			w_itr = w_useMappingVars.begin();
 			for(int cc = 0; cc < n_customers; ++cc) {
 				customer * c = &data->customers[cc];
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {	/* for every service 	*/
 					service * s = &c->services[ss];
-					++serviceNumber;
 
 					/* NEW CONSTRAINT: lhs expression */
 					XPRBexpr service_backup_req_on_arc;
 
-					/* for every mapping */
+					/* for every mapping of service */
 					for (list<mapping>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
 						mapping * m = &(*m_itr);
 
-						/* add backup requirement on arc for mapping */
+						/* add backup requirement on arc for used mapping */
 						service_backup_req_on_arc += (Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m))*(*w_itr);
 
 						++w_itr;
 					}
 
-					/* subtract */
+					/* subtract arc backup usage variable */
 					service_backup_req_on_arc -= d_arcBackupUsage[aa];
 
 					/* create final constraint */
 					backupSingleCtr[aa].push_back(
 						master_problem.newCtr(
-							XPRBnewname("backup_single_ctr_%d_%d_%d", a->startNode, a->endNode, serviceNumber),
+							XPRBnewname("backup_single_ctr_%d_%d_%d", a->startNode, a->endNode, s->globalServiceIndex+1),
 								service_backup_req_on_arc <= 0.0
 						)
 					);
@@ -389,8 +385,8 @@ namespace cloudbrokermodels {
 					for (list<mapping>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
 						mapping * m = &(*m_itr);
 
-						/* add backup req on arc for used mappings */
-						total_backup_req_expr += Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m)*(*w_itr);
+						/* add backup bandwidth req on arc for used mappings (multiplied with beta factor) */
+						total_backup_req_expr += beta*Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m)*(*w_itr);
 
 						++w_itr;
 					}
@@ -404,7 +400,7 @@ namespace cloudbrokermodels {
 			backupSumCtr.push_back(
 				this->master_problem.newCtr(
 					XPRBnewname("backup_sum_ctr_%d_%d", a->startNode, a->endNode),
-					beta_backupres * total_backup_req_expr <= 0.0
+					total_backup_req_expr <= 0.0
 				)
 			);
 		}
