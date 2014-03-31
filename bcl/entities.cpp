@@ -11,6 +11,7 @@ namespace entities {
 	using namespace std;
 
 	int serviceCount = 0;
+	int customerCount = 0;
 
 	string _fileAsString(const char * filename) {
 		string line;
@@ -222,6 +223,7 @@ namespace entities {
 
 		JSONNODE_ITERATOR i_itr = json_begin(n);
 
+		customerCount = 0;
 		serviceCount = 0;
 
 		while (i_itr != json_end(n)){
@@ -246,8 +248,11 @@ namespace entities {
 
 				JSONNODE_ITERATOR j_itr = json_begin(i);
 				while(j_itr != json_end(i)) {
-					data->customers.push_back(_parseJsonCustomerObj(*j_itr));
+					customer c = _parseJsonCustomerObj(*j_itr);
+					c.node = customerCount;
+					data->customers.push_back(c);
 					j_itr++;
+					++customerCount;
 				}
 			}
 

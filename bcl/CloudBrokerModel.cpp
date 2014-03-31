@@ -536,7 +536,7 @@ namespace cloudbrokermodels {
 		}
 	}
 
-	void CloudBrokerModel::RunModelColumnGeneration() {
+	void CloudBrokerModel::RunModelColumnGeneration(int columnGenerationMethod) {
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts - we use our own */
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
 		master_problem.setMsgLevel(1);											/* disable default XPRS messages */
@@ -556,7 +556,11 @@ namespace cloudbrokermodels {
 				customer *c = &this->data->customers[cc];
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
 					service *s = &c->services[ss];
-					if(this->generateMappingColumnBruteForce(s, &duals)) foundColumn = true;
+					if(columnGenerationMethod == 1) {
+						if(this->generateMappingColumnBruteForce(s, &duals)) foundColumn = true;
+					} else if(columnGenerationMethod == 2) {
+						if(this->generateMappingHeuristicA(c, s, &duals)) foundColumn = true;
+					}
 				}
 			}
 
@@ -568,6 +572,10 @@ namespace cloudbrokermodels {
 
 		cout << "added " << w_useMappingVars.size() << " mappings in total!\n";
 
+
+		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 1);	/* Disable automatic cuts - we use our own */
+		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 1);		/* Switch presolve off */
+		master_problem.setMsgLevel(0);
 		cout << "running MIP-model..\n";
 		this->RunModel(true);
 	}
@@ -758,7 +766,7 @@ namespace cloudbrokermodels {
 		return false;
 	}
 
-	double CloudBrokerModel::_bruteForceEvalMapping(entities::mapping *m, entities::service *owner, dual_vals *duals) {
+	double CloudBrokerModel::_bruteForceEvalMapping(mapping *m, service *owner, dual_vals *duals) {
 		/**** c ****/
 		double c = - m->primary->cost;
 
@@ -835,6 +843,60 @@ namespace cloudbrokermodels {
 		}
 
 		return c - At_y;
+	}
+
+	vector<double> CloudBrokerModel::_dualPrimaryArcCostsForService(entities::service *s, dual_vals *duals) {
+		vector<double> arc_costs(data->network.arcs.size());
+
+		return arc_costs;
+	}
+
+	vector<double> CloudBrokerModel::_dualPrimaryArcCostsForService(entities::service *s, dual_vals *duals) {
+		vector<double> arc_costs(data->network.arcs.size());
+
+		return arc_costs;
+	}
+
+	bool CloudBrokerModel::generateMappingHeuristicA(customer *c, service *s, dual_vals *duals) {
+
+		vector<double> arc_costs_primary = _dualPrimaryArcCostsForService(s, duals);
+		vector<double> arc_costs_backup = _dualBackupArcCostsForService(s, duals);
+
+		for(unsigned int pp = 0; pp < s->possible_placements.size(); ++pp) {
+
+			placement *p = &s->possible_placements.at(pp);
+
+			int placement_node;
+			int customer_node;
+
+			returnPath primary;
+
+			double evaluation = -duals->serveCustomerDuals[customer_node];
+
+			double primary_cost = spp(
+				&data->network.arcs, arc_costs_primary,
+				data->network.n_nod, customer_node, placement_node,
+				&primary);
+			evaluation += primary_cost;
+			if(primary->availability > s->availability_req) {
+
+			}
+			// find primary path by shortest path problem
+				// check availability req
+				// IF availability req ok -> return mapping using path
+				// ELSE
+					// while true:
+						// remove one arc from primary path from network
+						// find backup path by shortest path problem
+						// IF total evaluation is positive
+							// IF availability req ok -> add mapping, break loop
+							// ELSE -> continue loop
+						// ELSE -> break loop
+		}
+
+
+
+		return false;
 	}
 
 	void CloudBrokerModel::OutputResults() {
@@ -950,5 +1012,23 @@ namespace cloudbrokermodels {
 
 	double Parameters::F_BandwidthCapacityForArc(arc * a) {
 		return a->bandwidth_cap;
+	}
+
+	double spp(vector<arc> *arcs, vector<double> *arc_costs, int n_nodes, int start_node, int end_node, returnPath *result) {
+		vector<double> costs(n_nodes, 9999999);
+		vector<int> predecessors(n_nodes, -1);
+		vector<vector<int> > node_arcs(n_nodes);
+		list<int> remaining_nodes;
+		list<int> finished_nodes;
+
+		for(unsigned int aa = 0; aa < arcs->size(); ++aa) {
+			node_arcs.at(arcs->at(aa).startNode).push_back(aa);
+		}
+		for(int n = 0; n < n_nodes; ++n) {
+			remaining_nodes.push_back(n);
+		}
+
+
+		return costs.at(end_node);
 	}
 }

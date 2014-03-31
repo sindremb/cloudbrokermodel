@@ -128,7 +128,7 @@ int main(void) {
 					int configSelection;
 					cout << "Pathgen Config\n - Max number of paths per placement: " << config.maxPathsPerPlacement;
 					cout << "\n - Calculate Path Combo Availabilities: " << (config.calcComboAvailabilities ? "true" : "false");
-					cout << "\n\n Options:\n (1) Set max number of paths per placement\n (2) Toggle Calculate Path Combo availabilities (0) back\n\nSelection: ";
+					cout << "\n\n Options:\n (1) Set max number of paths per placement\n (2) Toggle Calculate Path Combo availabilities\n (0) back\n\nSelection: ";
 					cin >> configSelection;
 
 					if(configSelection == 1) {

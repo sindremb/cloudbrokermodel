@@ -57,13 +57,17 @@ namespace cloudbrokermodels {
 		double _bruteForceEvalMapping(entities::mapping *m, entities::service *s, dual_vals *duals);
 		bool generateMappingColumnBruteForce(entities::service *s, dual_vals *duals);
 
+		std::vector<double> _dualPrimaryArcCostsForService(entities::service *s, dual_vals *duals);
+		std::vector<double> _dualBackupArcCostsForService(entities::service *s, dual_vals *duals);
+		bool generateMappingHeuristicA(entities::service *s, dual_vals *duals);
+
 
 	public:
 		CloudBrokerModel();
 		void BuildModel(entities::dataContent * data, double beta_backupres = 0.3);
 		void AddMapping(int serviceNumber, entities::mapping * m);
 		void RunModel(bool enforce_integer = true);
-		void RunModelColumnGeneration();
+		void RunModelColumnGeneration(int columnGenerationMethod = 1);
 		void OutputResults();
 	};
 }
