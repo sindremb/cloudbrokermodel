@@ -135,8 +135,9 @@ namespace entities {
 	struct customer {
 		// revenue from serving customer
 		double revenue;
+		int node;
 
-		// services requiered by customer
+		// services required by customer
 		std::vector<service> services;
 	};
 
