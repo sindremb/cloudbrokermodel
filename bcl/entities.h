@@ -28,7 +28,7 @@ namespace entities {
 		// arc in opposite direction to this arc
 		arc * return_arc;
 
-		// list of paths using this arc
+		// list of paths using this arc  (pointers)
 		// - start -> end
 		std::list<RETURN_PATH*> up_paths;
 		// - end -> start
@@ -57,13 +57,13 @@ namespace entities {
 		// list of visited state for nodes for this path
 		std::vector<bool> visitedNodes;
 
-		// lists of arcs used for this path
+		// lists of arcs used for this path (pointers)
 		// - start -> end
 		std::list<ARC*> arcs_up;
 		// - end -> start
 		std::list<ARC*> arcs_down;
 
-		// lists of mappings using this path
+		// lists of mappings using this path (pointers)
 		// - as primary path
 		std::list<MAPPING*> primary_mappings;
 		// - as backup path
@@ -96,7 +96,7 @@ namespace entities {
 		// global provider index for this placement
 		int globalProviderIndex;
 
-		// possible paths for this placement
+		// possible paths for this placement (pointers)
 		std::vector<RETURN_PATH*> paths;
 	};
 
@@ -112,7 +112,7 @@ namespace entities {
 		// possible service placements
 		std::vector<placement> possible_placements;
 
-		// list of generated mappings for this service
+		// list of generated mappings for this service (pointers)
 		std::list<mapping*> mappings;
 	};
 
@@ -121,13 +121,13 @@ namespace entities {
 		double revenue;
 		int globalCustomerIndex;
 
-		// services required by customer
+		// services required by this customer (pointers)
 		std::vector<service*> services;
 	};
 
 	struct dataContent {
-		// number of customers / providers / services /.. in problem
-		// - fixed dimension
+		// problem dimensions
+		// - fixed
 		int n_customers;
 		int n_providers;
 		int n_services;
@@ -137,8 +137,8 @@ namespace entities {
 		int n_mappings;
 		int n_paths;
 		
-		// sets/lists in problem
-		// - customers in problem
+		// given sets/lists in problem
+		// - all customers
 		std::vector<customer> customers;
 		// - all services
 		std::vector<service> services;

@@ -567,46 +567,53 @@ namespace cloudbrokermodels {
 	CloudBrokerModel::dual_vals CloudBrokerModel::getDualVals() {
 		CloudBrokerModel::dual_vals duals;
 
+		/************ serveCustomerCtr dual values **********/
 		duals.serveCustomerDuals.resize(data->n_services, 0.0);
 		for(int ss = 0; ss < data->n_services; ++ss) {
 			duals.serveCustomerDuals[ss] = serveCustomerCtr[ss].getDual();
 		}
 
+		/********* all arc related dual values ************/
+		// make room for dual values (first dimension)
 		duals.arcCapacityDuals.resize(data->n_arcs, 0.0);
-		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			duals.arcCapacityDuals[aa] = arcCapacityCtr[aa].getDual();
-		}
-
+		duals.backupSumDuals.resize(data->n_arcs, 0.0);
 		duals.backupSingleDuals.resize(data->n_arcs);
+		duals.primaryOverlapDuals.resize(data->n_arcs);
+		duals.backupOverlapDuals.resize(data->n_arcs);
+
+		// for every arc
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
+			// dual val for arcCapacityCtr for this arc
+			duals.arcCapacityDuals[aa] = arcCapacityCtr[aa].getDual();
+
+			// dual val for backupSumCtr for this arc
+			duals.backupSumDuals[aa] = backupSumCtr[aa].getDual();
+
+			// make room for dual values (second dimension)
 			duals.backupSingleDuals[aa].resize(data->n_services, 0.0);
+			duals.primaryOverlapDuals[aa].resize(data->n_services-1);
+			duals.primaryOverlapDuals[aa].resize(data->n_services-1);
+			duals.backupOverlapDuals[aa].resize(data->n_services-1);
+
+			// for every service
 			for(int ss = 0; ss < data->n_services; ++ss) {
+				// dual val for backupSingleCtr for this arc and service
 				duals.backupSingleDuals[aa][ss] = backupSingleCtr[aa][ss].getDual();
 			}
-		}
 
-		duals.backupSumDuals.resize(data->n_arcs, 0.0);
-		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			duals.backupSumDuals[aa] = backupSumCtr[aa].getDual();
-		}
-
-		duals.primaryOverlapDuals.resize(data->n_arcs);
-		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			duals.primaryOverlapDuals[aa].resize(data->n_services-1);
+			// for every pair of two services (s, t)
+			// - for every first service s
 			for(int ss = 0; ss < data->n_services-1; ++ss) {
+
+				// make room for dual values (third dimension)
 				duals.primaryOverlapDuals[aa][ss].resize(data->n_services-1-ss);
-				for(int tt = ss+1; tt < data->n_services; ++tt) {
-					duals.primaryOverlapDuals[aa][ss][tt-ss-1] = primaryOverlapCtr[aa][ss][tt-ss-1].getDual();
-				}
-			}
-		}
-
-		duals.backupOverlapDuals.resize(data->n_arcs);
-		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			duals.backupOverlapDuals[aa].resize(data->n_services-1);
-			for(int ss = 0; ss < data->n_services-1; ++ss) {
 				duals.backupOverlapDuals[aa][ss].resize(data->n_services-1-ss);
+
+				// - for every second service t
 				for(int tt = ss+1; tt < data->n_services; ++tt) {
+					// dual val for primaryOverlapCtr for arc a and service pair (s, t)
+					duals.primaryOverlapDuals[aa][ss][tt-ss-1] = primaryOverlapCtr[aa][ss][tt-ss-1].getDual();
+					// dual val for backupOverlapCtr for arc a and service pair (s, t)
 					duals.backupOverlapDuals[aa][ss][tt-ss-1] = backupOverlapCtr[aa][ss][tt-ss-1].getDual();
 				}
 			}
