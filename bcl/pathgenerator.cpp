@@ -20,8 +20,8 @@ namespace pathgen {
 		path->visitedNodes[a->endNode] = true;
 	}
 
-	vector<returnPath> _generateReturnPathsForNodePair(int start_node, int end_node, double max_latency, double bandwidth_up,
-		double bandwidth_down, vector<vector<arc*> > * node_arcs, double start_cost, pathgenConfig config)
+	list<returnPath> _generateReturnPathsForNodePair(int start_node, int end_node, double max_latency, double bandwidth_up,
+		double bandwidth_down, vector<vector<arc*> > * node_arcs, double start_cost, int max_paths_per_placement)
 	{
 		// initial incomplete path to spawn all other paths from
 		returnPath initial;
@@ -31,7 +31,7 @@ namespace pathgen {
 		initial.exp_availability = 1;
 		initial.bandwidth_usage_up = bandwidth_up;
 		initial.bandwidth_usage_down = bandwidth_down;
-		initial.cost = start_cost;
+		initial.cost = start_cost; // add the cost associated with the end node placement
 		initial.visitedNodes.resize(node_arcs->size(), false);
 		initial.visitedNodes[start_node] = true;
 
@@ -50,8 +50,8 @@ namespace pathgen {
 			// current path has reached destination -> add to complete paths list, skip to next
 			if(current.endNode == end_node) {
 				complete.push_back(current);
-				// check if max number of paths generated -> end path generation
-				if (config.maxPathsPerPlacement > 0 && (int)complete.size() >= config.maxPathsPerPlacement) break;
+				// check if max number of paths generated (if set > 0) -> end path generation
+				if (max_paths_per_placement > 0 && (int)complete.size() >= max_paths_per_placement) break;
 				// otherwise -> skip to next iteration
 				continue;
 			}
@@ -78,13 +78,9 @@ namespace pathgen {
 				incomplete.push_back(newPath);		// add new path to incomplete list
 			}
 		}
-		cout << "  - # generated paths: " << complete.size() << "\n";
 		
-		// convert complete paths list to vector for return
-		vector<returnPath> result;
-		result.reserve(complete.size());
-		result.insert(result.end(), complete.begin(), complete.end());
-		return result;
+		// return all completed paths (paths reaching end node before latency limit or path restriction limit)
+		return complete;
 	}
 
 	pathCombo _pathComboForPaths(returnPath * a, returnPath * b) {
@@ -116,81 +112,86 @@ namespace pathgen {
 		return combo;
 	}
 
-	void generatePaths(dataContent * data, pathgenConfig config) {
+	void generatePaths(dataContent * data, int max_paths_per_placement) {
 
 		// create arcs from node pointers for each node
-		vector<vector<arc*> > nodeArcs(data->network.n_nodes);
-		for (unsigned int i = 0; i < data->network.arcs.size(); i++) {
-			arc * a = &data->network.arcs[i];
+		vector<vector<arc*> > nodeArcs(data->n_nodes);
+		for (int i = 0; i < data->n_arcs; i++) {
+			arc * a = &data->arcs[i];
 			nodeArcs.at(a->startNode).push_back(a);
 		}
 
-		int pathNumber = 0;
-
 		// loop through customers
 		int serviceNumber = 0; // tracker for service number in total
-		for (unsigned int c = 0; c < data->customers.size(); ++c)
+		for (unsigned int cc = 0; cc < data->customers.size(); ++cc)
 		{
 			// - loop through customer's services
-			customer * cu = &data->customers[c];
-			cout << "\nCustomer #" << c+1 << "\n";
-			for (unsigned int s = 0; s < cu->services.size(); ++s) 
+			customer * c = &data->customers[cc];
+			cout << "\nCustomer #" << c->globalCustomerIndex+1 << " (" << c->services.size() <<" services)\n";
+			for (unsigned int ss = 0; ss < c->services.size(); ++ss)
 			{
-				service * se = &cu->services[s];
+				service * s = c->services[ss];
+				cout << "\n- Service #" << s->globalServiceIndex+1 << " (" << s->possible_placements.size() <<" placements)\n";
 				// -- for each service's placement		
-				for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
+				for (unsigned int pp = 0; pp < s->possible_placements.size(); ++pp)
 				{
-					placement * pl = &se->possible_placements[p];
-					cout << "- Service #" << serviceNumber+1 << ", Provider #" << pl->globalProviderIndex+1 << "\n";
-					int providerNode = data->network.n_nodes - data->n_providers + pl->globalProviderIndex;
+					placement * p = &s->possible_placements[pp];
+					cout << " - Provider #" << p->globalProviderIndex+1 << "\n";
+					int providerNode = data->n_nodes - data->n_providers + p->globalProviderIndex;
 					
 					// CUSTOMER -> PLACEMENT
-					// generate paths
-					pl->paths = _generateReturnPathsForNodePair(c, // customer index == customer node index
-						providerNode, se->latency_req, 
-						se->bandwidth_req_up, se->bandwidth_req_down,
-						&nodeArcs, pl->price, config
-					);
-
-					// Register paths at their used arcs (and assign global path numbers)
-					for (unsigned int ipath = 0; ipath < pl->paths.size(); ++ipath) {
-						++pathNumber;
-						returnPath *p = &pl->paths[ipath];
-						p->pathNumber = pathNumber;
-						// all arcs used on the way up
-						for (list<arc*>::const_iterator j = p->arcs_up.begin(), end = p->arcs_up.end(); j != end; ++j) {
-							(*j)->up_paths.push_back(p);
-						}
-						// all arcs used on the way down
-						for (list<arc*>::const_iterator j = p->arcs_down.begin(), end = p->arcs_down.end(); j != end; ++j) {
-							(*j)->down_paths.push_back(p);
-						}
+					// - generate list of paths
+					list<returnPath> paths = _generateReturnPathsForNodePair(cc, // customer index == customer node index
+							providerNode, s->latency_req,
+							s->bandwidth_req_up, s->bandwidth_req_down,
+							&nodeArcs, p->price, max_paths_per_placement
+						);
+					// - add pointer to paths for this placement
+					for (list<returnPath>::iterator k_itr = paths.begin(), k_end = paths.end(); k_itr != k_end; ++k_itr) {
+						returnPath *k = &(*k_itr);
+						p->paths.push_back(k);
 					}
+					// - add paths to global list of paths
+					data->paths.splice(data->paths.end(), paths);
+					cout << "  - # of generated paths: " << p->paths.size() << "\n";
 				}
 				++serviceNumber;
 			}
 		}
+		// Register paths at their used arcs (and assign global path numbers)
+		int pathNumber = 0;
+		for (list<returnPath>::iterator k_itr = data->paths.begin(), k_end = data->paths.end(); k_itr != k_end; ++k_itr) {
+			returnPath *k = &(*k_itr);
+			k->globalPathIndex = pathNumber;
+			// all arcs used on the way up
+			for (list<arc*>::const_iterator j = k->arcs_up.begin(), end = k->arcs_up.end(); j != end; ++j) {
+				(*j)->up_paths.push_back(k);
+			}
+			// all arcs used on the way down
+			for (list<arc*>::const_iterator j = k->arcs_down.begin(), end = k->arcs_down.end(); j != end; ++j) {
+				(*j)->down_paths.push_back(k);
+			}
+			++pathNumber;
+		}
+		data->n_paths = pathNumber;
 		return;
 	}
 
 	void addPathComboAvailabilities(dataContent * data) {
 		cout << " - calculating combo availability within each placement\n";
 		
-		for (unsigned int c = 0; c < data->customers.size(); ++c)
+		// for every service placement
+		for (unsigned int s = 0; s < data->services.size(); ++s)
 		{
-			// - loop through customer's services
-			customer * cu = &data->customers[c];
-			for (unsigned int s = 0; s < cu->services.size(); ++s) 
-			{
-				service * se = &cu->services[s];
-				// -- for each service's placement		
-				for (unsigned int p = 0; p < se->possible_placements.size(); ++p) {
-					placement * pl = &se->possible_placements[p];
-					// calculate combo availability [ P(A)*P(B|A) ]
-					for (unsigned int apath = 0; apath < pl->paths.size(); ++apath) {
-						for (unsigned int bpath = 0; bpath < pl->paths.size(); ++bpath) {
-							data->pathCombos.push_back(_pathComboForPaths(&pl->paths[apath], &pl->paths[bpath]));
-						}
+			service * se = &data->services[s];
+			for (unsigned int p = 0; p < se->possible_placements.size(); ++p) {
+				placement * pl = &se->possible_placements[p];
+
+				// for every combination of paths for placement
+				for (unsigned int apath = 0; apath < pl->paths.size(); ++apath) {
+					for (unsigned int bpath = 0; bpath < pl->paths.size(); ++bpath) {
+						// calculate combo availability [ P(A)*P(B|A) ]
+						data->pathCombos.push_back(_pathComboForPaths(pl->paths[apath], pl->paths[bpath]));
 					}
 				}
 			}
@@ -200,62 +201,63 @@ namespace pathgen {
 
 	void addFeasibleMappings(dataContent * data) {
 		int mappingCount = 0;
-		// loop through customers
-		for (unsigned int c = 0; c < data->customers.size(); ++c)
-		{
-			// - loop through customer's services
-			customer * cu = &data->customers[c];
-			for (unsigned int s = 0; s < cu->services.size(); ++s) 
-			{
-				service * se = &cu->services[s];
-				se->mappings.clear();
-				// -- for each service's placement		
-				for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
-				{
-					placement * pl = &se->possible_placements[p];
-					// --- for each path at current placement
-					for (unsigned int a = 0; a < pl->paths.size(); ++a) {
-						returnPath * apath = &pl->paths[a];
-						// check if feasible mapping alone
-						if(apath->exp_availability >= se->availability_req) {
-							// path offers sufficient availability alone -> dont add backup path
-							mapping m;
-							m.globalMappingIndex = mappingCount;
-							m.primary = apath;
-							m.backup = NULL;
-							se->mappings.push_back(m);
-							++mappingCount;
 
-						}
-						// OR try combining with other path to placement as backup
-						else {
-							// path does not offer sufficient availability -> look for possible backup paths
-							for (unsigned int b = 0; b < pl->paths.size(); ++b) {
-								returnPath * bpath = &pl->paths[b];
-								// calculate combo availability [ P(A)*P(B|A) ]
-								pathCombo combo = _pathComboForPaths(apath, bpath);
-								if(apath->exp_availability + bpath->exp_availability - combo.exp_b_given_a >= se->availability_req) {
-									// combination of a as primary and b as backup is feasible -> add routing
-									mapping m;
-									m.globalMappingIndex = mappingCount;
-									m.primary = apath;
-									m.backup = bpath;
-									se->mappings.push_back(m);
-									++mappingCount;
-								}
+		cout << "\nAdding feasible mappings..\n";
+
+		for (unsigned int s = 0; s < data->services.size(); ++s)
+		{
+			service * se = &data->services[s];
+			se->mappings.clear();
+			// -- for each service's placement
+			for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
+			{
+				placement * pl = &se->possible_placements[p];
+				// --- for each path at current placement
+				for (unsigned int a = 0; a < pl->paths.size(); ++a) {
+					returnPath * apath = pl->paths[a];
+					// check if feasible mapping alone
+					if(apath->exp_availability >= se->availability_req) {
+						// path offers sufficient availability alone -> dont add backup path
+						mapping m;
+						m.globalMappingIndex = mappingCount;
+						m.primary = apath;
+						m.backup = NULL;
+						data->mappings.push_back(m);
+						se->mappings.push_back(&data->mappings.back());
+						++mappingCount;
+
+					}
+					// OR try combining with other path to placement as backup
+					else {
+						// path does not offer sufficient availability -> look for possible backup paths
+						for (unsigned int b = 0; b < pl->paths.size(); ++b) {
+							returnPath * bpath = pl->paths[b];
+							// calculate combo availability [ P(A)*P(B|A) ]
+							pathCombo combo = _pathComboForPaths(apath, bpath);
+							if(apath->exp_availability + bpath->exp_availability - combo.exp_b_given_a >= se->availability_req) {
+								// combination of a as primary and b as backup is feasible -> add routing
+								mapping m;
+								m.globalMappingIndex = mappingCount;
+								m.primary = apath;
+								m.backup = bpath;
+								data->mappings.push_back(m);
+								se->mappings.push_back(&data->mappings.back());
+								++mappingCount;
 							}
 						}
 					}
 				}
 
 				// register mappings for service at used paths
-				for (list<mapping>::iterator m_itr = se->mappings.begin(), m_end = se->mappings.end(); m_itr != m_end; ++m_itr) {
-					m_itr->primary->primary_mappings.push_back(&(*m_itr));
-					if(m_itr->backup != NULL) {
-						m_itr->backup->backup_mappings.push_back(&(*m_itr));
+				for (list<mapping*>::iterator m_itr = se->mappings.begin(), m_end = se->mappings.end(); m_itr != m_end; ++m_itr) {
+					mapping *m = *m_itr;
+					m->primary->primary_mappings.push_back(m);
+					if(m->backup != NULL) {
+						m->backup->backup_mappings.push_back(m);
 					}
 				}
-				cout << " - # total availability feasible routings (primary[+backup]): " << se->mappings.size() << "\n";
+				cout << " - service" << se->globalServiceIndex+1 << " at provider " << pl->globalProviderIndex+1 << "\n";
+				cout << "  -# total availability feasible routings (primary[+backup]): " << se->mappings.size() << "\n";
 			}
 		}
 
