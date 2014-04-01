@@ -764,6 +764,7 @@ namespace cloudbrokermodels {
 		/* for every arc */
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc * a = &data->arcs[aa];
+
 			// get primary path usage on arc
 			double u_primary_usage = Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m);
 			// get backup usage on arc
@@ -821,62 +822,93 @@ namespace cloudbrokermodels {
 		return c - At_y;
 	}
 
+
+	/* Returns a list of costs for each arc in the loaded problem
+	 * - The cost returned is the cost associated with choosing an arc in the up-link (thus indirectly
+	 *   selecting it's return arc for the down-link.
+	 */
 	vector<double> CloudBrokerModel::_dualPrimaryArcCostsForService(entities::service *s, dual_vals *duals) {
 		vector<double> arc_costs(data->n_arcs, 0.0);
 
-		/* for every arc */
+		/* for every arc (with return arc) */
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc * a = &data->arcs[aa];
+			arc * a_return = a->return_arc;
+			int aa_return = a->globalArcIndex;
 
 			/* REGULAR BANDWIDTH USAGE PRICE
-			 * add cost per bandwidth cost on arc
+			 * add cost from bandwidth on this arc arc in up-link and return arc in down-link
 			 */
-			arc_costs[aa] += a->bandwidth_price;
+			arc_costs[aa] += a->bandwidth_price * s->bandwidth_req_up
+					+ a_return->bandwidth_price * s->bandwidth_req_down;
 
 			/* DUAL PRICE: TOTAL CAPACITY CTR (PRIMARY)
-			 * add dual cost for use on this arc for this mapping
+			 * add dual cost for use on this arc in up-link and return arc in down-link
 			 */
-			arc_costs[aa] += duals->arcCapacityDuals[aa];
+			arc_costs[aa] += duals->arcCapacityDuals[aa] * s->bandwidth_req_up
+					+ duals->arcCapacityDuals[aa_return] * s->bandwidth_req_down;
 
 			/* DUAL PRICE: PRIMARY OVERLAP CTR (PRIMARY)
-			 * add overlap dual price for each service pair where owner takes part
+			 * add overlap dual price for this arc and return arc, for each service pair where owner takes part
 			 */
 			int tt, ss;
 			ss = s->globalServiceIndex;
 			for(tt = ss+1; tt < data->n_services; ++tt) {
-				arc_costs[aa] += duals->primaryOverlapDuals[aa][ss][tt-ss-1];
+				arc_costs[aa] += duals->primaryOverlapDuals[aa][ss][tt-ss-1]
+					+ duals->primaryOverlapDuals[aa_return][ss][tt-ss-1];
 			}
 			tt = s->globalServiceIndex;
 			for(ss = 0; ss < tt; ++ss) {
-				arc_costs[aa] += duals->primaryOverlapDuals[aa][ss][tt-ss-1];
+				arc_costs[aa] += duals->primaryOverlapDuals[aa][ss][tt-ss-1]
+					+ duals->primaryOverlapDuals[aa_return][ss][tt-ss-1];
 			}
 		}
 
 		return arc_costs;
 	}
 
-	vector<double> CloudBrokerModel::_dualBackupArcCostsForService(entities::service *s, dual_vals *duals) {
+	vector<double> CloudBrokerModel::_dualBackupArcCostsForService(entities::service *s, dual_vals *duals, returnPath *primary) {
 		vector<double> arc_costs(data->n_arcs, 0.0);
 
-		/* for every arc */
+		// backup usage depends on primary usage -> extract primary usage for each arc
+		vector<double> primary_usage(data->n_arcs, 0.0);
+		for(list<arc*>::iterator a_itr = primary->arcs_up.begin(), a_end = primary->arcs_up.end(); a_itr != a_end; ++a_itr) {
+			arc *a = *a_itr;
+			primary_usage.assign(a->globalArcIndex, primary->bandwidth_usage_up);
+		}
+		for(list<arc*>::iterator a_itr = primary->arcs_down.begin(), a_end = primary->arcs_down.end(); a_itr != a_end; ++a_itr) {
+			arc *a = *a_itr;
+			primary_usage.assign(a->globalArcIndex, primary->bandwidth_usage_down);
+		}
+
+		/* for every arc (with return arc) */
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc * a = &data->arcs[aa];
+			arc * a_return = a->return_arc;
+			int aa_return = a_return->globalArcIndex;
+
+			// extract real bandwidth requirement for backup path on arc/return arc if arc is used
+			double usage_up = s->bandwidth_req_up - primary_usage.at(aa);
+			double usage_down = s->bandwidth_req_down - primary_usage.at(aa_return);
+
 
 			/* REGULAR BANDWIDTH USAGE PRICE
-			 * add cost per bandwidth cost on arc
+			 * add cost from backup bandwidth on this arc arc in up-link and return arc in down-link
 			 */
-			arc_costs[aa] += a->bandwidth_price;	// < 0
+			arc_costs[aa] += a->bandwidth_price * usage_up + a_return->bandwidth_price * usage_down;	// < 0
 
 
 			/* DUAL PRICE: SUM BACKUP CTR (BACKUP)
 			 * add dual cost for backup use on arc for mapping with beta factor
 			 */
-			arc_costs[aa] += beta * duals->backupSumDuals[aa]; // < 0
+			arc_costs[aa] += beta * duals->backupSumDuals[aa] * usage_up
+					+ beta * duals->backupSumDuals[aa_return] * usage_down; // < 0
 
 			/* DUAL PRICE: SINGLE BACKUP CTR (BACKUP)
 			 * add dual cost for backup use on arc for mapping
 			 */
-			arc_costs[aa] += duals->backupSingleDuals[aa][s->globalServiceIndex]; // < 0
+			arc_costs[aa] += duals->backupSingleDuals[aa][s->globalServiceIndex] * usage_up
+					+ duals->backupSingleDuals[aa_return][s->globalServiceIndex] * usage_down; // < 0
 
 			/* DUAL PRICE: BACKUP OVERLAP CTR (BACKUP)
 			 * add overlap dual price if backup path uses arc for each service pair where owner takes part
@@ -884,11 +916,21 @@ namespace cloudbrokermodels {
 			int tt, ss;
 			ss = s->globalServiceIndex;
 			for(tt = ss+1; tt < data->n_services; ++tt) {
-				arc_costs[aa] += duals->backupOverlapDuals[aa][ss][tt-ss-1]; // < 0
+				if(usage_up > 0.0) {
+					arc_costs[aa] += duals->backupOverlapDuals[aa][ss][tt-ss-1]; // < 0
+				}
+				if(usage_down > 0.0) {
+					arc_costs[aa] += duals->backupOverlapDuals[aa_return][ss][tt-ss-1]; // < 0
+				}
 			}
 			tt = s->globalServiceIndex;
 			for(ss = 0; ss < tt; ++ss) {
-				arc_costs[aa] += duals->backupOverlapDuals[aa][ss][tt-ss-1]; // < 0
+				if(usage_up > 0.0) {
+					arc_costs[aa] += duals->backupOverlapDuals[aa][ss][tt-ss-1]; // < 0
+				}
+				if(usage_down > 0.0) {
+					arc_costs[aa] += duals->backupOverlapDuals[aa_return][ss][tt-ss-1]; // < 0
+				}
 			}
 
 
@@ -896,9 +938,11 @@ namespace cloudbrokermodels {
 		return arc_costs;  // < 0 for all arcs
 	}
 
-	double CloudBrokerModel::_spp(vector<arc> *arcs, vector<double> *arc_costs, int n_nodes, int start_node, int end_node, returnPath *result) {
+	returnPath CloudBrokerModel::_spprc(int n_nodes, int start_node, int end_node, vector<arc> *arcs, vector<double> *arc_costs, int max_latency) {
+
+		/******** SETUP ***********/
 		vector<double> costs(n_nodes, 9999999);
-		vector<int> predecessors(n_nodes, -1);
+		vector<int> incoming_arc(n_nodes, -1);
 		vector<vector<int> > node_arcs(n_nodes);
 		list<int> remaining_nodes;
 		list<int> finished_nodes;
@@ -910,49 +954,85 @@ namespace cloudbrokermodels {
 			remaining_nodes.push_back(n);
 		}
 
+		/************ SPPwRC labeling algorithm *************/
 
-		return costs.at(end_node);
+
+		/********** EXTRACT SOLUTION **********/
+
+		returnPath path;
+		path.cost = costs.at(end_node);
+		path.startNode = start_node;
+		path.endNode = end_node;
+		path.exp_availability = 1.0;
+		int node = end_node;
+		while(node != start_node) {
+			arc *a = &arcs->at(incoming_arc.at(node));
+			node = a->startNode;
+			path.arcs_up.push_front(a);
+			path.arcs_down.push_front(a->return_arc);
+			path.exp_availability *= a->exp_availability;
+		}
+
+		return path;
 	}
 
 	bool CloudBrokerModel::generateMappingHeuristicA(customer *c, service *s, dual_vals *duals) {
 
+		// calculate arc costs with dual values for a primary path for this service
 		vector<double> arc_costs_primary = _dualPrimaryArcCostsForService(s, duals);
-		vector<double> arc_costs_backup = _dualBackupArcCostsForService(s, duals);
 
+		// for each possible placement of this service
 		for(unsigned int pp = 0; pp < s->possible_placements.size(); ++pp) {
 
 			placement *p = &s->possible_placements.at(pp);
-
 			int placement_node = data->n_nodes - data->n_providers + p->globalProviderIndex;;
 			int customer_node = c->globalCustomerIndex;
 
-			returnPath primary;
-
-			double evaluation = -duals->serveCustomerDuals[customer_node];
+			double serve_customer_dual_cost = -duals->serveCustomerDuals[customer_node];
 
 			// find primary path by shortest path problem
-			double primary_cost = _spp(&data->arcs, &arc_costs_primary, data->n_nodes, customer_node, placement_node, &primary);
-			evaluation += primary_cost;
-			// check availability req
-			if(primary.exp_availability > s->availability_req) {
-				// IF availability req ok -> return mapping using path
+			returnPath primary = _spprc(data->n_nodes, customer_node, placement_node, &data->arcs, &arc_costs_primary, s->latency_req);
+			// add service placement cost to path
+			primary.cost += p->price;
 
-			} else {
-				// ELSE
-				// while true:
-					// remove one arc from primary path from network
-					// find backup path by shortest path problem
-					// IF total evaluation is positive
-						// IF availability req ok -> add mapping, break loop
-						// ELSE -> continue loop
-					// ELSE -> break loop
+			// check if found primary path can be basis for a profitable column
+			if(serve_customer_dual_cost + primary.cost > 0) {
+				// check availability req
+				if(primary.exp_availability > s->availability_req) {
+					// IF availability req ok -> add mapping using path as primary
+					data->paths.push_back(primary);
+					mapping m;
+					m.primary = &data->paths.back();
+					m.backup = NULL;
+					AddMapping(s->globalServiceIndex, &m);
+				} else {
+					// ELSE: try finding primary/backup combo
 
+					// extract arc costs with dual values for a backup path
+					vector<double> arc_costs_backup = _dualBackupArcCostsForService(s, duals, &primary);
+
+					// while true/iterlimit:
+					int iterations = 0;
+					while(iterations < 100) {
+						// find backup path by shortest path problem
+						returnPath backup = _spprc(data->n_nodes, customer_node, placement_node, &data->arcs, &arc_costs_backup, s->latency_req);
+						// IF total evaluation is positive
+						if(serve_customer_dual_cost + primary.cost + backup.cost > 0) {
+
+							// IF availability req ok -> add mapping, break loop
+							// ELSE
+							//   -> remove one arc from primary path from network
+							//   -> continue loop
+
+						}
+						// ELSE -> break loop
+						else {
+							break;
+						}
+						++iterations;
+					}
+				}
 			}
-
-
-
-
-
 		}
 
 
