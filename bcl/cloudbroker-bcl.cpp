@@ -139,7 +139,7 @@ int main(void) {
 						"\n\n Options:\n"
 						"(1) Set max number of paths per placement\n"
 						"(2) Toggle Calculate Path Combo availabilities\n"
-						"(3) Change Column Generation Algorithm"
+						"(3) Change Column Generation Algorithm\n"
 						"(0) back\n\nSelection: ";
 				cin >> configSelection;
 

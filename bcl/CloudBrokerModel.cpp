@@ -61,6 +61,19 @@ namespace cloudbrokermodels {
 			static double F_BandwidthCapacityForArc(arc *a);
 	};
 
+	/********** Label struct ************
+	 * Data structure for 'labels' used in the labeling algorithm for solving the
+	 * SPPRC in heuristic A for column generation
+	 */
+	struct label {
+		double cost;
+		double latency;
+		int restricted_arcs_count;
+		int end_node;
+		arc *last_arc;
+		label *parent;
+	};
+
 	/* CloudBrokerModel constructor
 	 * - Includes necessary class member initialisations
 	 */
@@ -938,48 +951,83 @@ namespace cloudbrokermodels {
 		return arc_costs;  // < 0 for all arcs
 	}
 
-	returnPath CloudBrokerModel::_spprc(int n_nodes, int start_node, int end_node, vector<arc> *arcs, vector<double> *arc_costs, int max_latency) {
+	/* _spprc: solved an SPPRC problem using a labeling algorithm
+	 * assumptions: the expected availability is the probability of an arc and its return arc to go down, thus
+	 * the availability of the path returned is only the product sum of its arc in the up-link (down-link using the
+	 * equivalent link in the opposite direction)
+	 */
+	returnPath CloudBrokerModel::_spprc(int n_nodes, int start_node, int end_node, vector<vector<arc*> > *node_arcs, vector<double> *arc_costs, int max_latency) {
 
 		/******** SETUP ***********/
-		vector<double> costs(n_nodes, 9999999);
-		vector<int> incoming_arc(n_nodes, -1);
-		vector<vector<int> > node_arcs(n_nodes);
-		list<int> remaining_nodes;
-		list<int> finished_nodes;
+		list<label> unfinished_labels;
+		list<label> pareto_optimal_labels;
 
-		for(unsigned int aa = 0; aa < arcs->size(); ++aa) {
-			node_arcs.at(arcs->at(aa).startNode).push_back(aa);
-		}
-		for(int n = 0; n < n_nodes; ++n) {
-			remaining_nodes.push_back(n);
-		}
+		label *bestlabel = NULL;
+
+		label initiallabel;
+		initiallabel.cost = 0.0;
+		initiallabel.latency = 0.0;
+		initiallabel.restricted_arcs_count = 0;
+		initiallabel.end_node = start_node;
+		initiallabel.last_arc = NULL;
+		initiallabel.parent = NULL;
+
+		unfinished_labels.push_back(initiallabel);
 
 		/************ SPPwRC labeling algorithm *************/
 
+		while(unfinished_labels.size() > 0) {
+			// PATH EXPANSION
+			// - extract q from U
+			label *q = unfinished_labels.front();
+			unfinished_labels.pop_front();
+			// - arcs from this label's (q) end node
+			vector<arc*> *arcs = &node_arcs->at(q->end_node);
+			// - try expand for each arc from end node
+			for(unsigned int aa = 0; aa < arcs->size(); ++aa) {
+				arc *a = &arcs->at(aa);
+				// try expand label by arc -> add to u
+			}
+
+			// DOMINATION
+			// - if 'any condition'
+			//  - apply dominance algorithm to paths from u union p ending at same node v
+		}
 
 		/********** EXTRACT SOLUTION **********/
 
-		returnPath path;
-		path.cost = costs.at(end_node);
-		path.startNode = start_node;
-		path.endNode = end_node;
-		path.exp_availability = 1.0;
-		int node = end_node;
-		while(node != start_node) {
-			arc *a = &arcs->at(incoming_arc.at(node));
-			node = a->startNode;
-			path.arcs_up.push_front(a);
-			path.arcs_down.push_front(a->return_arc);
-			path.exp_availability *= a->exp_availability;
-		}
+		if(bestlabel != NULL) {
+			returnPath path;
+			path.cost = bestlabel->cost;
+			path.startNode = start_node;
+			path.endNode = end_node;
+			path.exp_availability = 1.0;
 
-		return path;
+			label *l = bestlabel;
+			while(l->last_arc != NULL) {
+				arc *a = l->last_arc;
+				path.arcs_up.push_front(a);
+				path.arcs_down.push_front(a->return_arc);
+				path.exp_availability *= a->exp_availability;
+				l = l->parent;
+			}
+
+			return path;
+		}
+		returnPath dummy;
+		return dummy;
 	}
 
 	bool CloudBrokerModel::generateMappingHeuristicA(customer *c, service *s, dual_vals *duals) {
 
 		// calculate arc costs with dual values for a primary path for this service
 		vector<double> arc_costs_primary = _dualPrimaryArcCostsForService(s, duals);
+		// create a list of arcs for each node that originates from that node
+		vector<vector<arc*> > node_arcs(data->n_nodes);
+		for(int aa = 0; aa < data->n_arcs; ++aa) {
+			arc *a = &data->arcs.at(aa);
+			node_arcs.at(a->startNode).push_back(a);
+		}
 
 		// for each possible placement of this service
 		for(unsigned int pp = 0; pp < s->possible_placements.size(); ++pp) {
@@ -991,7 +1039,7 @@ namespace cloudbrokermodels {
 			double serve_customer_dual_cost = -duals->serveCustomerDuals[customer_node];
 
 			// find primary path by shortest path problem
-			returnPath primary = _spprc(data->n_nodes, customer_node, placement_node, &data->arcs, &arc_costs_primary, s->latency_req);
+			returnPath primary = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs, &arc_costs_primary, s->latency_req);
 			// add service placement cost to path
 			primary.cost += p->price;
 
@@ -1015,7 +1063,7 @@ namespace cloudbrokermodels {
 					int iterations = 0;
 					while(iterations < 100) {
 						// find backup path by shortest path problem
-						returnPath backup = _spprc(data->n_nodes, customer_node, placement_node, &data->arcs, &arc_costs_backup, s->latency_req);
+						returnPath backup = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs, &arc_costs_backup, s->latency_req);
 						// IF total evaluation is positive
 						if(serve_customer_dual_cost + primary.cost + backup.cost > 0) {
 
