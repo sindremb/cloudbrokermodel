@@ -765,7 +765,7 @@ namespace cloudbrokermodels {
 	double CloudBrokerModel::_bruteForceEvalMapping(mapping *m, service *owner, dual_vals *duals) {
 
 		/**** c ****/
-		double c = - m->primary->cost;
+		double c = - m->primary->cost; // includes cost of placement and bandwidth usage on arcs
 
 		/**** A^Ty: *****/
 		double At_y = 0.0;
@@ -859,8 +859,8 @@ namespace cloudbrokermodels {
 			/* DUAL PRICE: TOTAL CAPACITY CTR (PRIMARY)
 			 * add dual cost for use on this arc in up-link and its return arc in down-link
 			 */
-			arc_costs[aa] += s->bandwidth_req_up * duals->arcCapacityDuals[aa]
-					+ s->bandwidth_req_down * duals->arcCapacityDuals[aa_return];
+			arc_costs[aa] += s->bandwidth_req_up 	* duals->arcCapacityDuals[aa]
+			               + s->bandwidth_req_down 	* duals->arcCapacityDuals[aa_return];
 
 			/* DUAL PRICE: PRIMARY OVERLAP CTR (PRIMARY)
 			 * add overlap dual price for this arc and return arc, for each service pair where owner takes part
@@ -868,12 +868,12 @@ namespace cloudbrokermodels {
 			int tt, ss;
 			ss = s->globalServiceIndex;
 			for(tt = ss+1; tt < data->n_services; ++tt) {
-				arc_costs[aa] += duals->primaryOverlapDuals[aa][ss][tt-ss-1]
+				arc_costs[aa] += duals->primaryOverlapDuals[aa		 ][ss][tt-ss-1]
 				               + duals->primaryOverlapDuals[aa_return][ss][tt-ss-1];
 			}
 			tt = s->globalServiceIndex;
 			for(ss = 0; ss < tt; ++ss) {
-				arc_costs[aa] += duals->primaryOverlapDuals[aa][ss][tt-ss-1]
+				arc_costs[aa] += duals->primaryOverlapDuals[aa		 ][ss][tt-ss-1]
 					           + duals->primaryOverlapDuals[aa_return][ss][tt-ss-1];
 			}
 		}
@@ -902,8 +902,8 @@ namespace cloudbrokermodels {
 			int aa_return = a_return->globalArcIndex;
 
 			// extract real bandwidth requirement for backup path on arc/return arc if arc is used
-			double usage_up = s->bandwidth_req_up - primary_usage[aa];
-			double usage_down = s->bandwidth_req_down - primary_usage[aa_return];
+			double usage_up = max(s->bandwidth_req_up - primary_usage[aa], 0.0);
+			double usage_down = max(s->bandwidth_req_down - primary_usage[aa_return], 0.0);
 
 			/* DUAL PRICE: SUM BACKUP CTR (BACKUP)
 			 * add dual cost for backup use on arc for mapping with beta factor
@@ -914,7 +914,7 @@ namespace cloudbrokermodels {
 			/* DUAL PRICE: SINGLE BACKUP CTR (BACKUP)
 			 * add dual cost for backup use on arc for mapping
 			 */
-			arc_costs[aa] += duals->backupSingleDuals[aa]		[s->globalServiceIndex] * usage_up
+			arc_costs[aa] += duals->backupSingleDuals[aa	   ][s->globalServiceIndex] * usage_up
 						   + duals->backupSingleDuals[aa_return][s->globalServiceIndex] * usage_down; // < 0
 
 			/* DUAL PRICE: BACKUP OVERLAP CTR (BACKUP)
@@ -1016,12 +1016,12 @@ namespace cloudbrokermodels {
 				// DOMINATION
 
 				// for every combination of labels (a, b)
-				// - every label a not dominated
+				// - every label a not having been dominated
 				for(list<label>::iterator l_itr = all_labels.begin(), l_end = all_labels.end(); l_itr != l_end; ++l_itr) {
 					label* a = &(*l_itr);
 					if(!a->isdominated) {
 
-						// - every label b succeeding a not dominated
+						// - every label b, succeeding a, that has not been dominated
 						list<label>::iterator l_itr2 = l_itr;
 						++l_itr2;
 						for(list<label>::iterator l_end2 = all_labels.end(); l_itr2 != l_end2; ++l_itr2) {
@@ -1132,7 +1132,7 @@ namespace cloudbrokermodels {
 									   1, &primary_up_arcs);
 
 			// check if found primary path can be basis for a profitable column
-			if(- serve_customer_dual - primary_path_eval - p->price > 0) {
+			if(- serve_customer_dual - primary_path_eval - p->price > 0.001) {
 				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
 				// IF availability req ok
 				if(primary.exp_availability > s->availability_req) {
@@ -1147,7 +1147,7 @@ namespace cloudbrokermodels {
 					// add new mapping to model and finish
 					addMappingToModel(&m, s);
 
-					cout << "new mapping eval: " << - serve_customer_dual - primary_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
+					cout << "--new mapping eval: " << - serve_customer_dual - primary_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
 					return true;
 				} else {
 					// ELSE: try finding primary/backup combo
@@ -1166,7 +1166,7 @@ namespace cloudbrokermodels {
 
 					// while backup path has non-negative overlap restriction:
 					int max_restricted_arcs_backup = (int)primary.arcs_up.size() -1;
-					while(max_restricted_arcs_backup >= 0) {
+					while(max_restricted_arcs_backup >= 0.001) {
 
 						// find backup path by shortest path problem
 						list<arc*> backup_up_arcs;
@@ -1195,7 +1195,7 @@ namespace cloudbrokermodels {
 								// add mapping to model
 								addMappingToModel(&m, s);
 
-								cout << "new mapping eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
+								cout << "--new mapping eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
 								return true;
 							}
 						}
