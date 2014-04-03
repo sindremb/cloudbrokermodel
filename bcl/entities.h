@@ -117,12 +117,9 @@ namespace entities {
 	};
 
 	struct customer {
-		// revenue from serving customer
-		double revenue;
-		int globalCustomerIndex;
-
-		// services required by this customer (pointers)
-		std::vector<service*> services;
+		double revenue;					// revenue from serving customer
+		int globalCustomerIndex;		// global customer index
+		std::vector<service*> services; // services required by this customer (pointers)
 	};
 
 	struct dataContent {

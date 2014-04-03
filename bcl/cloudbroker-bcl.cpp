@@ -33,7 +33,7 @@ int main(void) {
 	configModel config;
 		config.calc_combo_availabilities = true;
 		config.max_paths_per_placement = 50;
-		config.column_gen_alg = 1;
+		config.column_gen_alg = 2;
 
 	cout << "Welcome to network path generation bot v0.4";
 	while(true) {
@@ -123,7 +123,7 @@ int main(void) {
 				cout << "\n Finished building model!\n";
 
 				// STEP 4: run optimisation
-				model.RunModelColumnGeneration();
+				model.RunModelColumnGeneration(config.column_gen_alg);
 
 				model.OutputResults();
 			}
@@ -157,6 +157,7 @@ int main(void) {
 							"\nEnter selection: ";
 					int alg_selection;
 					cin >> alg_selection;
+					config.column_gen_alg = alg_selection;
 
 				}
 				else if (configSelection == 0) {
