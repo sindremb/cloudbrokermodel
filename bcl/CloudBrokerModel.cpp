@@ -800,7 +800,7 @@ namespace cloudbrokermodels {
 			At_y += q_backup_usage * duals->backupSingleDuals[aa][owner->globalServiceIndex];
 
 			/* DUAL PRICE: PRIMARY OVERLAP CTR (PRIMARY)
-			 * add overlap dual price if primary path uses arc for each service pair where owner takes part
+			 * add overlap dual price if primary path uses arc for each service pair where owner takes part (usage > 0)
 			 */
 			if(u_primary_usage > 0) {
 				/* for every service pair where owner service takes part */
@@ -817,7 +817,7 @@ namespace cloudbrokermodels {
 			}
 
 			/* DUAL PRICE: BACKUP OVERLAP CTR (BACKUP)
-			 * add overlap dual price if backup path uses arc for each service pair where owner takes part
+			 * add overlap dual price if backup path uses arc for each service pair where owner takes part (usage > 0)
 			 */
 			if(q_backup_usage > 0) {
 				/* for every service pair where owner service takes part */
