@@ -8,6 +8,10 @@
 #include <iostream>
 #include <algorithm>
 
+#ifndef EPS
+#define EPS 1e-6
+#endif
+
 using namespace entities;
 using namespace ::dashoptimization;
 using namespace std;
@@ -431,7 +435,7 @@ namespace cloudbrokermodels {
 					/* sum over all mappings for service s using arc a */
 					for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
 						mapping * m = *m_itr;
-						if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) > 0.0) {
+						if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
 							primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
 						}
 					}
@@ -439,7 +443,7 @@ namespace cloudbrokermodels {
 					/* sum over all mappings for service t using arc a */
 					for (list<mapping*>::iterator m_itr = t->mappings.begin(), m_end = t->mappings.end(); m_itr != m_end; ++m_itr) {
 						mapping * m = *m_itr;
-						if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) > 0.0) {
+						if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
 							primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
 						}
 					}
@@ -487,7 +491,7 @@ namespace cloudbrokermodels {
 					/* sum over all mappings for service s using arc a */
 					for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
 						mapping * m = *m_itr;
-						if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0) {
+						if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) >= EPS) {
 
 							/* add mapping selection var for mapping */
 							backup_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
@@ -497,7 +501,7 @@ namespace cloudbrokermodels {
 					/* sum over all mappings for service t using arc a */
 					for (list<mapping*>::iterator m_itr = t->mappings.begin(), m_end = t->mappings.end(); m_itr != m_end; ++m_itr) {
 						mapping * m = *m_itr;
-						if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) > 0.0) {
+						if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) >= EPS) {
 
 							/* add mapping selection var for mapping */
 							backup_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
@@ -540,7 +544,7 @@ namespace cloudbrokermodels {
 		master_problem.setMsgLevel(1);											/* disable default XPRS messages */
 
 		int itercount = 0;
-		while(itercount < 40) {
+		while(itercount < 4) {
 			bool foundColumn = false;
 			cout << "\nIteration " << itercount+1 << ":\n-running lp-relaxation..\n";
 			this->RunModel(false);
@@ -680,7 +684,7 @@ namespace cloudbrokermodels {
 			backupSumCtr[aa] += beta * q_backup_usage * (*w);
 
 			// if primary path uses capacity on arc
-			if(u_primary_usage > 0) {
+			if(u_primary_usage >= EPS) {
 				// add mapping selection var to 'primaryOverlap'-constraints for every service pair where owner service takes part
 				int tt, ss;
 				ss = owner->globalServiceIndex;
@@ -695,7 +699,7 @@ namespace cloudbrokermodels {
 			}
 
 			// if backup path uses capacity on arc
-			if(q_backup_usage > 0) {
+			if(q_backup_usage >= EPS) {
 				// add mapping selection var to 'backupOverlap'-constraints for every service pair where owner service takes part
 				int tt, ss;
 				ss = owner->globalServiceIndex;
@@ -755,7 +759,7 @@ namespace cloudbrokermodels {
 			}
 		}
 
-		if(best_eval > 0.00001) {
+		if(best_eval >= EPS) {
 			this->addMappingToModel(&bestFound, s);
 			return true;
 		}
@@ -802,7 +806,7 @@ namespace cloudbrokermodels {
 			/* DUAL PRICE: PRIMARY OVERLAP CTR (PRIMARY)
 			 * add overlap dual price if primary path uses arc for each service pair where owner takes part (usage > 0)
 			 */
-			if(u_primary_usage > 0) {
+			if(u_primary_usage >= EPS) {
 				/* for every service pair where owner service takes part */
 				int tt, ss;
 				ss = owner->globalServiceIndex;
@@ -819,7 +823,7 @@ namespace cloudbrokermodels {
 			/* DUAL PRICE: BACKUP OVERLAP CTR (BACKUP)
 			 * add overlap dual price if backup path uses arc for each service pair where owner takes part (usage > 0)
 			 */
-			if(q_backup_usage > 0) {
+			if(q_backup_usage >= EPS) {
 				/* for every service pair where owner service takes part */
 				int tt, ss;
 				ss = owner->globalServiceIndex;
@@ -923,19 +927,19 @@ namespace cloudbrokermodels {
 			int tt, ss;
 			ss = s->globalServiceIndex;
 			for(tt = ss+1; tt < data->n_services; ++tt) {
-				if(usage_up > 0.0) {
+				if(usage_up >= EPS) {
 					arc_costs[aa] += duals->backupOverlapDuals[aa][ss][tt-ss-1]; // < 0
 				}
-				if(usage_down > 0.0) {
+				if(usage_down >= EPS) {
 					arc_costs[aa] += duals->backupOverlapDuals[aa_return][ss][tt-ss-1]; // < 0
 				}
 			}
 			tt = s->globalServiceIndex;
 			for(ss = 0; ss < tt; ++ss) {
-				if(usage_up > 0.0) {
+				if(usage_up >= EPS) {
 					arc_costs[aa] += duals->backupOverlapDuals[aa][ss][tt-ss-1]; // < 0
 				}
-				if(usage_down > 0.0) {
+				if(usage_down >= EPS) {
 					arc_costs[aa] += duals->backupOverlapDuals[aa_return][ss][tt-ss-1]; // < 0
 				}
 			}
@@ -1102,6 +1106,8 @@ namespace cloudbrokermodels {
 
 	bool CloudBrokerModel::generateMappingHeuristicA(customer *c, service *s, dual_vals *duals) {
 
+		cout << "\nService #" << s->globalServiceIndex+1 << "\n";
+
 		// calculate arc costs with dual values for a primary path for this service
 		vector<double> arc_costs_primary = _dualPrimaryArcCostsForService(s, duals);
 
@@ -1125,6 +1131,8 @@ namespace cloudbrokermodels {
 			int placement_node = data->n_nodes - data->n_providers + p->globalProviderIndex;
 			int customer_node = c->globalCustomerIndex;
 
+			cout << "-Placement #" << p->globalProviderIndex+1 << "\n";
+
 			// find primary path by shortest path problem
 			list<arc*> primary_up_arcs;
 			double primary_path_eval  = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs,
@@ -1132,8 +1140,16 @@ namespace cloudbrokermodels {
 									   1, &primary_up_arcs);
 
 			// check if found primary path can be basis for a profitable column
-			if(- serve_customer_dual - primary_path_eval - p->price > 0.001) {
+			if(- serve_customer_dual - primary_path_eval - p->price >= EPS) {
 				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
+
+				// temp check code
+				mapping test_primary;
+				test_primary.primary = &primary;
+				test_primary.backup = NULL;
+				cout << "--new primary only eval: " << - serve_customer_dual - primary_path_eval - p->price <<
+						" (check: " << _bruteForceEvalMapping(&test_primary, s, duals) << ")\n";
+
 				// IF availability req ok
 				if(primary.exp_availability > s->availability_req) {
 					// create new mapping
@@ -1147,10 +1163,12 @@ namespace cloudbrokermodels {
 					// add new mapping to model and finish
 					addMappingToModel(&m, s);
 
-					cout << "--new mapping eval: " << - serve_customer_dual - primary_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
+					cout << "!!!new mapping eval: " << - serve_customer_dual - primary_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
 					return true;
 				} else {
 					// ELSE: try finding primary/backup combo
+
+					cout << "---> not feasible\n";
 
 					// extract arc costs with dual values for a backup path
 					vector<double> arc_costs_backup = _dualBackupArcCostsForService(s, duals, &primary);
@@ -1174,8 +1192,16 @@ namespace cloudbrokermodels {
 														 &arc_costs_backup, &arc_restrictions_backup, s->latency_req,
 														 max_restricted_arcs_backup, &backup_up_arcs);
 
+						// temp check code
+						returnPath bpath_test = _returnPathFromArcs(&backup_up_arcs, s, p);
+						mapping test_backup;
+						test_backup.primary = &primary;
+						test_backup.backup = &bpath_test;
+						cout << "---new incl backup eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price <<
+												" (check: " << _bruteForceEvalMapping(&test_backup, s, duals) << ")\n";
+
 						// IF total evaluation is positive
-						if(- serve_customer_dual - primary_path_eval - backup_path_eval - p->price > 0) {
+						if(- serve_customer_dual - primary_path_eval - backup_path_eval - p->price >= EPS) {
 
 							// create a return path object and calculate combo availability
 							returnPath backup = _returnPathFromArcs(&backup_up_arcs, s, p);
@@ -1195,12 +1221,15 @@ namespace cloudbrokermodels {
 								// add mapping to model
 								addMappingToModel(&m, s);
 
-								cout << "--new mapping eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
+								cout << "!!!!new mapping eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
 								return true;
+							} else {
+								cout << "--->not feasible\n";
 							}
 						}
 						// ELSE -> break loop (any successive tries will have equally good or worse value evaluation)
 						else {
+							cout << "--->not profitable\n";
 							break;
 						}
 
