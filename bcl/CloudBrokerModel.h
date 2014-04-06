@@ -59,7 +59,7 @@ namespace cloudbrokermodels {
 		double _bruteForceEvalMapping(entities::mapping *m, entities::service *s, dual_vals *duals);
 
 		/**** HEURISTIC A ****/
-		bool generateMappingHeuristicA(entities::customer *c, entities::service *s, dual_vals *duals);
+		bool generateMappingHeuristicA(entities::customer *c, entities::service *s, dual_vals *duals, std::vector<std::vector<entities::arc*> >* node_arcs);
 		std::vector<double> _dualPrimaryArcCostsForService(entities::service *s, dual_vals *duals);
 		std::vector<double> _dualBackupArcCostsForService(entities::service *s, dual_vals *duals, entities::returnPath *primary);
 		entities::returnPath _returnPathFromArcs(std::list<entities::arc*>* arcs, entities::service* owner, entities::placement* p);

@@ -12,6 +12,10 @@
 #define EPS 1e-6
 #endif
 
+#ifndef Inf
+#define Inf 1e10
+#endif
+
 using namespace entities;
 using namespace ::dashoptimization;
 using namespace std;
@@ -543,8 +547,15 @@ namespace cloudbrokermodels {
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
 		master_problem.setMsgLevel(1);											/* disable default XPRS messages */
 
+		// create a list of arcs for each node that originates from that node
+		vector<vector<arc*> > node_arcs(data->n_nodes);
+		for(int aa = 0; aa < data->n_arcs; ++aa) {
+			arc *a = &data->arcs.at(aa);
+			node_arcs.at(a->startNode).push_back(a);
+		}
+
 		int itercount = 0;
-		while(itercount < 4) {
+		while(itercount < 100) {
 			bool foundColumn = false;
 			cout << "\nIteration " << itercount+1 << ":\n-running lp-relaxation..\n";
 			this->RunModel(false);
@@ -557,11 +568,12 @@ namespace cloudbrokermodels {
 			for(int cc = 0; cc < this->data->n_customers; ++cc) {
 				customer *c = &this->data->customers[cc];
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
+				//for(unsigned int ss = 0; ss < 1; ++ss) {
 					service *s = c->services[ss];
 					if(columnGenerationMethod == 1) {
 						if(this->generateMappingColumnBruteForce(s, &duals)) foundColumn = true;
 					} else if(columnGenerationMethod == 2) {
-						if(this->generateMappingHeuristicA(c, s, &duals)) foundColumn = true;
+						if(this->generateMappingHeuristicA(c, s, &duals, &node_arcs)) foundColumn = true;
 					}
 				}
 			}
@@ -840,7 +852,6 @@ namespace cloudbrokermodels {
 		return c - At_y;
 	}
 
-
 	/* Returns a list of costs for each arc in the loaded problem
 	 * - The cost returned is the cost associated with choosing an arc in the up-link (thus indirectly
 	 *   selecting it's return arc for the down-link.
@@ -852,7 +863,7 @@ namespace cloudbrokermodels {
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc * a = &data->arcs[aa];
 			arc * a_return = a->return_arc;
-			int aa_return = a->globalArcIndex;
+			int aa_return = a_return->globalArcIndex;
 
 			/* REGULAR BANDWIDTH USAGE COST
 			 * add cost from bandwidth on this arc arc in up-link and return arc in down-link
@@ -1055,7 +1066,7 @@ namespace cloudbrokermodels {
 		/********** EXTRACT SOLUTION **********/
 
 		label *bestlabel = NULL;
-		double bestcost = 999999999.0;
+		double bestcost = Inf;
 
 		for(list<label*>::iterator l_itr = p.begin(), l_end = p.end(); l_itr != l_end; ++l_itr) {
 			label* l = *l_itr;
@@ -1067,10 +1078,12 @@ namespace cloudbrokermodels {
 
 		if(bestlabel != NULL) {
 
+			double costcheck = 0.0;
 			label *l = bestlabel;
 			while(l->last_arc != NULL) {
 				arc *a = l->last_arc;
 				used_arcs->push_front(a);
+				costcheck += arc_costs->at(a->globalArcIndex);
 				l = l->parent;
 			}
 
@@ -1078,7 +1091,7 @@ namespace cloudbrokermodels {
 		}
 
 		// return a very high cost if no path to end node was found
-		return 99999999.0;
+		return Inf;
 	}
 
 	returnPath CloudBrokerModel::_returnPathFromArcs(list<arc*>* arcs, service* owner, placement* p) {
@@ -1104,25 +1117,21 @@ namespace cloudbrokermodels {
 		return path;
 	}
 
-	bool CloudBrokerModel::generateMappingHeuristicA(customer *c, service *s, dual_vals *duals) {
+	bool CloudBrokerModel::generateMappingHeuristicA(customer *c, service *s, dual_vals *duals, vector<vector<arc*> >* node_arcs) {
 
-		cout << "\nService #" << s->globalServiceIndex+1 << "\n";
+		// extract serve customer dual for this service's customer
+		// - this is the only value that can give a positive evaluation for a new mapping
+		double serve_customer_dual = duals->serveCustomerDuals[s->globalServiceIndex];
+		// - if not a "negative cost", new mapping can not have a positive evaluation, return false
+		if(serve_customer_dual >= 0.0) {
+			return false;
+		}
 
 		// calculate arc costs with dual values for a primary path for this service
 		vector<double> arc_costs_primary = _dualPrimaryArcCostsForService(s, duals);
 
 		// mark all arcs to be without restriction for primary path
 		vector<int> arc_restrictions_primary(data->n_arcs, 0);
-
-		// create a list of arcs for each node that originates from that node
-		vector<vector<arc*> > node_arcs(data->n_nodes);
-		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			arc *a = &data->arcs.at(aa);
-			node_arcs.at(a->startNode).push_back(a);
-		}
-
-		// extract serve customer dual for this service's customer
-		double serve_customer_dual = duals->serveCustomerDuals[s->globalServiceIndex];
 
 		// for each possible placement of this service
 		for(unsigned int pp = 0; pp < s->possible_placements.size(); ++pp) {
@@ -1131,24 +1140,18 @@ namespace cloudbrokermodels {
 			int placement_node = data->n_nodes - data->n_providers + p->globalProviderIndex;
 			int customer_node = c->globalCustomerIndex;
 
-			cout << "-Placement #" << p->globalProviderIndex+1 << "\n";
-
 			// find primary path by shortest path problem
 			list<arc*> primary_up_arcs;
-			double primary_path_eval  = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs,
+			double primary_path_eval  = _spprc(data->n_nodes, customer_node, placement_node, node_arcs,
 									   &arc_costs_primary, &arc_restrictions_primary, s->latency_req,
 									   1, &primary_up_arcs);
+
+			// see if a path was found at all -> if not, go to next iteration
+			if(primary_up_arcs.size() == 0) continue;
 
 			// check if found primary path can be basis for a profitable column
 			if(- serve_customer_dual - primary_path_eval - p->price >= EPS) {
 				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
-
-				// temp check code
-				mapping test_primary;
-				test_primary.primary = &primary;
-				test_primary.backup = NULL;
-				cout << "--new primary only eval: " << - serve_customer_dual - primary_path_eval - p->price <<
-						" (check: " << _bruteForceEvalMapping(&test_primary, s, duals) << ")\n";
 
 				// IF availability req ok
 				if(primary.exp_availability > s->availability_req) {
@@ -1163,12 +1166,10 @@ namespace cloudbrokermodels {
 					// add new mapping to model and finish
 					addMappingToModel(&m, s);
 
-					cout << "!!!new mapping eval: " << - serve_customer_dual - primary_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
+					cout << "---> NEW MAPPING eval: " << - serve_customer_dual - primary_path_eval - p->price << "\n";
 					return true;
 				} else {
 					// ELSE: try finding primary/backup combo
-
-					cout << "---> not feasible\n";
 
 					// extract arc costs with dual values for a backup path
 					vector<double> arc_costs_backup = _dualBackupArcCostsForService(s, duals, &primary);
@@ -1184,21 +1185,18 @@ namespace cloudbrokermodels {
 
 					// while backup path has non-negative overlap restriction:
 					int max_restricted_arcs_backup = (int)primary.arcs_up.size() -1;
-					while(max_restricted_arcs_backup >= 0.001) {
+					while(max_restricted_arcs_backup >= 0) {
 
 						// find backup path by shortest path problem
 						list<arc*> backup_up_arcs;
-						double backup_path_eval = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs,
+						double backup_path_eval = _spprc(data->n_nodes, customer_node, placement_node, node_arcs,
 														 &arc_costs_backup, &arc_restrictions_backup, s->latency_req,
 														 max_restricted_arcs_backup, &backup_up_arcs);
 
-						// temp check code
-						returnPath bpath_test = _returnPathFromArcs(&backup_up_arcs, s, p);
-						mapping test_backup;
-						test_backup.primary = &primary;
-						test_backup.backup = &bpath_test;
-						cout << "---new incl backup eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price <<
-												" (check: " << _bruteForceEvalMapping(&test_backup, s, duals) << ")\n";
+						if(backup_up_arcs.size() == 0) {
+							--max_restricted_arcs_backup;
+							continue;
+						}
 
 						// IF total evaluation is positive
 						if(- serve_customer_dual - primary_path_eval - backup_path_eval - p->price >= EPS) {
@@ -1221,15 +1219,12 @@ namespace cloudbrokermodels {
 								// add mapping to model
 								addMappingToModel(&m, s);
 
-								cout << "!!!!new mapping eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << " (check: " << _bruteForceEvalMapping(&m, s, duals) << ")\n";
+								cout << "---> NEW MAPPING eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
 								return true;
-							} else {
-								cout << "--->not feasible\n";
 							}
 						}
 						// ELSE -> break loop (any successive tries will have equally good or worse value evaluation)
 						else {
-							cout << "--->not profitable\n";
 							break;
 						}
 
