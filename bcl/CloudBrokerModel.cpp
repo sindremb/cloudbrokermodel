@@ -1310,7 +1310,6 @@ namespace cloudbrokermodels {
 				addMappingToModel(&m, s);
 
 				cout << "---> NEW MAPPING (primary only): " << - serve_customer_dual - primary_path_eval - p->price << "\n";
-				return true;
 			}
 
 			// find primary path to combine with backup by shortest path problem with resource constraints
@@ -1326,6 +1325,11 @@ namespace cloudbrokermodels {
 			// check if found primary path can be basis for a profitable column
 			if(- serve_customer_dual - primary_path_eval - p->price >= EPS) {
 				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
+
+				// if primary if availability feasible, it does not need a backup and will be generated in above code -> skip
+				if(primary.exp_availability >= s->availability_req) {
+					continue;
+				}
 
 				// try finding primary/backup combo
 				double min_availability = (s->availability_req - primary.exp_availability) / (1 - primary.exp_availability);
@@ -1410,6 +1414,8 @@ namespace cloudbrokermodels {
 
 		cout << "\nBackup beta: " << beta << "\n";
 
+		cout << "\nNumber of mappings: " << data->n_mappings << "\n";
+
 		for(int cc = 0; cc < data->n_customers; ++cc) {
 			customer *c = &data->customers[cc];
 			if(y_serveCustomerVars[cc].getSol() > 0.01) {
@@ -1427,8 +1433,18 @@ namespace cloudbrokermodels {
 						else if(w->getSol() > 0.01) {
 							cout <<  "  -> mapping #" << m->globalMappingIndex+1 << "\n";
 							cout << "   - primary path: " << m->primary->globalPathIndex+1 << ", cost: " << m->primary->cost << "\n";
+							cout << "    - nodes up: " << m->primary->arcs_up.front()->startNode+1;
+							for(list<arc*>::iterator a_itr = m->primary->arcs_up.begin(), a_end = m->primary->arcs_up.end(); a_itr != a_end; ++a_itr) {
+								cout << "->" << (*a_itr)->endNode+1;
+							}
+							cout << "\n";
 							if(m->backup != NULL) {
 								cout << "   - backup path: " << m->backup->globalPathIndex+1 << "\n";
+								cout << "    - nodes up: " << m->backup->arcs_up.front()->startNode+1;
+								for(list<arc*>::iterator a_itr = m->backup->arcs_up.begin(), a_end = m->backup->arcs_up.end(); a_itr != a_end; ++a_itr) {
+									cout << "->" << (*a_itr)->endNode+1;
+								}
+								cout << "\n";
 							}
 						}
 					}
