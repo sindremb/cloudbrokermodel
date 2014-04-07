@@ -76,6 +76,7 @@ namespace cloudbrokermodels {
 	struct label {
 		double cost;
 		double latency;
+		double availability;
 		int restricted_arcs_count;
 		int end_node;
 		arc *last_arc;
@@ -547,13 +548,6 @@ namespace cloudbrokermodels {
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
 		master_problem.setMsgLevel(1);											/* disable default XPRS messages */
 
-		// create a list of arcs for each node that originates from that node
-		vector<vector<arc*> > node_arcs(data->n_nodes);
-		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			arc *a = &data->arcs.at(aa);
-			node_arcs.at(a->startNode).push_back(a);
-		}
-
 		int itercount = 0;
 		while(itercount < 100) {
 			bool foundColumn = false;
@@ -573,7 +567,9 @@ namespace cloudbrokermodels {
 					if(columnGenerationMethod == 1) {
 						if(this->generateMappingColumnBruteForce(s, &duals)) foundColumn = true;
 					} else if(columnGenerationMethod == 2) {
-						if(this->generateMappingHeuristicA(c, s, &duals, &node_arcs)) foundColumn = true;
+						if(this->generateMappingHeuristicA(c, s, &duals)) foundColumn = true;
+					} else if(columnGenerationMethod == 3) {
+						if(this->generateMappingHeuristicB(c, s, &duals)) foundColumn = true;
 					}
 				}
 			}
@@ -967,7 +963,7 @@ namespace cloudbrokermodels {
 	 */
 	double CloudBrokerModel::_spprc(int n_nodes, int start_node, int end_node, vector<vector<arc*> > *node_arcs,
 										vector<double> *arc_costs, vector<int> *arc_restrictions, double max_latency,
-										int max_restricted_arcs, list<arc*>* used_arcs) {
+										int max_restricted_arcs, double min_availability, list<arc*>* used_arcs) {
 
 		/******** SETUP ***********/
 
@@ -978,6 +974,7 @@ namespace cloudbrokermodels {
 		label initiallabel;
 		initiallabel.cost = 0.0;
 		initiallabel.latency = 0.0;
+		initiallabel.availability = 1.0;
 		initiallabel.restricted_arcs_count = 0;
 		initiallabel.end_node = start_node;
 		initiallabel.last_arc = NULL;
@@ -1005,7 +1002,8 @@ namespace cloudbrokermodels {
 				for(unsigned int aa = 0; aa < arcs->size(); ++aa) {
 					arc *a = arcs->at(aa);
 					if(q->latency + a->latency + a->return_arc->latency <= max_latency &&
-						q->restricted_arcs_count + arc_restrictions->at(a->globalArcIndex) <= max_restricted_arcs) {
+						q->restricted_arcs_count + arc_restrictions->at(a->globalArcIndex) <= max_restricted_arcs &&
+						q->availability * a->exp_availability >= min_availability) {
 						// resource check ok -> spawn new label
 						label child;
 						child.parent = q;
@@ -1013,6 +1011,7 @@ namespace cloudbrokermodels {
 						child.end_node = a->endNode;
 						child.cost = q->cost + arc_costs->at(a->globalArcIndex);
 						child.latency = q->latency + a->latency + a->return_arc->latency;
+						child.availability = q->availability * a->exp_availability;
 						child.restricted_arcs_count = q->restricted_arcs_count + arc_restrictions->at(a->globalArcIndex);
 						child.isdominated = false;
 
@@ -1045,11 +1044,11 @@ namespace cloudbrokermodels {
 							// check that labels are not the same, but end at same node
 							if(!b->isdominated && a->end_node == b->end_node) {
 								// try dominate
-								if(b->cost >= a->cost && b->latency >= a->latency && b->restricted_arcs_count >= a->restricted_arcs_count) {
+								if(b->cost >= a->cost && b->latency >= a->latency && b->availability <= a->availability && b->restricted_arcs_count >= a->restricted_arcs_count) {
 									// b is equally bad or worse than a -> dominate b
 									b->isdominated = true;
 								}
-								else if(b->cost <= a->cost && b->latency <= a->latency && b->restricted_arcs_count <= a->restricted_arcs_count) {
+								else if(b->cost <= a->cost && b->latency <= a->latency && b->availability >= a->availability && b->restricted_arcs_count <= a->restricted_arcs_count) {
 									// a is worse than b (not equally bad due to above if) -> dominate a
 									a->isdominated = true;
 								}
@@ -1117,7 +1116,7 @@ namespace cloudbrokermodels {
 		return path;
 	}
 
-	bool CloudBrokerModel::generateMappingHeuristicA(customer *c, service *s, dual_vals *duals, vector<vector<arc*> >* node_arcs) {
+	bool CloudBrokerModel::generateMappingHeuristicA(customer *c, service *s, dual_vals *duals) {
 
 		// extract serve customer dual for this service's customer
 		// - this is the only value that can give a positive evaluation for a new mapping
@@ -1125,6 +1124,16 @@ namespace cloudbrokermodels {
 		// - if not a "negative cost", new mapping can not have a positive evaluation, return false
 		if(serve_customer_dual >= 0.0) {
 			return false;
+		}
+
+		// create a list of arcs for each node that originates from that node
+		// - and including check for sufficient capacity to support service on arc
+		vector<vector<arc*> > node_arcs(data->n_nodes);
+		for(int aa = 0; aa < data->n_arcs; ++aa) {
+			arc *a = &data->arcs.at(aa);
+			if(a->bandwidth_cap >= s->bandwidth_req_up && a->return_arc->bandwidth_cap >= s->bandwidth_req_down) {
+				node_arcs.at(a->startNode).push_back(a);
+			}
 		}
 
 		// calculate arc costs with dual values for a primary path for this service
@@ -1142,9 +1151,9 @@ namespace cloudbrokermodels {
 
 			// find primary path by shortest path problem
 			list<arc*> primary_up_arcs;
-			double primary_path_eval  = _spprc(data->n_nodes, customer_node, placement_node, node_arcs,
+			double primary_path_eval  = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs,
 									   &arc_costs_primary, &arc_restrictions_primary, s->latency_req,
-									   1, &primary_up_arcs);
+									   1, 0.0, &primary_up_arcs);
 
 			// see if a path was found at all -> if not, go to next iteration
 			if(primary_up_arcs.size() == 0) continue;
@@ -1189,9 +1198,9 @@ namespace cloudbrokermodels {
 
 						// find backup path by shortest path problem
 						list<arc*> backup_up_arcs;
-						double backup_path_eval = _spprc(data->n_nodes, customer_node, placement_node, node_arcs,
+						double backup_path_eval = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs,
 														 &arc_costs_backup, &arc_restrictions_backup, s->latency_req,
-														 max_restricted_arcs_backup, &backup_up_arcs);
+														 max_restricted_arcs_backup, 0.0, &backup_up_arcs);
 
 						if(backup_up_arcs.size() == 0) {
 							--max_restricted_arcs_backup;
@@ -1231,6 +1240,155 @@ namespace cloudbrokermodels {
 						// if reached -> reduce number of arc overlaps with primary path and try again
 						--max_restricted_arcs_backup;
 					}
+				}
+			}
+		}
+		return false;
+	}
+
+	bool CloudBrokerModel::generateMappingHeuristicB(customer *c, service *s, dual_vals *duals) {
+
+		/*********************** SETUP *****************************/
+
+		// extract serve customer dual for this service's customer
+		// - this is the only value that can give a positive evaluation for a new mapping
+		double serve_customer_dual = duals->serveCustomerDuals[s->globalServiceIndex];
+		// - if not a "negative cost", new mapping can not have a positive evaluation, return false
+		if(serve_customer_dual >= 0.0) {
+			return false;
+		}
+
+		// best possible availability for any path in the network
+		// - find the single arc with highest availability
+		double availability_ubd = 0.0;
+
+		// create a list of arcs for each node that originates from that node
+		// - and including check for sufficient capacity to support service on arc
+		vector<vector<arc*> > node_arcs(data->n_nodes);
+		for(int aa = 0; aa < data->n_arcs; ++aa) {
+			arc *a = &data->arcs.at(aa);
+			if(a->bandwidth_cap >= s->bandwidth_req_up && a->return_arc->bandwidth_cap >= s->bandwidth_req_down) {
+				if(a->exp_availability > availability_ubd) {
+					availability_ubd = a->exp_availability;
+				}
+				node_arcs.at(a->startNode).push_back(a);
+			}
+		}
+
+		// calculate arc costs with dual values for a primary path for this service
+		vector<double> arc_costs_primary = _dualPrimaryArcCostsForService(s, duals);
+
+		// mark all arcs to be without restriction for primary path
+		vector<int> arc_restrictions_primary(data->n_arcs, 0);
+
+		/****************** HEURISTIC START *********************/
+
+		// for each possible placement of this service
+		for(unsigned int pp = 0; pp < s->possible_placements.size(); ++pp) {
+
+			placement *p = &s->possible_placements.at(pp);
+			int placement_node = data->n_nodes - data->n_providers + p->globalProviderIndex;
+			int customer_node = c->globalCustomerIndex;
+
+			// try finding single feasible primary path
+			list<arc*> primary_up_arcs;
+			double primary_path_eval  = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs,
+									   &arc_costs_primary, &arc_restrictions_primary, s->latency_req,
+									   1, s->availability_req, &primary_up_arcs);
+			// see if a path was found at all and is profitable
+			if(primary_up_arcs.size() > 0 && - serve_customer_dual - primary_path_eval - p->price >= EPS) {
+				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
+				// create new mapping
+				mapping m;
+
+				// add primary path to paths list, then add its pointer to mapping
+				data->paths.push_back(primary);
+				m.primary = &data->paths.back();
+				m.backup = NULL;
+
+				// add new mapping to model and finish
+				addMappingToModel(&m, s);
+
+				cout << "---> NEW MAPPING (primary only): " << - serve_customer_dual - primary_path_eval - p->price << "\n";
+				return true;
+			}
+
+			// find primary path to combine with backup by shortest path problem with resource constraints
+			double availability_lbd = max((s->availability_req - availability_ubd) / (1 - availability_ubd), 0.0);
+			primary_up_arcs.clear();
+			primary_path_eval  = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs,
+									   &arc_costs_primary, &arc_restrictions_primary, s->latency_req,
+									   1, availability_lbd, &primary_up_arcs);
+
+			// see if a path was found at all -> if not, go to next iteration
+			if(primary_up_arcs.size() == 0) continue;
+
+			// check if found primary path can be basis for a profitable column
+			if(- serve_customer_dual - primary_path_eval - p->price >= EPS) {
+				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
+
+				// try finding primary/backup combo
+				double min_availability = (s->availability_req - primary.exp_availability) / (1 - primary.exp_availability);
+
+				// extract arc costs with dual values for a backup path
+				vector<double> arc_costs_backup = _dualBackupArcCostsForService(s, duals, &primary);
+
+				// mark any arcs used by the primary path to be restricted (in either direction)
+				vector<int> arc_restrictions_backup(data->n_arcs, 0);
+				for(list<arc*>::iterator a_itr = primary.arcs_up.begin(), a_end = primary.arcs_up.end(); a_itr != a_end; ++a_itr) {
+					arc_restrictions_backup[(*a_itr)->globalArcIndex] = 1;
+				}
+				for(list<arc*>::iterator a_itr = primary.arcs_down.begin(), a_end = primary.arcs_down.end(); a_itr != a_end; ++a_itr) {
+					arc_restrictions_backup[(*a_itr)->globalArcIndex] = 1;
+				}
+
+				// while backup path has non-negative overlap restriction:
+				int max_restricted_arcs_backup = (int)primary.arcs_up.size() -1;
+				while(max_restricted_arcs_backup >= 0) {
+
+					// find backup path by shortest path problem
+					list<arc*> backup_up_arcs;
+					double backup_path_eval = _spprc(data->n_nodes, customer_node, placement_node, &node_arcs,
+													 &arc_costs_backup, &arc_restrictions_backup, s->latency_req,
+													 max_restricted_arcs_backup, min_availability, &backup_up_arcs);
+
+					if(backup_up_arcs.size() == 0) {
+						--max_restricted_arcs_backup;
+						continue;
+					}
+
+					// IF total evaluation is positive
+					if(- serve_customer_dual - primary_path_eval - backup_path_eval - p->price >= EPS) {
+
+						// create a return path object and calculate combo availability
+						returnPath backup = _returnPathFromArcs(&backup_up_arcs, s, p);
+						pathCombo combo = _pathComboForPaths(&primary, &backup);
+
+						// IF availability req ok
+						if(primary.exp_availability + backup.exp_availability - combo.exp_b_given_a >= s->availability_req) {
+							// create a new mapping
+							mapping m;
+
+							// add found paths to paths list, then add their pointers to the mapping
+							data->paths.push_back(primary);
+							m.primary = &data->paths.back();
+							data->paths.push_back(backup);
+							m.backup = &data->paths.back();
+
+							// add mapping to model
+							addMappingToModel(&m, s);
+
+							cout << "---> NEW MAPPING (primary+backup): " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
+							return true;
+						}
+					}
+					// ELSE -> break loop (any successive tries will have equally good or worse value evaluation)
+					else {
+						break;
+					}
+
+					// if reached -> reduce number of arc overlaps with primary path and try again
+					--max_restricted_arcs_backup;
 				}
 			}
 		}

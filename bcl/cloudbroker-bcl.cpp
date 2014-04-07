@@ -33,7 +33,7 @@ int main(void) {
 	configModel config;
 		config.calc_combo_availabilities = true;
 		config.max_paths_per_placement = 50;
-		config.column_gen_alg = 2;
+		config.column_gen_alg = 3;
 
 	cout << "Welcome to network path generation bot v0.4";
 	while(true) {
@@ -154,6 +154,7 @@ int main(void) {
 					cout << "\nColumn Generation Algorithms:\n"
 							" (1) Brute Force from pregenerated paths\n"
 							" (2) Heuristic A\n"
+							" (3) Heuristic B\n"
 							"\nEnter selection: ";
 					int alg_selection;
 					cin >> alg_selection;
