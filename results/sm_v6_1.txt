@@ -1,33 +1,33 @@
-Model building completed in 9.594 seconds
+Model building completed in 9.575 seconds
 
 Solving model...
 
-Model solved in 0.234 seconds
+Model solved in 0.47 seconds
 
-Total Profits: 2703.5
+Total Profits: 2518.5
 
-Total Backup Costs: 307
+Total Backup Costs: 253
 
 Customer 1 (node 1) is being served
  - R_Revenue: 700
-  - Service 1 uses mapping 3
-   - Primary path: 3, cost: 285
-   - Backup path: 2
+  - Service 1 uses mapping 1
+   - Primary path: 2, cost: 265
+   - Backup path: 3
 
 Customer 4 (node 4) is being served
  - R_Revenue: 500
-  - Service 4 uses mapping 7
-   - Primary path: 46, cost: 211.5
-   - Backup path: 48
+  - Service 4 uses mapping 8
+   - Primary path: 48, cost: 260.5
+   - Backup path: 46
 
 Customer 5 (node 5) is being served
  - R_Revenue: 2500
-  - Service 5 uses mapping 11
-   - Primary path: 50, cost: 747.5
-   - Backup path: 49
-  - Service 6 uses mapping 46
+  - Service 5 uses mapping 14
+   - Primary path: 51, cost: 957.5
+   - Backup path: 50
+  - Service 6 uses mapping 47
    - Primary path: 63, cost: 440
-   - Backup path: 62
+   - Backup path: 65
 
 Customer 6 (node 6) is being served
  - R_Revenue: 1600
@@ -39,17 +39,23 @@ Customer 6 (node 6) is being served
 
 Total backup usage
       arc   reserved   max req sum reqs*   cost/bw     paths
-   (5, 13)        35        354.53859e-012       0.5     49, 62, 
+   (5, 13)        35        35        35       0.5     65, 
+   (5, 14)        35        35        35       0.5     50, 
    (6, 11)        22        22        12       0.5     124, 
-   (7, 11)         4         4        22      0.75     2, 124, 
-   (7, 13)        35        356.4837e-013      1.25     48, 49, 62, 
-   (7, 17)        35        35        12         1     2, 49, 
-   (7, 18)        35        35         0         1     48, 62, 124, 
+    (7, 8)        35        35         0         1     3, 65, 
+   (7, 11)         4         4        22      0.75     3, 124, 
+   (7, 13)         5         5         2      1.25     65, 
+   (7, 18)        22        22        12         1     124, 
+    (8, 7)        10        10         0         1     3, 65, 
+   (8, 14)         2         2        40      0.75     46, 50, 
+   (8, 17)        10        10        35         1     3, 50, 
+   (8, 18)        12        12        57         1     46, 65, 
    (11, 6)         4         4        12       0.5     124, 
-   (11, 7)        22        22        22      0.75     2, 124, 
-   (13, 5)        35        356.4837e-013       0.5     49, 62, 
-   (13, 7)        35        354.53859e-012      1.25     48, 49, 62, 
-  (13, 14)         2         2         0         3     48, 
-  (14, 13)        12        12         0         3     48, 
-   (17, 7)        35        35        12         1     2, 49, 
-   (18, 7)         5         5         0         1     48, 62, 124, 
+   (11, 7)        22        22        22      0.75     3, 124, 
+   (13, 5)         5         5        35       0.5     65, 
+   (13, 7)        35        35        12      1.25     65, 
+   (14, 5)        35        35         5       0.5     50, 
+   (14, 8)        12        12        70      0.75     46, 50, 
+   (17, 8)        10        10        35         1     3, 50, 
+   (18, 7)         4         4         2         1     124, 
+   (18, 8)         2         2         9         1     46, 65, 
