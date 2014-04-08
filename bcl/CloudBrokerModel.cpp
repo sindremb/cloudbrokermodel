@@ -582,9 +582,11 @@ namespace cloudbrokermodels {
 
 		cout << "added " << w_useMappingVars.size() << " mappings in total!\n";
 
+		cout << "LP-optimum: " << master_problem.getObjVal() << "\n";
 
-		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 1);	/* Disable automatic cuts - we use our own */
-		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 1);		/* Switch presolve off */
+
+		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 1);	/* Enable automatic cuts - we use our own */
+		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 1);		/* Switch presolve on again */
 		master_problem.setMsgLevel(0);
 		cout << "running MIP-model..\n";
 		this->RunModel(true);

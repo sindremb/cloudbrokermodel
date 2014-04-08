@@ -23,11 +23,81 @@
 
 using namespace std;
 
+struct cloudBrokerConfig {
+	// pregeneration configuartion
+	bool pregen_paths;
+	bool pregen_paths_limit;
+	bool pregen_path_combos;
+	bool pregen_mappings;
+
+	// task config
+	bool generate_mosel_data;
+	bool bcl_solve;
+
+	// optimiser config
+	double mip_time_limit;
+	double model_beta;
+	int column_generation;
+	int column_generation_count_limit;
+	int column_generation_iter_limit;
+
+	// input / output file configuarion
+	string input_file;
+	string output_file;
+};
+
 struct configModel {
 	bool	calc_combo_availabilities;
 	int 	max_paths_per_placement;
 	int 	column_gen_alg;
 };
+
+cloudBrokerConfig defaultConfig() {
+	cloudBrokerConfig config;
+	config.pregen_paths = true;
+	config.pregen_paths_limit = -1;
+	config.pregen_path_combos = true;
+	config.pregen_mappings = false;
+
+	config.mip_time_limit = -1.0;
+	config.column_generation = 2;
+	config.column_generation_count_limit = -1;
+	config.column_generation_iter_limit = -1;
+
+	return config;
+}
+
+void runConfiguration(cloudBrokerConfig config) {
+	// load input data
+	entities::dataContent data;
+	if(entities::loadFromJSONFile(config.input_file.c_str(), &data)) {
+
+		// run any pregeneration
+		if(config.pregen_paths) pathgen::generatePaths(&data, config.pregen_paths_limit);
+		if(config.pregen_path_combos) pathgen::addPathComboAvailabilities(&data);
+		if(config.pregen_mappings) pathgen::addFeasibleMappings(&data);
+
+		// run task
+		if(config.generate_mosel_data) entities::toMoselDataFile(config.output_file.c_str(), &data);
+		if(config.bcl_solve) {
+			cout << "\nSTEP3: build model!";
+			cloudbrokermodels::CloudBrokerModel model;
+			cout << "\n Starting to build model..\n";
+			model.BuildModel(&data, config.model_beta);
+			cout << "\n Finished building model!\n";
+
+			// STEP 4: run optimisation
+			if(config.column_generation > 0) {
+				model.RunModelColumnGeneration(config.column_generation);
+			} else {
+				model.RunModel(true);
+			}
+			model.OutputResults();
+		}
+	} else {
+		cerr << "Unable to load input data from <" << config.input_file << ">\n";
+	}
+}
 
 int main(void) {
 	configModel config;
