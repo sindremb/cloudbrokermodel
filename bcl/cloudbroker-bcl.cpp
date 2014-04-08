@@ -29,11 +29,11 @@ struct configModel {
 	int 	column_gen_alg;
 };
 
-int main(void) {
+void textUI() {
 	configModel config;
-		config.calc_combo_availabilities = true;
-		config.max_paths_per_placement = 50;
-		config.column_gen_alg = 3;
+			config.calc_combo_availabilities = true;
+			config.max_paths_per_placement = 50;
+			config.column_gen_alg = 3;
 
 	cout << "Welcome to network path generation bot v0.4";
 	while(true) {
@@ -173,5 +173,15 @@ int main(void) {
 			cout << "\n Unknown choice";
 		}
 	}
+}
+
+int main(int argc, char *argv[]) {
+	// no arguments given - use simple text based ui
+	if(argc == 1) {
+		textUI();
+	} else {
+		// parse arguments and try to execute
+	}
+
 	return 0;
 }
