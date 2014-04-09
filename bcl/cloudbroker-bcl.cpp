@@ -1,23 +1,23 @@
 //============================================================================
 // Name        : cloudbroker-bcl.cpp
-// Author      : 
+// Author      : Sindre Møgster Braaten
 // Version     :
 // Copyright   : Your copyright notice
-// Description : Hello World in C, Ansi-style
+// Description : CloudBroker-model top level app logic in C++, Ansi-style
 //============================================================================
 
-
-//#define EXCLUDE_BCL /* Uncomment to ignore any BCL specific code from project */
+//#define EXCLUDE_BCL /* Uncomment to exclude any BCL dependent code when compiling */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <string>
+#include <sstream>
 
 #include "entities.h"
 #include "pathgenerator.h"
 
 #ifndef EXCLUDE_BCL
-#include "bcltest.h"
 #include "CloudBrokerModel.h"
 #endif
 
@@ -25,23 +25,28 @@ using namespace std;
 
 struct cloudBrokerConfig {
 	// pregeneration configuartion
-	bool pregen_paths;
-	bool pregen_paths_limit;
-	bool pregen_path_combos;
-	bool pregen_mappings;
+	int pregen_paths_limit;
 
-	// task config
+	// perform tasks toggles
+	// - pregeneration tasks
+	bool pregen_paths;
+	bool pregen_mappings;
+	bool pregen_path_combos;
+	// - main tasks
 	bool generate_mosel_data;
-	bool bcl_solve;
+	bool complete_bcl_solve;
+	bool columngen_bcl_solve;
 
 	// optimiser config
 	double mip_time_limit;
 	double model_beta;
-	int column_generation;
+
+	// column generation config
+	int column_generation_method;
 	int column_generation_count_limit;
 	int column_generation_iter_limit;
 
-	// input / output file configuarion
+	// input / output filenames
 	string input_file;
 	string output_file;
 };
@@ -54,13 +59,18 @@ struct configModel {
 
 cloudBrokerConfig defaultConfig() {
 	cloudBrokerConfig config;
-	config.pregen_paths = true;
+	config.pregen_paths = false;
 	config.pregen_paths_limit = -1;
-	config.pregen_path_combos = true;
+	config.pregen_path_combos = false;
 	config.pregen_mappings = false;
 
+	config.generate_mosel_data = false;
+	config.complete_bcl_solve = false;
+	config.columngen_bcl_solve = true;
+
+	config.model_beta = 0.3;
 	config.mip_time_limit = -1.0;
-	config.column_generation = 2;
+	config.column_generation_method = 2;
 	config.column_generation_count_limit = -1;
 	config.column_generation_iter_limit = -1;
 
@@ -79,17 +89,17 @@ void runConfiguration(cloudBrokerConfig config) {
 
 		// run task
 		if(config.generate_mosel_data) entities::toMoselDataFile(config.output_file.c_str(), &data);
-		if(config.bcl_solve) {
-			cout << "\nSTEP3: build model!";
+		if(config.complete_bcl_solve || config.columngen_bcl_solve) {
 			cloudbrokermodels::CloudBrokerModel model;
-			cout << "\n Starting to build model..\n";
+			cout << "Building CloudBroker-model..";
 			model.BuildModel(&data, config.model_beta);
-			cout << "\n Finished building model!\n";
+			cout << "COMPLETE!\n";
 
-			// STEP 4: run optimisation
-			if(config.column_generation > 0) {
-				model.RunModelColumnGeneration(config.column_generation);
+			if(config.columngen_bcl_solve) {
+				cout << "Solving CloudBroker-model by column generation..\n";
+				model.RunModelColumnGeneration(config.column_generation_method);
 			} else {
+				cout << "Solving CloudBroker-model using pregenerated mappings..\n";
 				model.RunModel(true);
 			}
 			model.OutputResults();
@@ -99,148 +109,156 @@ void runConfiguration(cloudBrokerConfig config) {
 	}
 }
 
-void textUI() {
-	configModel config;
-			config.calc_combo_availabilities = true;
-			config.max_paths_per_placement = 50;
-			config.column_gen_alg = 3;
+string getConsoleString(string description) {
+	string s;
+	cout << description;
+	getline(cin, s);
+	return s;
+}
 
-	cout << "Welcome to network path generation bot v0.4";
+int getConsoleInt(string description) {
+	int number;
+	string input;
 	while(true) {
-		int rootSelection;
-		cout << "\n\n Menu:\n"
-				" (1) Load (JSON) file and generate common path and mapping mosel data file\n";
+		cout << description;
+
+		// collect input
+		getline(cin, input);
+
+		// This code converts from string to number safely.
+		stringstream myStream(input);
+		if (myStream >> number)
+			break;
+		cerr << "Invalid integer input <" << input << ">\n";
+	}
+	// should never be reached
+	return number;
+}
+
+double getConsoleDouble(string description) {
+	double number;
+	string input;
+	while(true) {
+		cout << description;
+
+		// collect input
+		getline(cin, input);
+
+		// This code converts from string to number safely.
+		stringstream myStream(input);
+		if (myStream >> number)
+			break;
+		cerr << "Invalid number input <" << input << ">\n";
+	}
+	// should never be reached
+	return number;
+}
+
+void textUI() {
+	cloudBrokerConfig config = defaultConfig();
+
+	cout << "Welcome to network path generation bot v0.5";
+	while(true) {
+		int rootSelection = getConsoleInt(
+			"\n\n Menu:\n"
+			" (1) Load (JSON) file and generate common path and mapping mosel data file\n"
 #ifndef EXCLUDE_BCL
-		cout << " (2) Generate mappings and run cloudbroker opt bcl version\n"
-				" (3) Generate paths and run cloudbroker opt mapping column generation bcl version\n"
-				" (4) BCL-test\n";
+			" (2) Pregenerate all mappings and solve CloudBroker-model\n"
+			" (3) Use column generation to generate mappings and solve CloudBroker-Model\n"
 #endif
-		cout << " (5) Config\n"
-				" (0) exit\n\nSelection: ";
-		cin >> rootSelection;
+			" (4) Configuration\n"
+			" (0) exit\n\nSelection: "
+		);
 
 		if(rootSelection == 1) {
-			string inputfilename;
-			cout << "\n\nType filename for data to import and press \'enter\' to start: ";
-			cin >> inputfilename;
+			// configure to generate mosel data with generated paths and mappings
+			config.generate_mosel_data = true;
+			config.pregen_paths = true;
+			config.pregen_mappings = true;
+			config.complete_bcl_solve = false;
+			config.columngen_bcl_solve = false;
 
-			// STEP 1: import data
-			entities::dataContent data;
-			if(entities::loadFromJSONFile(inputfilename.c_str(), &data)) {
+			// get filename to import
+			config.input_file = getConsoleString("\nEnter filename for data to import: ");
 
-				string outputfilename;
-				cout << "\nJSON data loaded..\n\nEnter filename for storing generated data and press enter to start path generation: ";
-				cin >> outputfilename;
+			// get filename to store mosel data to
+			config.output_file = getConsoleString("\nEnter filename for storing generated mosel data: ");
 
-				// STEP 2: generate paths and additional data as configured
-				pathgen::generatePaths(&data, config.max_paths_per_placement);
-				if (config.calc_combo_availabilities) pathgen::addPathComboAvailabilities(&data);
-
-				// STEP 3: find and add feasible mappings from generated paths
-				pathgen::addFeasibleMappings(&data);
-
-				// STEP 4: store to generated file
-				cout << "\n\nWriting to mosel data file..";
-				entities::toMoselDataFile(outputfilename.c_str(), &data);
-
-				cout << "\n\nPaths generated and data stored to " << outputfilename;
-			}
+			runConfiguration(config);
 #ifndef EXCLUDE_BCL
 		} else if(rootSelection == 2) {
-			string inputfilename;
-			cout << "\n\nType filename for data to import and press \'enter\' to start: ";
-			cin >> inputfilename;
+			// configure to run complete bcl model using pregenerated paths and mappings
+			config.complete_bcl_solve = true;
+			config.pregen_paths = true;
+			config.pregen_mappings = true;
+			config.columngen_bcl_solve = false;
+			config.generate_mosel_data = false;
 
-			// STEP 1: import data
-			entities::dataContent data;
-			if(entities::loadFromJSONFile(inputfilename.c_str(), &data)) {
+			// get filename to import
+			config.input_file = getConsoleString("\nEnter filename for data to import: ");
 
-				// STEP 2: generate paths+mappings and additional data as configured
-				pathgen::generatePaths(&data, config.max_paths_per_placement);
-				if (config.calc_combo_availabilities) pathgen::addPathComboAvailabilities(&data);
-				pathgen::addFeasibleMappings(&data);
+			// get filename to store results to
+			config.output_file = getConsoleString("\nEnter filename for storing results: ");
 
-				// STEP 3: build model from data
-				cout << "\nSTEP3: build model!";
-				cloudbrokermodels::CloudBrokerModel model;
-				cout << "\n Starting to build model..\n";
-				model.BuildModel(&data, 0.3);
-				cout << "\n Finished building model!\n";
-
-				// STEP 4: run optimisation
-				model.RunModel(true);
-
-				model.OutputResults();
-			}
+			runConfiguration(config);
 		} else if(rootSelection == 3) {
-			string inputfilename;
-			cout << "\n\nType filename for data to import and press \'enter\' to start: ";
-			cin >> inputfilename;
+			// configure to solve bcl model using column generation to add mappings
+			config.columngen_bcl_solve = true;
+			config.pregen_paths = config.column_generation_method == 1; // only pregenerate paths for brute force mapping generation (method 1)
+			config.complete_bcl_solve = false;
+			config.pregen_mappings = false;
+			config.generate_mosel_data = false;
 
-			// STEP 1: import data
-			entities::dataContent data;
-			if(entities::loadFromJSONFile(inputfilename.c_str(), &data)) {
+			// get filename to import
+			config.input_file = getConsoleString("\nEnter filename for data to import: ");
 
-				// STEP 2: generate paths+mappings and additional data as configured
-				pathgen::generatePaths(&data, config.max_paths_per_placement);
-				if (config.calc_combo_availabilities) pathgen::addPathComboAvailabilities(&data);
+			// get filename to store results to
+			config.output_file = getConsoleString("\nEnter filename for storing results: ");
 
-				// STEP 3: build model from data
-				cout << "\nSTEP3: build model!";
-				cloudbrokermodels::CloudBrokerModel model;
-				cout << "\n Starting to build model..\n";
-				model.BuildModel(&data, 0.3);
-				cout << "\n Finished building model!\n";
-
-				// STEP 4: run optimisation
-				model.RunModelColumnGeneration(config.column_gen_alg);
-
-				model.OutputResults();
-			}
-		} else if(rootSelection == 4) {
-			bcltest::runBclTest();
+			runConfiguration(config);
 #endif
-		} else if(rootSelection == 5) {
+		} else if(rootSelection == 4) {
 			while(true) {
-				int configSelection;
-				cout << "Pathgen Config\n - Max number of paths per placement: " << config.max_paths_per_placement <<
-						"\n - Calculate Path Combo Availabilities: " << (config.calc_combo_availabilities ? "true" : "false") <<
-						"\n - Column Generation Selection: " << config.column_gen_alg <<
+				stringstream sstm;
+				sstm << "\nCloudBroker app config:"
+						"\n - Max number of paths per placement: " 		<< config.pregen_paths_limit <<
+						"\n - Model backup reservation beta: " 			<< config.model_beta <<
+						"\n - Column Generation Method: " 				<< config.column_generation_method <<
 						"\n\n Options:\n"
 						"(1) Set max number of paths per placement\n"
-						"(2) Toggle Calculate Path Combo availabilities\n"
+						"(2) Set model backup reservation beta\n"
 						"(3) Change Column Generation Algorithm\n"
 						"(0) back\n\nSelection: ";
-				cin >> configSelection;
+				int configSelection = getConsoleInt(sstm.str());
 
 				if(configSelection == 1) {
-					cout << "\n\nEnter max number of paths per placement: ";
-					int maxnum;
-					cin >> maxnum;
-					config.max_paths_per_placement= maxnum;
+					config.pregen_paths_limit = getConsoleInt("\nEnter max number of paths per placement: ");
 				} else if (configSelection == 2) {
-					config.calc_combo_availabilities = !config.calc_combo_availabilities;
+					config.model_beta = getConsoleDouble("\nEnter new model backup reservation beta: ");
 				} else if (configSelection == 3){
-					cout << "\nColumn Generation Algorithms:\n"
-							" (1) Brute Force from pregenerated paths\n"
-							" (2) Heuristic A\n"
-							" (3) Heuristic B\n"
-							"\nEnter selection: ";
-					int alg_selection;
-					cin >> alg_selection;
-					config.column_gen_alg = alg_selection;
-
+					int colgenchoice = getConsoleInt(
+						"\nColumn Generation Algorithms:\n"
+						" (1) Brute Force from pregenerated paths\n"
+						" (2) Heuristic A\n"
+						" (3) Heuristic B\n"
+						"\nEnter selection: "
+					);
+					if(colgenchoice > 0 && colgenchoice <= 3) {
+						config.column_generation_method = colgenchoice;
+					} else {
+						cout << "\nUnknown choice\n";
+					}
 				}
 				else if (configSelection == 0) {
 					break;
 				} else {
-					cout << "\n Unknown choice";
+					cout << "\nUnknown choice\n";
 				}
 			}
 		} else if(rootSelection == 0) {
 			break;
 		} else {
-			cout << "\n Unknown choice";
+			cout << "\nUnknown choice\n";
 		}
 	}
 }
@@ -251,7 +269,7 @@ int main(int argc, char *argv[]) {
 		textUI();
 	} else {
 		// parse arguments and try to execute
+		cerr << "Executable call argument parsing not yet implemented";
 	}
-
 	return 0;
 }
