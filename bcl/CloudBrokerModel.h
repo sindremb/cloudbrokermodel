@@ -54,16 +54,32 @@ namespace cloudbrokermodels {
 
 		void addMappingToModel(entities::mapping *m, entities::service *s);
 
-		double _bruteForceEvalMapping(entities::mapping *m, entities::service *s, dual_vals *duals);
+		/**** BRUTE FORCE HEURISTIC ****/
 		bool generateMappingColumnBruteForce(entities::service *s, dual_vals *duals);
+		double _bruteForceEvalMapping(entities::mapping *m, entities::service *s, dual_vals *duals);
 
+		/**** HEURISTIC A ****/
+		bool generateMappingHeuristicA(entities::customer *c, entities::service *s, dual_vals *duals);
+		std::vector<double> _dualPrimaryArcCostsForService(entities::service *s, dual_vals *duals);
+		std::vector<double> _dualBackupArcCostsForService(entities::service *s, dual_vals *duals, entities::returnPath *primary);
+		entities::returnPath _returnPathFromArcs(std::list<entities::arc*>* arcs, entities::service* owner, entities::placement* p);
+		double _spprc(int n_nodes, int start_node, int end_node,
+									std::vector<std::vector<entities::arc*> > *node_arcs,
+									std::vector<double> *arc_costs,
+									std::vector<int> *arc_restrictions,
+									double max_latency,
+									int max_restricted_arcs,
+									double min_availability,
+									std::list<entities::arc*>* used_arcs);
+
+		/**** HEURISTIC B (extension of A) ****/
+		bool generateMappingHeuristicB(entities::customer *c, entities::service *s, dual_vals *duals);
 
 	public:
 		CloudBrokerModel();
 		void BuildModel(entities::dataContent * data, double beta_backupres = 0.3);
-		void AddMapping(int serviceNumber, entities::mapping * m);
 		void RunModel(bool enforce_integer = true);
-		void RunModelColumnGeneration();
+		void RunModelColumnGeneration(int columnGenerationMethod);
 		void OutputResults();
 	};
 }
