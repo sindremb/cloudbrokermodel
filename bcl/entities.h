@@ -10,13 +10,11 @@ namespace entities {
 	typedef struct arc ARC;
 	typedef struct returnPath RETURN_PATH;
 	typedef struct mapping MAPPING;
-
-	struct pathgenConfig {
-		bool calcComboAvailabilities;
-		int maxPathsPerPlacement;
-	};
 	
 	struct arc {
+		// this arcs assigned index
+		int globalArcIndex;
+
 		// arc start and end point
 		int startNode;
 		int endNode;
@@ -30,14 +28,15 @@ namespace entities {
 		// arc in opposite direction to this arc
 		arc * return_arc;
 
-		// Up paths using this arc
+		// list of paths using this arc  (pointers)
+		// - start -> end
 		std::list<RETURN_PATH*> up_paths;
-		// Down paths using this arc
+		// - end -> start
 		std::list<RETURN_PATH*> down_paths;
 	};
 
 	struct returnPath {
-		// path requirements
+		// path characteristics
 		double bandwidth_usage_up;
 		double bandwidth_usage_down;
 		double latency;
@@ -46,26 +45,28 @@ namespace entities {
 		int startNode;
 		int endNode;
 
-		// path cost
+		// path cost (network usage and path end point cost)
 		double cost;
 
 		// accumulative expected path availability
 		double exp_availability;
 
-		// this path's assigned number
-		int pathNumber;
+		// this path's assigned index
+		int globalPathIndex;
 
 		// list of visited state for nodes for this path
 		std::vector<bool> visitedNodes;
 
-		// arcs used for up-path
+		// lists of arcs used for this path (pointers)
+		// - start -> end
 		std::list<ARC*> arcs_up;
-		// arcs used for paths return
+		// - end -> start
 		std::list<ARC*> arcs_down;
 
-		// mappings using this path as primary
+		// lists of mappings using this path (pointers)
+		// - as primary path
 		std::list<MAPPING*> primary_mappings;
-		// mappings using this path as backup
+		// - as backup path
 		std::list<MAPPING*> backup_mappings;
 	};
 
@@ -78,31 +79,14 @@ namespace entities {
 		double exp_b_given_a;
 	};
 
-	struct pathOverlap {
-		// the two paths overlapping
-		returnPath * a;
-		returnPath * b;
-	};
-
 	struct mapping {
 		// assigned mapping number
 		int globalMappingIndex;
 
 		// mappings primary path
 		returnPath * primary;
-		// mappings backup path (if given)
+		// mappings backup path (if defined)
 		returnPath * backup;
-	};
-
-	struct networkStruct {
-		// number of nodes in network
-		int n_nodes;
-
-		// indicates if arcs are equal in both direction (thus only defined for one direction)
-		bool symmetric;
-
-		// list of arcs in network
-		std::vector<arc> arcs;
 	};
 
 	struct placement {
@@ -112,8 +96,8 @@ namespace entities {
 		// global provider index for this placement
 		int globalProviderIndex;
 
-		// possible paths for this placement
-		std::vector<RETURN_PATH> paths;
+		// possible paths for this placement (pointers)
+		std::vector<RETURN_PATH*> paths;
 	};
 
 	struct service {
@@ -128,37 +112,43 @@ namespace entities {
 		// possible service placements
 		std::vector<placement> possible_placements;
 
-		// possible service mappings
-		std::list<mapping> mappings;
+		// list of generated mappings for this service (pointers)
+		std::list<mapping*> mappings;
 	};
 
 	struct customer {
-		// revenue from serving customer
-		double revenue;
-		int node;
-
-		// services required by customer
-		std::vector<service> services;
+		double revenue;					// revenue from serving customer
+		int globalCustomerIndex;		// global customer index
+		std::vector<service*> services; // services required by this customer (pointers)
 	};
 
 	struct dataContent {
-		// number of customers / providers / services in problem
+		// problem dimensions
+		// - fixed
 		int n_customers;
 		int n_providers;
 		int n_services;
+		int n_nodes;
+		int n_arcs;
+		// - dynamic
 		int n_mappings;
 		int n_paths;
 		
-		// list of customers in network
+		// given sets/lists in problem
+		// - all customers
 		std::vector<customer> customers;
+		// - all services
+		std::vector<service> services;
+		// - all arcs
+		std::vector<arc> arcs;
 
-		// network in problem instance
-		networkStruct network;
-
-		// list of precalculated path availability combinations ( P(A)P(B|A) )
+		// generated sets/lists in problem
+		// - paths
+		std::list<returnPath> paths;
+		// - mappings
+		std::list<mapping> mappings;
+		// - precalculated path availability combinations ( P(A)P(B|A) )
 		std::list<pathCombo> pathCombos;
-		// list of precalculated path overlaps
-		std::list<pathOverlap> pathOverlaps;
 
 	};
 
