@@ -554,7 +554,8 @@ namespace cloudbrokermodels {
 		master_problem.setMsgLevel(1);											/* disable default XPRS messages */
 
 		int itercount = 0;
-		while(itercount < iter_limit && data->n_mappings < col_count_limit) {
+		while((iter_limit < 0 || itercount < iter_limit)
+				&& (col_count_limit < 0 || data->n_mappings < col_count_limit)) {
 			bool foundColumn = false;
 			cout << "\nIteration " << itercount+1 << ":\n-running lp-relaxation..\n";
 			this->RunModel(false, -1);
