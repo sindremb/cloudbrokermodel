@@ -13,6 +13,8 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <ctime>
+#include <fstream>
 
 #include "entities.h"
 #include "pathgenerator.h"
@@ -77,6 +79,50 @@ cloudBrokerConfig defaultConfig() {
 	return config;
 }
 
+/* Takes a stream and a configuration as input, pushes information about the given config to the
+ * given stream.
+ */
+void outputMetaDataToStream(std::ostream& stream, cloudBrokerConfig* config) {
+	stream << "################## RUN META DATA ###################\n";
+
+	// add timestamp for data
+	stream << "\nTime = ";
+	time_t t = time(0);   // get time now
+	struct tm * now = localtime( & t );
+	stream 	<< (now->tm_year + 1900) << '-'
+			<< (now->tm_mon + 1) << '-'
+			<< now->tm_mday << ' '
+			<< now->tm_hour << ':' << now->tm_min << '\n';
+
+	// add configuration data
+	stream << "\nInput = " << config->input_file << "\n";
+	if(config->complete_bcl_solve) {
+		stream << "\nTask = solve BCL model including ALL PREGENERATED MAPPINGS\n";
+	} else if (config->columngen_bcl_solve) {
+		stream << "\nTask = solve BCL model adding mappings by COLUMN GENERATION\n";
+	}
+
+	if(config->complete_bcl_solve || config->columngen_bcl_solve) {
+		stream << "\nMIP-solve time limit = " << config->mip_time_limit << "\n";
+		stream << "model beta = " << config->model_beta << "\n";
+	}
+
+	if(config->pregen_paths) {
+		stream << "\n# pregeneration configuration\n"
+				<< "pregen path limit (service, provider) = " << config->pregen_paths_limit << "\n"
+				<< "pregen path combo availability = " << (config->pregen_paths_limit ? "true" : "false") << "\n"
+				<< "pregen mappings = " << (config->pregen_mappings ? "true" : "false") << "\n";
+	}
+
+	if(config->columngen_bcl_solve) {
+		stream << "\n# column generation configuration\n"
+				<< "column generation method = " << config->column_generation_method << "\n"
+				<< "column generation max iterations = " << config->column_generation_iter_limit << "\n"
+				<< "column generation count limit = " << config->column_generation_count_limit << "\n";
+	}
+
+}
+
 void runConfiguration(cloudBrokerConfig config) {
 	// load input data
 	entities::dataContent data;
@@ -97,12 +143,35 @@ void runConfiguration(cloudBrokerConfig config) {
 
 			if(config.columngen_bcl_solve) {
 				cout << "Solving CloudBroker-model by column generation..\n";
-				model.RunModelColumnGeneration(config.column_generation_method);
+				model.RunModelColumnGeneration(
+					config.column_generation_method,
+					config.column_generation_iter_limit,
+					config.column_generation_count_limit,
+					config.mip_time_limit
+				);
 			} else {
 				cout << "Solving CloudBroker-model using pregenerated mappings..\n";
 				model.RunModel(true);
 			}
-			model.OutputResults();
+			// print solution to console
+			model.OutputResultsToStream(cout);
+			if(!config.output_file.empty()) {
+				// try storing results to file
+				ofstream myfile;
+				myfile.open(config.output_file.c_str());
+
+				if(myfile) {
+					// include information from configuration used
+					outputMetaDataToStream(myfile, &config);
+					// include solution to optimisation problem
+					model.OutputResultsToStream(myfile);
+
+					myfile.close();
+					cout << "results were stored to file " << config.output_file;
+				} else {
+					cerr << "could not open file <" << config.output_file << "> for writing results\n";
+				}
+			}
 		}
 	} else {
 		cerr << "Unable to load input data from <" << config.input_file << ">\n";

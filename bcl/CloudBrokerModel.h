@@ -13,6 +13,7 @@
 #include "xprs.h"
 #include <list>
 #include <vector>
+#include <iostream>
 
 namespace cloudbrokermodels {
 
@@ -78,9 +79,9 @@ namespace cloudbrokermodels {
 	public:
 		CloudBrokerModel();
 		void BuildModel(entities::dataContent * data, double beta_backupres = 0.3);
-		void RunModel(bool enforce_integer = true);
-		void RunModelColumnGeneration(int columnGenerationMethod);
-		void OutputResults();
+		void RunModel(bool enforce_integer = true, int time_limit = -1);
+		void RunModelColumnGeneration(int columnGenerationMethod, int colgen_iter_limit, int colgen_count_limit, int mip_time_limit);
+		void OutputResultsToStream(std::ostream& stream);
 	};
 }
 #endif /* CLOUDBROKERMODELS_H_ */

@@ -7,6 +7,7 @@
 #include <list>
 #include <iostream>
 #include <algorithm>
+#include <iostream>
 
 #ifndef EPS
 #define EPS 1e-6
@@ -535,7 +536,11 @@ namespace cloudbrokermodels {
 		return;
 	}
 
-	void CloudBrokerModel::RunModel(bool enforce_integer) {
+	void CloudBrokerModel::RunModel(bool enforce_integer, int time_limit) {
+		if(time_limit) {
+			XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_MAXTIME, time_limit);
+		}
+
 		if(enforce_integer) {
 			master_problem.mipOptimise();
 		} else {
@@ -543,16 +548,16 @@ namespace cloudbrokermodels {
 		}
 	}
 
-	void CloudBrokerModel::RunModelColumnGeneration(int columnGenerationMethod) {
-		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts - we use our own */
+	void CloudBrokerModel::RunModelColumnGeneration(int columnGenerationMethod, int iter_limit, int col_count_limit, int mip_time_limit) {
+		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts */
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
 		master_problem.setMsgLevel(1);											/* disable default XPRS messages */
 
 		int itercount = 0;
-		while(itercount < 100) {
+		while(itercount < iter_limit && data->n_mappings < col_count_limit) {
 			bool foundColumn = false;
 			cout << "\nIteration " << itercount+1 << ":\n-running lp-relaxation..\n";
-			this->RunModel(false);
+			this->RunModel(false, -1);
 			XPRBbasis basis = master_problem.saveBasis();
 
 			CloudBrokerModel::dual_vals duals = this->getDualVals();
@@ -585,11 +590,11 @@ namespace cloudbrokermodels {
 		cout << "LP-optimum: " << master_problem.getObjVal() << "\n";
 
 
-		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 1);	/* Enable automatic cuts - we use our own */
+		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 1);	/* Reenable automatic cuts */
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 1);		/* Switch presolve on again */
 		master_problem.setMsgLevel(0);
 		cout << "running MIP-model..\n";
-		this->RunModel(true);
+		this->RunModel(true, mip_time_limit);
 	}
 
 	CloudBrokerModel::dual_vals CloudBrokerModel::getDualVals() {
@@ -1401,52 +1406,56 @@ namespace cloudbrokermodels {
 		return false;
 	}
 
-	void CloudBrokerModel::OutputResults() {
+	/******************* OutputResultsToStream **************************
+	 * Takes an ostream as input (for instance cout or a file stream) and
+	 * outputs the results from running the model.
+	 */
+	void CloudBrokerModel::OutputResultsToStream(ostream& stream) {
 
-		cout << "\n=========== RESULTS =============\n";
+		stream << "\n################### RUN RESULTS ####################\n";
 
-		cout << "\nProfits: " << master_problem.getObjVal() << "\n";
+		stream << "\nProfits = " << master_problem.getObjVal() << "\n";
 
 		double backup_costs = 0.0;
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc *a = &data->arcs[aa];
 			backup_costs += a->bandwidth_price * d_arcBackupUsage[aa].getSol();
 		}
-		cout << "\nBackup costs: " << backup_costs << "\n";
+		stream << "\nBackup costs = " << backup_costs << "\n";
 
-		cout << "\nBackup beta: " << beta << "\n";
+		stream << "\nBackup beta = " << beta << "\n";
 
-		cout << "\nNumber of mappings: " << data->n_mappings << "\n";
+		stream << "\nNumber of mappings = " << data->n_mappings << "\n";
 
 		for(int cc = 0; cc < data->n_customers; ++cc) {
 			customer *c = &data->customers[cc];
 			if(y_serveCustomerVars[cc].getSol() > 0.01) {
-				cout << "\nCustomer #" << cc+1 << " is being served (" << y_serveCustomerVars[cc].getSol() << ")\n";
-				cout << "- Revenue: " << c->revenue << "\n";
+				stream << "\nCustomer #" << cc+1 << " is being served (" << y_serveCustomerVars[cc].getSol() << ")\n";
+				stream << "- Revenue: " << c->revenue << "\n";
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
 					service *s = c->services[ss];
-					cout << " - Service #" << s->globalServiceIndex +1 << " - number of potential mappings: " << s->mappings.size() << "\n";
+					stream << " - Service #" << s->globalServiceIndex +1 << " - number of potential mappings: " << s->mappings.size() << "\n";
 					for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
 						mapping * m = *m_itr;
 						XPRBvar *w = mappingVarForMappingIndex(m->globalMappingIndex);
 						if(w == NULL) {
-							cout <<  "  !! mapping #" << m->globalMappingIndex+1 << " has no related w_useMapping variable\n";
+							stream <<  "  !! mapping #" << m->globalMappingIndex+1 << " has no related w_useMapping variable\n";
 						}
 						else if(w->getSol() > 0.01) {
-							cout <<  "  -> mapping #" << m->globalMappingIndex+1 << "\n";
-							cout << "   - primary path: " << m->primary->globalPathIndex+1 << ", cost: " << m->primary->cost << "\n";
-							cout << "    - nodes up: " << m->primary->arcs_up.front()->startNode+1;
+							stream <<  "  -> mapping #" << m->globalMappingIndex+1 << "\n";
+							stream << "   - primary path: " << m->primary->globalPathIndex+1 << ", cost: " << m->primary->cost << "\n";
+							stream << "    - nodes up: " << m->primary->arcs_up.front()->startNode+1;
 							for(list<arc*>::iterator a_itr = m->primary->arcs_up.begin(), a_end = m->primary->arcs_up.end(); a_itr != a_end; ++a_itr) {
-								cout << "->" << (*a_itr)->endNode+1;
+								stream << "->" << (*a_itr)->endNode+1;
 							}
-							cout << "\n";
+							stream << "\n";
 							if(m->backup != NULL) {
-								cout << "   - backup path: " << m->backup->globalPathIndex+1 << "\n";
-								cout << "    - nodes up: " << m->backup->arcs_up.front()->startNode+1;
+								stream << "   - backup path: " << m->backup->globalPathIndex+1 << "\n";
+								stream << "    - nodes up: " << m->backup->arcs_up.front()->startNode+1;
 								for(list<arc*>::iterator a_itr = m->backup->arcs_up.begin(), a_end = m->backup->arcs_up.end(); a_itr != a_end; ++a_itr) {
-									cout << "->" << (*a_itr)->endNode+1;
+									stream << "->" << (*a_itr)->endNode+1;
 								}
-								cout << "\n";
+								stream << "\n";
 							}
 						}
 					}
@@ -1454,11 +1463,11 @@ namespace cloudbrokermodels {
 			}
 		}
 
-		cout << "\nArc backup reservations (non-zero)\n";
+		stream << "\nArc backup reservations (non-zero)\n";
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			if(d_arcBackupUsage[aa].getSol() > 0.00001) {
 				arc *a = &data->arcs[aa];
-				cout << "(" << a->startNode+1 << ", " << a->endNode+1 << ") : " << d_arcBackupUsage[aa].getSol() << "\n";
+				stream << "(" << a->startNode+1 << "," << a->endNode+1 << ") = " << d_arcBackupUsage[aa].getSol() << "\n";
 			}
 		}
 	}

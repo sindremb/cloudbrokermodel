@@ -520,6 +520,11 @@ namespace entities {
 		ofstream myfile;
 		myfile.open(filename);
 
+		if(!myfile) {
+			cerr << "could not open file <" << filename << "> for writing\n";
+			return;
+		}
+
 		_addCommonMoselData(data, &myfile);
 		_addPathMoselData(data, &myfile);
 		_addMappingMoselData(data, &myfile);
