@@ -151,7 +151,7 @@ void runConfiguration(cloudBrokerConfig config) {
 				);
 			} else {
 				cout << "Solving CloudBroker-model using pregenerated mappings..\n";
-				model.RunModel(true);
+				model.RunModel(true, config.mip_time_limit);
 			}
 			// print solution to console
 			model.OutputResultsToStream(cout);
@@ -167,14 +167,14 @@ void runConfiguration(cloudBrokerConfig config) {
 					model.OutputResultsToStream(myfile);
 
 					myfile.close();
-					cout << "results were stored to file " << config.output_file;
+					cout << "results were stored to file " << config.output_file << "\n";
 				} else {
-					cerr << "could not open file <" << config.output_file << "> for writing results\n";
+					cerr << "Error: could not open file <" << config.output_file << "> for writing results\n";
 				}
 			}
 		}
 	} else {
-		cerr << "Unable to load input data from <" << config.input_file << ">\n";
+		cerr << "Error: Unable to load input data from <" << config.input_file << ">\n";
 	}
 }
 
@@ -198,7 +198,7 @@ int getConsoleInt(string description) {
 		stringstream myStream(input);
 		if (myStream >> number)
 			break;
-		cerr << "Invalid integer input <" << input << ">\n";
+		cerr << "Error: Invalid integer input <" << input << ">\n";
 	}
 	// should never be reached
 	return number;
@@ -217,7 +217,7 @@ double getConsoleDouble(string description) {
 		stringstream myStream(input);
 		if (myStream >> number)
 			break;
-		cerr << "Invalid number input <" << input << ">\n";
+		cerr << "Error: Invalid number input <" << input << ">\n";
 	}
 	// should never be reached
 	return number;
@@ -226,7 +226,7 @@ double getConsoleDouble(string description) {
 void textUI() {
 	cloudBrokerConfig config = defaultConfig();
 
-	cout << "Welcome to network path generation bot v0.5";
+	cout << "Welcome to network path generation bot v1.0";
 	while(true) {
 		int rootSelection = getConsoleInt(
 			"\n\n Menu:\n"
@@ -315,21 +315,163 @@ void textUI() {
 					if(colgenchoice > 0 && colgenchoice <= 3) {
 						config.column_generation_method = colgenchoice;
 					} else {
-						cout << "\nUnknown choice\n";
+						cout << "\nError: Unknown choice\n";
 					}
 				}
 				else if (configSelection == 0) {
 					break;
 				} else {
-					cout << "\nUnknown choice\n";
+					cout << "\nError: Unknown choice\n";
 				}
 			}
 		} else if(rootSelection == 0) {
 			break;
 		} else {
-			cout << "\nUnknown choice\n";
+			cout << "\nError: Unknown choice\n";
 		}
 	}
+}
+
+void executeArguments(int argc, char *argv[]) {
+	cloudBrokerConfig config = defaultConfig();
+
+	// parse what action to perform (including any pregen actions needed by main action)
+	if(string(argv[1]) == "moseldata" || string(argv[1]) == "mo") {
+		config.generate_mosel_data = true;
+		config.pregen_paths = true;
+		config.pregen_path_combos = true;
+		config.pregen_mappings = true;
+	} else if (string(argv[1]) == "solve" || string(argv[1]) == "s") {
+		config.complete_bcl_solve = true;
+		config.pregen_paths = true;
+		config.pregen_path_combos = true;
+		config.pregen_mappings = true;
+	} else if (string(argv[1]) == "cgsolve" || string(argv[1]) == "c") {
+		config.columngen_bcl_solve = true;
+	} else {
+		cerr << "\nError: Unknown action: " << argv[1] << "\n";
+		return;
+	}
+
+	// parse option arguments
+	for(int i = 2; i < argc; i++) {
+		if(string(argv[i]) == "-i") {
+			// next argument should be input file
+			if(i+1 < argc) {
+				config.input_file = argv[i+1];
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"-i\" switch\n";
+				return;
+			}
+		} else if (string(argv[i]) == "-o") {
+			// next argument should be output file
+			if(i+1 < argc) {
+				config.output_file = argv[i+1];
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"-o\" switch\n";
+				return;
+			}
+		} else if (string(argv[i]) == "-cgmethod") {
+			// next argument should be column generation method file
+			if(i+1 < argc) {
+				stringstream myStream(argv[i+1]);
+				if(!(myStream >> config.column_generation_method)) {
+					cerr << "Error: Invalid integer input for \"-cgmethod\" option <" << argv[i+1] << ">\n";
+					return;
+				}
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"-cgmethod\" switch\n";
+				return;
+			}
+		} else if (string(argv[i]) == "-beta") {
+			// next argument should be model beta file
+			if(i+1 < argc) {
+				stringstream myStream(argv[i+1]);
+				if(!(myStream >> config.model_beta)) {
+					cerr << "Error: Invalid real number input for \"-beta\" option <" << argv[i+1] << ">\n";
+					return;
+				}
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"-beta\" switch\n";
+				return;
+			}
+		} else if (string(argv[i]) == "-miplimit") {
+			// next argument should be mip time limit file
+			if(i+1 < argc) {
+				stringstream myStream(argv[i+1]);
+				if(!(myStream >> config.mip_time_limit)) {
+					cerr << "Error: Invalid integer input for \"-miplimit\" option <" << argv[i+1] << ">\n";
+					return;
+				}
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"-miplimit\" switch\n";
+				return;
+			}
+		} else if (string(argv[i]) == "-cgmaxiters") {
+			// next argument should be mip time limit file
+			if(i+1 < argc) {
+				stringstream myStream(argv[i+1]);
+				if(!(myStream >> config.column_generation_iter_limit)) {
+					cerr << "Error: Invalid integer input for \"-cgmaxiters\" option <" << argv[i+1] << ">\n";
+					return;
+				}
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"-cgmaxiters\" switch\n";
+				return;
+			}
+		} else if (string(argv[i]) == "-cgmaxcount") {
+			// next argument should be mip time limit file
+			if(i+1 < argc) {
+				stringstream myStream(argv[i+1]);
+				if(!(myStream >> config.column_generation_count_limit)) {
+					cerr << "Error: Invalid integer input for \"-cgmaxcount\" option <" << argv[i+1] << ">\n";
+					return;
+				}
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"-cgmaxcount\" switch\n";
+				return;
+			}
+		} else if (string(argv[i]) == "-plimit") {
+			// next argument should be mip time limit file
+			if(i+1 < argc) {
+				stringstream myStream(argv[i+1]);
+				if(!(myStream >> config.pregen_paths_limit)) {
+					cerr << "Error: Invalid integer input for \"-plimit\" option <" << argv[i+1] << ">\n";
+					return;
+				}
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"-plimit\" switch\n";
+				return;
+			}
+		} else {
+			cerr << "\nError: Unknown option switch: " << argv[i] << "\n";
+			return;
+		}
+	}
+
+	// special case
+	// - if using column generation with method 0, pregenerated paths is needed
+	if(config.columngen_bcl_solve && config.column_generation_method == 0) {
+		config.pregen_paths = true;
+	}
+
+	// check requirements
+	// - at the least, an input file must have been specified
+	if(config.input_file.empty()) {
+		cerr << "\nError: Missing required option \"-i <input filename>\"\n";
+		return;
+	}
+
+	// finally run the configuration from parsed arguments
+	runConfiguration(config);
 }
 
 int main(int argc, char *argv[]) {
@@ -338,7 +480,7 @@ int main(int argc, char *argv[]) {
 		textUI();
 	} else {
 		// parse arguments and try to execute
-		cerr << "Executable call argument parsing not yet implemented";
+		executeArguments(argc, argv);
 	}
 	return 0;
 }
