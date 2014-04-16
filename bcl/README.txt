@@ -46,7 +46,7 @@ program should do.
 	-o <filename>			| no default value, optional
 	specifies the filename (including relative path) for storing any results from the task to perform
 	
-	-cgmethod <integer>		| default: 2, optional
+	-cgmethod <integer>		| default: 3, optional
 	specifies which column generation method to use if solving the bcl model with column generation
 		1 : brute force
 		2 : heuristic A
