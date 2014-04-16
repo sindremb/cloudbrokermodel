@@ -563,7 +563,15 @@ namespace cloudbrokermodels {
 
 			CloudBrokerModel::dual_vals duals = this->getDualVals();
 
-			cout << "-generating columns..\n";
+			cout << "-generating columns" << (
+					columnGenerationMethod == 1 ? " (brute force)"
+							:
+							(
+									columnGenerationMethod == 2 ? " (heuristic A)"
+									: " (heuristic B)"
+							)
+						)
+				<< "..\n";
 			// use duals to generate column(s) for each service
 			for(int cc = 0; cc < this->data->n_customers; ++cc) {
 				customer *c = &this->data->customers[cc];

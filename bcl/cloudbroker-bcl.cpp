@@ -72,7 +72,7 @@ cloudBrokerConfig defaultConfig() {
 
 	config.model_beta = 0.3;
 	config.mip_time_limit = -1.0;
-	config.column_generation_method = 2;
+	config.column_generation_method = 3;
 	config.column_generation_count_limit = -1;
 	config.column_generation_iter_limit = -1;
 

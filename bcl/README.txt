@@ -48,9 +48,9 @@ program should do.
 	
 	-cgmethod <integer>		| default: 2, optional
 	specifies which column generation method to use if solving the bcl model with column generation
-		0 : brute force
-		1 : heuristic A
-		2 : heuristic B 
+		1 : brute force
+		2 : heuristic A
+		3 : heuristic B 
 	
 	-beta <float>			| defualt: 0.3, optional
 	sets the beta value to use in the backup reservation constraint of the model
