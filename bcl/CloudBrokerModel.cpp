@@ -1437,6 +1437,7 @@ namespace cloudbrokermodels {
 
 		stream << "\nNumber of mappings = " << data->n_mappings << "\n";
 
+		double total_backup_requirement = 0.0;
 		for(int cc = 0; cc < data->n_customers; ++cc) {
 			customer *c = &data->customers[cc];
 			if(y_serveCustomerVars[cc].getSol() > 0.01) {
@@ -1464,6 +1465,8 @@ namespace cloudbrokermodels {
 								stream << "    - nodes up: " << m->backup->arcs_up.front()->startNode+1;
 								for(list<arc*>::iterator a_itr = m->backup->arcs_up.begin(), a_end = m->backup->arcs_up.end(); a_itr != a_end; ++a_itr) {
 									stream << "->" << (*a_itr)->endNode+1;
+									total_backup_requirement += Parameters::Q_BackupBandwidthUsageOnArcForMapping(*a_itr, m)
+											+ Parameters::Q_BackupBandwidthUsageOnArcForMapping((*a_itr)->return_arc, m);
 								}
 								stream << "\n";
 							}
@@ -1473,13 +1476,20 @@ namespace cloudbrokermodels {
 			}
 		}
 
+		double total_backup_reserved = 0.0;
 		stream << "\nArc backup reservations (non-zero)\n";
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			if(d_arcBackupUsage[aa].getSol() > 0.00001) {
 				arc *a = &data->arcs[aa];
+				total_backup_reserved += d_arcBackupUsage[aa].getSol();
 				stream << "(" << a->startNode+1 << "," << a->endNode+1 << ") = " << d_arcBackupUsage[aa].getSol() << "\n";
 			}
 		}
+
+		double coverage = total_backup_requirement >= EPS ? total_backup_reserved * 100 / total_backup_requirement : 100.0;
+		stream << "\nTotal backup capacity required: " << total_backup_requirement
+				<< "\nTotal backup capacity reserved: " << total_backup_reserved
+				<< "\nBackup coverage: " << coverage << "%\n";
 	}
 
 	XPRBvar* CloudBrokerModel::mappingVarForMappingIndex(int mappingIndex) {
