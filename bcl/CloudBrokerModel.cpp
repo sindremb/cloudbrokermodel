@@ -1438,6 +1438,8 @@ namespace cloudbrokermodels {
 		stream << "\nNumber of mappings = " << data->n_mappings << "\n";
 
 		double total_backup_requirement = 0.0;
+		int service_count = 0;
+		int backup_count = 0;
 		for(int cc = 0; cc < data->n_customers; ++cc) {
 			customer *c = &data->customers[cc];
 			if(y_serveCustomerVars[cc].getSol() > 0.01) {
@@ -1453,6 +1455,7 @@ namespace cloudbrokermodels {
 							stream <<  "  !! mapping #" << m->globalMappingIndex+1 << " has no related w_useMapping variable\n";
 						}
 						else if(w->getSol() > 0.01) {
+							service_count++;
 							stream <<  "  -> mapping #" << m->globalMappingIndex+1 << "\n";
 							stream << "   - primary path: " << m->primary->globalPathIndex+1 << ", cost: " << m->primary->cost << "\n";
 							stream << "    - nodes up: " << m->primary->arcs_up.front()->startNode+1;
@@ -1461,6 +1464,7 @@ namespace cloudbrokermodels {
 							}
 							stream << "\n";
 							if(m->backup != NULL) {
+								backup_count++;
 								stream << "   - backup path: " << m->backup->globalPathIndex+1 << "\n";
 								stream << "    - nodes up: " << m->backup->arcs_up.front()->startNode+1;
 								for(list<arc*>::iterator a_itr = m->backup->arcs_up.begin(), a_end = m->backup->arcs_up.end(); a_itr != a_end; ++a_itr) {
@@ -1486,7 +1490,11 @@ namespace cloudbrokermodels {
 			}
 		}
 
-		double coverage = total_backup_requirement >= EPS ? total_backup_reserved * 100 / total_backup_requirement : 100.0;
+		stream << "\nTotal services provided: " << service_count
+				<< "\nNumber of services with backup: " << backup_count
+				<< " ("<< (service_count > 0 ? backup_count * 100.0 / service_count : 100.0) << "%)\n";
+
+		double coverage = total_backup_requirement >= EPS ? total_backup_reserved * 100.0 / total_backup_requirement : 100.0;
 		stream << "\nTotal backup capacity required: " << total_backup_requirement
 				<< "\nTotal backup capacity reserved: " << total_backup_reserved
 				<< "\nBackup coverage: " << coverage << "%\n";
