@@ -141,8 +141,11 @@ void runConfiguration(cloudBrokerConfig config) {
 		}
 
 		if(config.complete_bcl_solve || config.columngen_bcl_solve) {
+#ifdef EXCLUDE_BCL
+			cerr << "Error: no BCL functionality available in this build\n";
+#endif
+#ifndef EXCLUDE_BCL
 			double total_time = 0.0, build_time = 0.0, colgen_time = 0.0, mip_time = 0.0;
-
 			cloudbrokermodels::CloudBrokerModel model;
 			cout << "Building CloudBroker-model..\n";
 			time_t build_start = time(0);
@@ -196,6 +199,7 @@ void runConfiguration(cloudBrokerConfig config) {
 					cerr << "Error: could not open file <" << config.output_file << "> for writing results\n";
 				}
 			}
+#endif
 		}
 	} else {
 		cerr << "Error: Unable to load input data from <" << config.input_file << ">\n";
