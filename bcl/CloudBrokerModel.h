@@ -80,7 +80,7 @@ namespace cloudbrokermodels {
 		CloudBrokerModel();
 		void BuildModel(entities::dataContent * data, double beta_backupres = 0.3);
 		void RunModel(bool enforce_integer = true, int time_limit = -1);
-		void RunModelColumnGeneration(int columnGenerationMethod, int colgen_iter_limit, int colgen_count_limit, int mip_time_limit);
+		void RunColumnGeneration(int columnGenerationMethod, int colgen_iter_limit, int colgen_count_limit);
 		void OutputResultsToStream(std::ostream& stream);
 	};
 }

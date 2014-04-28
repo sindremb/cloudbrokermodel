@@ -39,9 +39,9 @@ struct cloudBrokerConfig {
 	bool complete_bcl_solve;
 	bool columngen_bcl_solve;
 
-	// optimiser config
-	double mip_time_limit;
+	// general optimiser config
 	double model_beta;
+	int mip_time_limit;
 
 	// column generation config
 	int column_generation_method;
@@ -53,12 +53,6 @@ struct cloudBrokerConfig {
 	string output_file;
 };
 
-struct configModel {
-	bool	calc_combo_availabilities;
-	int 	max_paths_per_placement;
-	int 	column_gen_alg;
-};
-
 cloudBrokerConfig defaultConfig() {
 	cloudBrokerConfig config;
 	config.pregen_paths = false;
@@ -68,10 +62,10 @@ cloudBrokerConfig defaultConfig() {
 
 	config.generate_mosel_data = false;
 	config.complete_bcl_solve = false;
-	config.columngen_bcl_solve = true;
+	config.columngen_bcl_solve = false;
 
 	config.model_beta = 0.3;
-	config.mip_time_limit = -1.0;
+	config.mip_time_limit = -1;
 	config.column_generation_method = 3;
 	config.column_generation_count_limit = -1;
 	config.column_generation_iter_limit = -1;
@@ -95,16 +89,16 @@ void outputMetaDataToStream(std::ostream& stream, cloudBrokerConfig* config) {
 			<< now->tm_hour << ':' << now->tm_min << '\n';
 
 	// add configuration data
-	stream << "\nInput = " << config->input_file << "\n";
+	stream << "Input = " << config->input_file << "\n";
 	if(config->complete_bcl_solve) {
-		stream << "\nTask = solve BCL model including ALL PREGENERATED MAPPINGS\n";
+		stream << "Task = solve BCL model including ALL PREGENERATED MAPPINGS\n";
 	} else if (config->columngen_bcl_solve) {
-		stream << "\nTask = solve BCL model adding mappings by COLUMN GENERATION\n";
+		stream << "Task = solve BCL model adding mappings by COLUMN GENERATION\n";
 	}
 
 	if(config->complete_bcl_solve || config->columngen_bcl_solve) {
-		stream << "\nMIP-solve time limit = " << config->mip_time_limit << "\n";
-		stream << "model beta = " << config->model_beta << "\n";
+		stream << "\n# general configuration\nMIP-solve time limit = " << config->mip_time_limit << "\n"
+				<< "model beta = " << config->model_beta << "\n";
 	}
 
 	if(config->pregen_paths) {
@@ -128,31 +122,52 @@ void runConfiguration(cloudBrokerConfig config) {
 	entities::dataContent data;
 	if(entities::loadFromJSONFile(config.input_file.c_str(), &data)) {
 
-		// run any pregeneration
+		// run any pregeneration tasks
+		time_t total_start = time(0);
+		time_t pregen_start = time(0);
 		if(config.pregen_paths) pathgen::generatePaths(&data, config.pregen_paths_limit);
 		if(config.pregen_path_combos) pathgen::addPathComboAvailabilities(&data);
 		if(config.pregen_mappings) pathgen::addFeasibleMappings(&data);
+		double pregen_time = (double) (time(0) - pregen_start);
 
-		// run task
-		if(config.generate_mosel_data) entities::toMoselDataFile(config.output_file.c_str(), &data);
+		// run main tasks as configured:
+
+		if(config.generate_mosel_data) {
+			if(!config.output_file.empty()) {
+				entities::toMoselDataFile(config.output_file.c_str(), &data);
+			} else {
+				cerr << "Error: no destination file for mosel data specified\n";
+			}
+		}
+
 		if(config.complete_bcl_solve || config.columngen_bcl_solve) {
+			double total_time = 0.0, build_time = 0.0, colgen_time = 0.0, mip_time = 0.0;
+
 			cloudbrokermodels::CloudBrokerModel model;
-			cout << "Building CloudBroker-model..";
+			cout << "Building CloudBroker-model..\n";
+			time_t build_start = time(0);
 			model.BuildModel(&data, config.model_beta);
-			cout << "COMPLETE!\n";
+			build_time = (double) (time(0)-build_start);
+			cout << "MODEL BUILDING COMPLETE!\n";
 
 			if(config.columngen_bcl_solve) {
-				cout << "Solving CloudBroker-model by column generation..\n";
-				model.RunModelColumnGeneration(
+				cout << "Adding mappings by column generation..\n";
+				time_t colgen_start = time(0);
+				model.RunColumnGeneration(
 					config.column_generation_method,
 					config.column_generation_iter_limit,
-					config.column_generation_count_limit,
-					config.mip_time_limit
+					config.column_generation_count_limit
 				);
-			} else {
-				cout << "Solving CloudBroker-model using pregenerated mappings..\n";
-				model.RunModel(true, config.mip_time_limit);
+				colgen_time = (double) (time(0) - colgen_start);
+				cout << "COLUMN GENERATION COMPLETE!\n";
 			}
+
+			cout << "Solving CloudBroker-model..\n";
+			time_t mip_start = time(0);
+			model.RunModel(true, config.mip_time_limit);
+			mip_time = (double) (time(0)-mip_start);
+			total_time = (double) (time(0)-total_start);
+
 			// print solution to console
 			model.OutputResultsToStream(cout);
 			if(!config.output_file.empty()) {
@@ -163,6 +178,15 @@ void runConfiguration(cloudBrokerConfig config) {
 				if(myfile) {
 					// include information from configuration used
 					outputMetaDataToStream(myfile, &config);
+
+					// include informaiton about time consumption
+					myfile << "\n############### TIME CONSUMPTIONS ###################\n"
+							"\nPregeneration: " << pregen_time <<
+							"\nModel building: " << build_time <<
+							"\nColumn generation: " << colgen_time <<
+							"\nMIP solve: " << mip_time <<
+							"\nTotal time consumption: " << total_time << "\n";
+
 					// include solution to optimisation problem
 					model.OutputResultsToStream(myfile);
 
@@ -458,8 +482,8 @@ void executeArguments(int argc, char *argv[]) {
 	}
 
 	// special case
-	// - if using column generation with method 0, pregenerated paths is needed
-	if(config.columngen_bcl_solve && config.column_generation_method == 0) {
+	// - if using column generation with method 1 (brute force), pregenerated paths is needed
+	if(config.columngen_bcl_solve && config.column_generation_method == 1) {
 		config.pregen_paths = true;
 	}
 

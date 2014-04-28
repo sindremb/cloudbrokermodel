@@ -43,7 +43,7 @@ program should do.
 	-i <filename>			| no default value, required
 	specifies the filename (including relative path) for importing data to the model
 	
-	-o <filename>			| no default value, optional
+	-o <filename>			| no default value, optional for solve/cgsolve, required for moseldata
 	specifies the filename (including relative path) for storing any results from the task to perform
 	
 	-cgmethod <integer>		| default: 3, optional

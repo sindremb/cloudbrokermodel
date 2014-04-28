@@ -537,7 +537,7 @@ namespace cloudbrokermodels {
 	}
 
 	void CloudBrokerModel::RunModel(bool enforce_integer, int time_limit) {
-		if(time_limit) {
+		if(time_limit >= 0) {
 			XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_MAXTIME, time_limit);
 		}
 
@@ -548,10 +548,10 @@ namespace cloudbrokermodels {
 		}
 	}
 
-	void CloudBrokerModel::RunModelColumnGeneration(int columnGenerationMethod, int iter_limit, int col_count_limit, int mip_time_limit) {
+	void CloudBrokerModel::RunColumnGeneration(int columnGenerationMethod, int iter_limit, int col_count_limit) {
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts */
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
-		master_problem.setMsgLevel(1);											/* disable default XPRS messages */
+		master_problem.setMsgLevel(1);											/* disable default XPRS messages: error messages only */
 
 		int itercount = 0;
 		while((iter_limit < 0 || itercount < iter_limit)
@@ -601,9 +601,7 @@ namespace cloudbrokermodels {
 
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 1);	/* Reenable automatic cuts */
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 1);		/* Switch presolve on again */
-		master_problem.setMsgLevel(0);
-		cout << "running MIP-model..\n";
-		this->RunModel(true, mip_time_limit);
+		master_problem.setMsgLevel(3); /* Set message level back to default */
 	}
 
 	CloudBrokerModel::dual_vals CloudBrokerModel::getDualVals() {
@@ -1421,8 +1419,11 @@ namespace cloudbrokermodels {
 	 */
 	void CloudBrokerModel::OutputResultsToStream(ostream& stream) {
 
+		//bool optimalSolution = (master_problem.getProbStat()&XPRB_SOL) == XPRB_SOL;
+
 		stream << "\n################### RUN RESULTS ####################\n";
 
+		//stream << "\nProfits = " << master_problem.getObjVal() << (optimalSolution ? " OPTIMAL" : " NON-OPTIMAL")<< "\n";
 		stream << "\nProfits = " << master_problem.getObjVal() << "\n";
 
 		double backup_costs = 0.0;
