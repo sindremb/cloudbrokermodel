@@ -16,6 +16,7 @@
 #include <ctime>
 #include <fstream>
 
+#include "simpletimer.h"
 #include "entities.h"
 #include "pathgenerator.h"
 
@@ -117,28 +118,18 @@ void outputMetaDataToStream(std::ostream& stream, cloudBrokerConfig* config) {
 
 }
 
-int systemTimeMilliseconds() {
-#ifdef EXCLUDE_BCL
-	// if not using bcl, use crude time function (second accuracy only)
-	return (int) time(0) * 1000;
-#else
-	// otherwise use the time function provided by bcl for accuracy and simplicity
-	return utils::GetSystemTimeMilliseconds();
-#endif
-}
-
 void runConfiguration(cloudBrokerConfig config) {
 	// load input data
 	entities::dataContent data;
 	if(entities::loadFromJSONFile(config.input_file.c_str(), &data)) {
 
 		// run any pregeneration tasks
-		int total_start = systemTimeMilliseconds();
-		int pregen_start = systemTimeMilliseconds();
+		timer total_start;
+		timer pregen_start;
 		if(config.pregen_paths) pathgen::generatePaths(&data, config.pregen_paths_limit);
 		if(config.pregen_path_combos) pathgen::addPathComboAvailabilities(&data);
 		if(config.pregen_mappings) pathgen::addFeasibleMappings(&data);
-		double pregen_time = (double) (systemTimeMilliseconds() - pregen_start) / 1000;
+		double pregen_time = pregen_start.elapsed();
 
 		// run main tasks as configured:
 
@@ -157,28 +148,28 @@ void runConfiguration(cloudBrokerConfig config) {
 			double total_time = 0.0, build_time = 0.0, colgen_time = 0.0, mip_time = 0.0;
 			cloudbrokermodels::CloudBrokerModel model;
 			cout << "Building CloudBroker-model..\n";
-			int build_start = systemTimeMilliseconds();
+			timer build_start;
 			model.BuildModel(&data, config.model_beta);
-			build_time = (double) (systemTimeMilliseconds()-build_start) / 1000;
+			build_time = build_start.elapsed();
 			cout << "MODEL BUILDING COMPLETE!\n";
 
 			if(config.columngen_bcl_solve) {
 				cout << "Adding mappings by column generation..\n";
-				int colgen_start = systemTimeMilliseconds();
+				timer colgen_start;
 				model.RunColumnGeneration(
 					config.column_generation_method,
 					config.column_generation_iter_limit,
 					config.column_generation_count_limit
 				);
-				colgen_time = (double) (systemTimeMilliseconds() - colgen_start) / 1000;
+				colgen_time = colgen_start.elapsed();
 				cout << "COLUMN GENERATION COMPLETE!\n";
 			}
 
 			cout << "Solving CloudBroker-model..\n";
-			int mip_start = systemTimeMilliseconds();
+			timer mip_start;
 			model.RunModel(true, config.mip_time_limit);
-			mip_time = (double) (systemTimeMilliseconds()-mip_start)/ 1000;
-			total_time = (double) (systemTimeMilliseconds()-total_start) / 1000;
+			mip_time = mip_start.elapsed();
+			total_time = total_start.elapsed();
 
 			// print solution to console
 			model.OutputResultsToStream(cout);

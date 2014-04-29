@@ -15,13 +15,6 @@
 #include <vector>
 #include <iostream>
 
-namespace utils {
-
-	// helper function using xpress bcl to fetch system time
-	int GetSystemTimeMilliseconds();
-
-}
-
 namespace cloudbrokermodels {
 
 	class CloudBrokerModel {

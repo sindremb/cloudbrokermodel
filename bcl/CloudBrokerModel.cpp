@@ -21,12 +21,6 @@ using namespace entities;
 using namespace ::dashoptimization;
 using namespace std;
 
-namespace utils {
-	int GetSystemTimeMilliseconds() {
-		return XPRB::getTime();
-	}
-}
-
 namespace cloudbrokermodels {
 
 	/*
