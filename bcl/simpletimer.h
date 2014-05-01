@@ -1,5 +1,5 @@
 /* This small code file adds a simple, platform independent, timer class
- * Code available at: http://stackoverflow.com/questions/483164/looking-for-benchmarking-code-snippet-c
+ * Code adapted from: http://stackoverflow.com/questions/483164/looking-for-benchmarking-code-snippet-c
  */
 
 #ifndef _SIMPLETIMER_H
@@ -29,7 +29,7 @@ public:
 };
 
 #else
-
+/*
 #include <ctime>
 
 class timer
@@ -41,6 +41,25 @@ public:
     double elapsed() const
     {
         return double(clock() - _start_time) / CLOCKS_PER_SEC;
+    }
+};
+*/
+
+// new timer implementation to correctly report wall clock timing when using multiple threads
+
+#include <time.h>
+
+class timer
+{
+	timespec start_ts;
+public:
+    timer() { clock_gettime(CLOCK_REALTIME, &start_ts); }
+    void   restart() { clock_gettime(CLOCK_REALTIME, &start_ts);  }
+    double elapsed() const
+    {
+    	timespec current_ts;
+    	clock_gettime(CLOCK_REALTIME, &current_ts);
+        return (double)  (current_ts.tv_sec - start_ts.tv_sec) + ((double) (current_ts.tv_nsec - start_ts.tv_nsec) / 1000000000L);
     }
 };
 
