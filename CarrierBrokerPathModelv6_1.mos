@@ -11,7 +11,14 @@ parameters
 	Data = 'data/medium_multi.txt';
 	! Minimum proportion of total backup requirement reserved on an arc
 	MinBackupProportion = 0.3;
+	! Time limit for runtime,  maximum number of seconds for optimisation
+	TimeLimit = -1;	
 end-parameters
+
+writeln("Model Parameters:");
+writeln("Data:", Data);
+writeln("MinBackupProportion(beta):", MinBackupProportion);
+writeln("TimeLimit:", TimeLimit);
 
 declarations
 	timetracker:	real; ! used to log timestamps for time consumption output
@@ -21,7 +28,9 @@ writeln("Building model...");
 timetracker := timestamp; ! assigns current "timestamp" to timetracker
 
 !setparam("XPRS_presolve", 0);	! uncomment to turn of presolve
-!setparam("XPRS_maxtime", 3600); ! maximum number of seconds for optimisation
+if(TimeLimit>0.0) then
+	setparam("XPRS_maxtime", TimeLimit);
+end-if
 
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! Sets
