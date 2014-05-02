@@ -20,8 +20,8 @@ uses "mmxprs", "mmsystem";
 parameters
 	! Data file to read from
 	Data = 'data/sm_arc_2.txt';
-	! Use thightened restrictions (v2) or not (v1)
-	TightenLP = false;
+	! Time limit for runtime,  maximum number of seconds for optimisation
+	timeLimit = -1;	
 end-parameters
 
 declarations
@@ -32,7 +32,9 @@ writeln("Building model...");
 timetracker := timestamp;
 
 !setparam("XPRS_presolve", 0);	! uncomment to turn of presolve
-setparam("XPRS_maxtime", 3600); ! maximum number of seconds for optimisation
+if(timeLimit>0.0) then
+	setparam("XPRS_maxtime", timeLimit);
+end-if
 
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! Sets
@@ -188,11 +190,13 @@ forall (ss in Services, pp in Providers | exists(H_PlacePrice(ss,pp))) do
 end-do
 
 ! - for all existing arcs in network
-forall(nn in Nodes, mm in Nodes, ss in Services | exists(F_BandwidthCap(nn,mm))) do
-	create(u_Capacity(nn,mm,ss));
-	u_Capacity(nn,mm,ss) is_binary;
-	create(b_UseBackup(nn,mm,ss));
-	b_UseBackup(nn,mm,ss) is_binary;
+forall(cc in Customers) do
+	forall(nn in Nodes, mm in Nodes, ss in S_ServiceForCustomer(cc) | exists(F_BandwidthCap(nn,mm)) and mm<>cc ) do
+		create(u_Capacity(nn,mm,ss));
+		u_Capacity(nn,mm,ss) is_binary;
+		create(b_UseBackup(nn,mm,ss));
+		b_UseBackup(nn,mm,ss) is_binary;
+	end-do
 end-do
 
 ! - for all customers
@@ -327,13 +331,10 @@ end-do
 forall (cc in Customers, ss in S_ServiceForCustomer(cc)) do
 	UserSideBandwidth(ss) := (
 			sum(mm in Nodes | mm<>cc) (u_Capacity(cc,mm,ss) )
-			- 
-			sum(nn in Nodes | nn<>cc) (u_Capacity(nn,cc,ss)) - y_Serve(cc)	
+			 - y_Serve(cc)	
 		)= 0;	
 	UserSideBackup(ss) := (
 			sum(mm in Nodes | mm<>cc) b_UseBackup(cc,mm,ss)
-			- 
-			sum(nn in Nodes | nn<>cc) b_UseBackup(nn,cc,ss)
 			-
 			sum(pp in Providers) r_RequireBackup(ss,pp)
 		) =0;
