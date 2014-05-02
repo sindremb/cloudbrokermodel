@@ -67,6 +67,9 @@ program should do.
 	-plimit <integer>		| default: -1, optional
 	sets the maximum number of paths to generate for each (service, provider) combination, ignores limit on -1
 	
+	-nomappings				| default: not set
+	if given, tells pregeneration to skip pregeneration of mappings where otherwise done as default
+	
 	
 	
 	

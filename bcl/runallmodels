@@ -1,0 +1,43 @@
+#!/bin/bash
+# scripts used to run all model versions with specified beta value on specified dataset
+# usage: runallmodels <beta-value> <data-json-format> <data-mosel-format> <max-solve-time>
+
+beta=$1
+jsondataset=$2
+moseldataset=$3
+timelimit=$4
+
+echo "running all models for: beta: $beta, data: $jsondataset"
+
+#mapping model: heuristic B column generation
+./cloudbroker-bcl cgsolve -i $jsondataset -o results/cg3.$beta.$jsondataset.txt -beta $beta -cgmethod 3 -miplimit $timelimit > results/runlogs/cg3.$beta.$jsondataset.txt
+
+echo "cg heuristic B completed"
+
+#mapping model: heuristic A column generation
+./cloudbroker-bcl cgsolve -i $jsondataset -o results/cg2.$beta.$jsondataset.txt -beta $beta -cgmethod 2 -miplimit $timelimit > results/runlogs/cg2.$beta.$jsondataset.txt
+
+echo "cg heuristic A completed"
+
+#mapping model: brute force column generation
+./cloudbroker-bcl cgsolve -i $jsondataset -o results/cg1.$beta.$jsondataset.txt -beta $beta -cgmethod 2 -miplimit $timelimit > results/runlogs/cg1.$beta.$jsondataset.txt
+
+echo "cg brute force completed"
+
+#mapping model: full
+./cloudbroker-bcl solve -i $jsondataset -o results/m3.$beta.$jsondataset.txt -beta $beta -miplimit $timelimit > results/runlogs/m3.$beta.$jsondataset.txt
+
+echo "full mapping model completed"
+
+#pathmodel
+mosel -c "exec CarrierBrokerPathModelv4.mos Data='$moseldataset',MinBackupProportion=$beta,TimeLimit=$timelimit" > results/runlogs/m2.$beta.$jsondataset.txt
+
+echo "full path model completed"
+
+#arcmodel
+#mosel -c "exec CarrierBrokerModelSimplyfied_rev.mos Data='$moseldataset',MinBackupProportion=$beta,TimeLimit=$timelimit" > #results/runlogs/m1.$beta.$jsondataset.txt
+
+echo "full arc model completed"
+
+
+

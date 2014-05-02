@@ -1,0 +1,14 @@
+#!/bin/bash
+# script for running all datasets on all models using provided beta value
+# usage: ./runallmodels <beta-value> <max-solve-time>
+
+beta=$1
+maxtime=$2
+
+./runallmodels $beta sm.json sm_mosel.txt $maxtime
+
+./runallmodels $beta medium.json m_mosel.txt $maxtime
+
+./runallmodels $beta mediumlarge.json ml_mosel.txt $maxtime
+
+./runallmodels $beta large.json l_mosel.txt $maxtime

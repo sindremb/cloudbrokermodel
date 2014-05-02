@@ -364,7 +364,7 @@ void executeArguments(int argc, char *argv[]) {
 	cloudBrokerConfig config = defaultConfig();
 
 	// parse what action to perform (including any pregen actions needed by main action)
-	if(string(argv[1]) == "moseldata" || string(argv[1]) == "mo") {
+	if(string(argv[1]) == "moseldata" || string(argv[1]) == "m") {
 		config.generate_mosel_data = true;
 		config.pregen_paths = true;
 		config.pregen_path_combos = true;
@@ -380,6 +380,8 @@ void executeArguments(int argc, char *argv[]) {
 		cerr << "\nError: Unknown action: " << argv[1] << "\n";
 		return;
 	}
+
+	bool nomappingsoverride = false;
 
 	// parse option arguments
 	for(int i = 2; i < argc; i++) {
@@ -479,16 +481,23 @@ void executeArguments(int argc, char *argv[]) {
 				cerr << "\nError: Missing arguments following \"-plimit\" switch\n";
 				return;
 			}
+		} else if (string(argv[i]) == "-nomappings") {
+			// next argument should be mip time limit file
+			nomappingsoverride = true;
 		} else {
 			cerr << "\nError: Unknown option switch: " << argv[i] << "\n";
 			return;
 		}
 	}
 
-	// special case
+	// special cases
 	// - if using column generation with method 1 (brute force), pregenerated paths is needed
 	if(config.columngen_bcl_solve && config.column_generation_method == 1) {
 		config.pregen_paths = true;
+	}
+	// - if the nomappings flag has been given, turn off mapping pregen (no matter what other configs have set)
+	if(nomappingsoverride) {
+		config.pregen_mappings = false;
 	}
 
 	// check requirements

@@ -1,0 +1,10 @@
+#!/bin/bash
+# script for creating mosel data files (without mappings) for all json data files
+
+./cloudbroker-bcl m -i sm.json -o sm_mosel.txt -nomappings
+
+./cloudbroker-bcl m -i medium.json -o m_mosel.txt -nomappings
+
+./cloudbroker-bcl m -i mediumlarge.json -o ml_mosel.txt -nomappings
+
+./cloudbroker-bcl m -i large.json -o l_mosel.txt -nomappings
