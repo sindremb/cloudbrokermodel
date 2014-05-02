@@ -32,6 +32,8 @@ if(TimeLimit>0.0) then
 	setparam("XPRS_maxtime", TimeLimit);
 end-if
 
+setparam("XPRS_verbose", true);	! Turn on message printing
+
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! Sets
 !!!!!!!!!!!!!!!!!!!!!!!!
