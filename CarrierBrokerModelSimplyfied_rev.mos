@@ -20,6 +20,8 @@ uses "mmxprs", "mmsystem";
 parameters
 	! Data file to read from
 	Data = 'data/sm_arc_2.txt';
+	! Minimum proportion of total backup requirement reserved on an arc
+	MinBackupProportion = 0.3;
 	! Time limit for runtime,  maximum number of seconds for optimisation
 	timeLimit = -1;	
 end-parameters
@@ -349,7 +351,7 @@ end-do
 
 forall (nn in Nodes, mm in Nodes) do
 	TotalBackup(nn,mm) := (
-		sum(ss in Services) 0.3*(b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)+ b_UseBackup(mm,nn,ss)*B_BandwidthReqD(ss)) - l_BackupRes(nn,mm) )>= 0;
+		sum(ss in Services) MinBackupProportion*(b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)+ b_UseBackup(mm,nn,ss)*B_BandwidthReqD(ss)) - l_BackupRes(nn,mm) )>= 0;
 end-do
 
 forall (nn in Nodes, mm in Nodes, ss in Services ) do
