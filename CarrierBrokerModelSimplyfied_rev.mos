@@ -44,7 +44,8 @@ if(TimeLimit>0.0) then
 end-if
 
 setparam("XPRS_verbose", true);	! Turn on message printing
-
+setparam("XPRS_MIPLOG", 1);	! only output summary message in the end of MIP-process 
+						!(alternatively use -N for report every Nth node)
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! Sets
 !!!!!!!!!!!!!!!!!!!!!!!!

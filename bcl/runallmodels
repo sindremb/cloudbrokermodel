@@ -20,7 +20,7 @@ echo "cg heuristic B completed"
 echo "cg heuristic A completed"
 
 #mapping model: brute force column generation
-./cloudbroker-bcl cgsolve -i $jsondataset -o results/cg1.$beta.$jsondataset.txt -beta $beta -cgmethod 2 -miplimit $timelimit > results/runlogs/cg1.$beta.$jsondataset.txt
+./cloudbroker-bcl cgsolve -i $jsondataset -o results/cg1.$beta.$jsondataset.txt -beta $beta -cgmethod 1 -miplimit $timelimit > results/runlogs/cg1.$beta.$jsondataset.txt
 
 echo "cg brute force completed"
 
