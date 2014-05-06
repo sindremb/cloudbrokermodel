@@ -34,7 +34,7 @@ end-if
 
 setparam("XPRS_verbose", true);	! Turn on message printing
 setparam("XPRS_MIPLOG", 1);	! only output summary message in the end of MIP-process 
-						!(alternatively use -N for report every Nth node)
+							!(alternatively use -N for report every Nth node)
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! Sets
 !!!!!!!!!!!!!!!!!!!!!!!!
@@ -159,9 +159,9 @@ end-do
 !	create(q_backupPerService(ii,jj,ss));
 !end-do
 
-forall (ss in Services, zz in Services | ss < zz) do
-	create(l_Overlap(ss,zz));
-	l_Overlap(ss,zz) is_binary;
+forall (ss in Services, tt in Services | ss < tt) do
+	create(l_Overlap(ss,tt));
+	l_Overlap(ss,tt) is_binary;
 end-do
 
 forall(mm in Mappings) do
@@ -285,8 +285,8 @@ end-do
 writeln("DONE\n - service and backup overlap cnstrs.");
 
 forall(cc in Customers, qq in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz and ss < zz) do
-		writeln("  - service pair: ", ss, ", ", zz);
+	forall(ss in S_ServiceForCustomer(cc), tt in S_ServiceForCustomer(qq) | ss < tt) do
+		writeln("  - service pair: ", ss, ", ", tt);
 		forall(ii in Nodes, jj in Nodes | 	exists(L_PathsUsingLink(ii,jj)) 	! There is an entry for paths using this link
 											!and L_PathsUsingLink(nn,mm) <> {}	! Entry of paths using link is not empty
 											!and K_Paths(zz)*L_PathsUsingLink(nn,mm) <> {}	! Service zz has paths using this link
@@ -294,7 +294,7 @@ forall(cc in Customers, qq in Customers) do
 		
 			! SERVICE PATH OVERLAP CONSTRAINTS
 			! Two services have overlapping primary paths if for any arc both paths are represented
-			PrimaryServiceOverlap(ii,jj,ss,zz):=
+			PrimaryServiceOverlap(ii,jj,ss,tt):=
 				sum(kk in L_PathsUsingLink(ii,jj))(
 					sum(mm in M_MappingsPerService(ss)*M_PrimaryMappingsPerPath(kk))(
 						w_UseMapping(mm)
@@ -303,17 +303,17 @@ forall(cc in Customers, qq in Customers) do
 				!sum(kk in (K_Paths(ss)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
 				+
 				sum(kk in L_PathsUsingLink(ii,jj))(
-					sum(mm in M_MappingsPerService(zz)*M_PrimaryMappingsPerPath(kk))(
+					sum(mm in M_MappingsPerService(tt)*M_PrimaryMappingsPerPath(kk))(
 						w_UseMapping(mm)
 					)
 				)
 				!sum(kk in (K_Paths(zz)*L_PathsUsingLink(nn,mm))) (u_UsePath(kk))
-				-l_Overlap(ss, zz)
+				-l_Overlap(ss, tt)
 				<= 1;
 			
 			! BACKUP PATH OVERLAP CONSTRAINT
 			! backup paths may not overlap at an arc if their primary paths overlap anywhere
-			BackupServiceOverlap(ii,jj,ss,zz):= 
+			BackupServiceOverlap(ii,jj,ss,tt):= 
 				sum(kk in L_PathsUsingLink(ii,jj))(
 					sum(mm in M_MappingsPerService(ss)*M_BackupMappingsPerPath(kk) | Q_BackupReservation(ii,jj,mm) > 0)(
 						w_UseMapping(mm)
@@ -322,12 +322,12 @@ forall(cc in Customers, qq in Customers) do
 				!sum(kk in (K_Paths(ss)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
 				+
 				sum(kk in L_PathsUsingLink(ii,jj))(
-					sum(mm in M_MappingsPerService(zz)*M_BackupMappingsPerPath(kk) | Q_BackupReservation(ii,jj,mm) > 0)(
+					sum(mm in M_MappingsPerService(tt)*M_BackupMappingsPerPath(kk) | Q_BackupReservation(ii,jj,mm) > 0)(
 						w_UseMapping(mm)
 					)
 				)
 				!sum(kk in (K_Paths(zz)*L_PathsUsingLinkBackup(nn,mm))) (u_UsePath(kk))
-				+ l_Overlap(ss, zz)
+				+ l_Overlap(ss, tt)
 				<= 2;
 		end-do
 	end-do

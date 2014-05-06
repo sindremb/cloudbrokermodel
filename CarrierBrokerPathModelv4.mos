@@ -34,7 +34,7 @@ end-if
 
 setparam("XPRS_verbose", true);	! Turn on message printing
 setparam("XPRS_MIPLOG", 1);	! only output summary message in the end of MIP-process 
-						!(alternatively use -N for report every Nth node)
+							!(alternatively use -N for report every Nth node)
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! Sets
 !!!!!!!!!!!!!!!!!!!!!!!!
@@ -189,9 +189,9 @@ forall (ii in Nodes, jj in Nodes, ss in Services | exists(F_BandwidthCap(ii,jj))
 	create(q_backupPerService(ii,jj,ss));
 end-do
 
-forall (ss in Services, zz in Services) do
-	create(l_Overlap(ss,zz));
-	l_Overlap(ss,zz) is_binary;
+forall (ss in Services, tt in Services | ss < tt) do
+	create(l_Overlap(ss,tt));
+	l_Overlap(ss,tt) is_binary;
 end-do
 
 
@@ -371,7 +371,7 @@ end-do
 ! To services have overlapping main paths if for any arc both paths are represented
 ! for every service combination
 forall(cc in Customers, qq in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), zz in S_ServiceForCustomer(qq) | ss <> zz) do
+	forall(ss in S_ServiceForCustomer(cc), tt in S_ServiceForCustomer(qq) | ss < tt) do
 		! for every arc where both service ss and zz have possible paths
 		forall(nn in Nodes, mm in Nodes |	exists(L_PathsUsingLink(nn,mm))
 											!and L_PathsUsingLink(nn,mm)*K_Paths(ss,pp) <> {}
@@ -380,36 +380,36 @@ forall(cc in Customers, qq in Customers) do
 											
 			! SERVICE PATH OVERLAP CONSTRAINTS
 			! Two services have overlapping primary paths if for any arc both paths are represented
-			ServiceOverlap(nn, mm, ss, zz):= 
+			ServiceOverlap(nn, mm, ss, tt):= 
 				sum(pp in Providers | exists(K_Paths(ss,pp)))(
 					sum(kk in (K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))) (
 						u_UsePath(kk)
 					)
 				)
 				+
-				sum(pp in Providers | exists(K_Paths(zz,pp)))(
-					sum(kk in (K_Paths(zz,pp)*L_PathsUsingLink(nn,mm))) (
+				sum(pp in Providers | exists(K_Paths(tt,pp)))(
+					sum(kk in (K_Paths(tt,pp)*L_PathsUsingLink(nn,mm))) (
 						u_UsePath(kk)
 					)
 				)
-				-l_Overlap(ss, zz)
+				-l_Overlap(ss, tt)
 				<= 1;
 				
 			! BACKUP PATH OVERLAP CONSTRAINT
 			! backup paths may not overlap at an arc if their primary paths overlap anywhere
-			Overlap(nn, mm, ss,zz):= 
+			Overlap(nn, mm, ss,tt):= 
 				sum(pp in Providers | exists(K_Paths(ss,pp)))(
 					sum(kk in (K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))) (
 						v_UseBackupPath(kk)
 					)
 				)
 				+
-				sum(pp in Providers | exists(K_Paths(zz,pp)))(
-					sum(kk in (K_Paths(zz,pp)*L_PathsUsingLink(nn,mm))) (
+				sum(pp in Providers | exists(K_Paths(tt,pp)))(
+					sum(kk in (K_Paths(tt,pp)*L_PathsUsingLink(nn,mm))) (
 						v_UseBackupPath(kk)
 					)
 				)
-				+ l_Overlap(ss, zz)
+				+ l_Overlap(ss, tt)
 				<= 2;
 		end-do
 	end-do
