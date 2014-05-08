@@ -381,6 +381,8 @@ forall (ss in Services) do
 	AvailabilityRequirement(ss) := (
 		sum(nn in Nodes, mm in Nodes | exists(D_AvailabilityExp(nn,mm))) u_Capacity(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm))
 		+ 
+		!This next parenthesis calculates the big M
+		(ln(Y_AvailabilityReq(ss))- sum(nn in Nodes, mm in Nodes | exists(D_AvailabilityExp(nn,mm)))ln(D_AvailabilityExp(nn,mm)))
 		sum(pp in Providers | exists(H_PlacePrice(ss,pp))) r_RequireBackup(ss,pp)
 		>=
 		ln(Y_AvailabilityReq(ss)));

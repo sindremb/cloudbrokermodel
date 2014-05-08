@@ -109,6 +109,7 @@ declarations
 	Y_AvailabilityReq:			dynamic array(Services)				of real;
 	
 	Symmetric:				boolean;
+	BigMBackup:					dynamic array(Nodes,Nodes,Services)	of real;
 
 end-declarations
 
@@ -137,6 +138,17 @@ forall(nn in Nodes, mm in Nodes) do
 end-do
 end-if
 
+forall(nn in Nodes, mm in Nodes| exists(F_BandwidthCap(nn,mm))) do
+	forall( ss in Services, pp in Providers | exists(K_Paths(ss,pp))) do
+		forall(kk in (K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))) do
+			if(BigMBackup(nn,mm,ss) < U_PathBandwidthUsage(nn,mm,kk) or not exists(BigMBackup(nn,mm,ss)) ) then
+				BigMBackup(nn,mm,ss):= U_PathBandwidthUsage(nn,mm,kk);
+			end-if
+		end-do
+	end-do
+end-do
+
+
 declarations	
 	!Variables
 	! - x: binary, placement of service at provider
@@ -151,9 +163,11 @@ declarations
 	o_UseCombination:	dynamic array(Paths,Paths)					of mpvar;
 	! - lambda: continous, amount of capacity reserved on a link for backup
 	l_Lambda:			dynamic array(Nodes,Nodes)					of mpvar;
+	! f: binary, indicates if a service has a need to reserve backup capacity on a arc
+	f_needsBackup:		dynamic array(Nodes,Nodes,Services)			of mpvar;
 	! - q: continous, amount of backup capacity needed on an arc for a service
 	q_backupPerService:	dynamic array(Nodes, Nodes, Services)		of mpvar;
-	! - lambda: continous, amount of capacity reserved on a link for backup
+	! - l: binary, indicates if two services have overlapping primary paths
 	l_Overlap:			dynamic array(Services,Services)			of mpvar;
 end-declarations
 
@@ -187,6 +201,8 @@ end-do
 
 forall (ii in Nodes, jj in Nodes, ss in Services | exists(F_BandwidthCap(ii,jj))) do
 	create(q_backupPerService(ii,jj,ss));
+	create(f_needsBackup(ii,jj,ss));
+	f_needsBackup(ii,jj,ss) is_binary;
 end-do
 
 forall (ss in Services, tt in Services | ss < tt) do
@@ -211,6 +227,8 @@ declarations
 	SumBackupLimit:					dynamic array(Nodes,Nodes)					of linctr;
 	MinBackupLimit:					dynamic array(Nodes,Nodes,Services)			of linctr;
 	BackupReqPerService:			dynamic array(Nodes,Nodes,Services)			of linctr;
+	NeedsBackupCapacity:			dynamic array(Nodes,Nodes,Services)			of linctr;
+	NeededBackupCapacity:			dynamic array(Nodes,Nodes,Services)			of linctr;
 	BackupRequirement:				dynamic array(Services,Providers) 			of linctr;
 	BackupComboRequirement:			dynamic array(Services,Providers,Paths,Paths) 		of linctr;
 	Overlap:						dynamic array(Nodes, Nodes, Services, Services)		of linctr;
@@ -297,6 +315,21 @@ forall(cc in Customers) do
 			>= Y_AvailabilityReq(ss)* y_Serve(cc);
 	end-do
 end-do
+
+
+! BACKUP CAPACITY RESERVATION NEEDS CONSTRAINTS
+! 
+forall (nn in Nodes, mm in Nodes, ss in Services | exists(F_BandwidthCap(nn,mm))) do
+	NeedsBackupCapacity(nn,mm,ss) := 
+		q_backupPerService(nn,mm,ss) - BigMBackup(nn,mm,ss)*f_needsBackup(nn,mm,ss) <= 0;
+	NeededBackupCapacity(nn,mm,ss) :=
+		sum(pp in Providers | exists(K_Paths(ss,pp)))(sum(kk in (K_Paths(ss,pp)*L_PathsUsingLink(nn,mm)))(
+			U_PathBandwidthUsage(nn,mm,ss)*(v_UseBackupPath(kk) - u_UsePath(kk))
+			- q_backupPerService(nn,mm,ss))) <= 0;
+end-do
+
+
+
 
 ! ACCUMULATIVE BACKUP PATHS BANDWIDTH CONSTRAINTS
 ! bandwidth reserved for backup paths on an arc is at least a fraction of the total bandwidth of all
@@ -398,17 +431,9 @@ forall(cc in Customers, qq in Customers) do
 			! BACKUP PATH OVERLAP CONSTRAINT
 			! backup paths may not overlap at an arc if their primary paths overlap anywhere
 			Overlap(nn, mm, ss,tt):= 
-				sum(pp in Providers | exists(K_Paths(ss,pp)))(
-					sum(kk in (K_Paths(ss,pp)*L_PathsUsingLink(nn,mm))) (
-						v_UseBackupPath(kk)
-					)
-				)
+				f_needsBackup(nn,mm,ss)
 				+
-				sum(pp in Providers | exists(K_Paths(tt,pp)))(
-					sum(kk in (K_Paths(tt,pp)*L_PathsUsingLink(nn,mm))) (
-						v_UseBackupPath(kk)
-					)
-				)
+				f_needsBackup(nn,mm,tt)
 				+ l_Overlap(ss, tt)
 				<= 2;
 		end-do
