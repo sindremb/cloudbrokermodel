@@ -320,8 +320,13 @@ end-do
 ! BACKUP CAPACITY RESERVATION NEEDS CONSTRAINTS
 ! 
 forall (nn in Nodes, mm in Nodes, ss in Services | exists(F_BandwidthCap(nn,mm))) do
+	! Sets the f variable to 1 if there is a need for backup capacity reservation 
+	!for the service on the arc 
 	NeedsBackupCapacity(nn,mm,ss) := 
 		q_backupPerService(nn,mm,ss) - BigMBackup(nn,mm,ss)*f_needsBackup(nn,mm,ss) <= 0;
+	! Sets the amount of backup capacity on links used in the backup path to be the difference
+	! between the primary and backup  path bandwidth usage if both paths use the link, 
+	! and otherwise to the primary bandwidth usage
 	NeededBackupCapacity(nn,mm,ss) :=
 		sum(pp in Providers | exists(K_Paths(ss,pp)))(sum(kk in (K_Paths(ss,pp)*L_PathsUsingLink(nn,mm)))(
 			U_PathBandwidthUsage(nn,mm,ss)*(v_UseBackupPath(kk) - u_UsePath(kk))
@@ -444,7 +449,7 @@ writeln("\nModel building completed in ", timestamp - timetracker, " seconds");
 
 writeln("\nSolving model...");
 timetracker := timestamp;
-maximize(XPRS_PRI, Total_Profits);
+maximize(Total_Profits);
 
 if (getprobstat=XPRS_OPT) then
 	writeln("\nModel solved in ", timestamp - timetracker," seconds");
