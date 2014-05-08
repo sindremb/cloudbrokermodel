@@ -444,7 +444,7 @@ writeln("\nModel building completed in ", timestamp - timetracker, " seconds");
 
 writeln("\nSolving model...");
 timetracker := timestamp;
-maximize(Total_Profits);
+maximize(XPRS_PRI, Total_Profits);
 
 if (getprobstat=XPRS_OPT) then
 	writeln("\nModel solved in ", timestamp - timetracker," seconds");
