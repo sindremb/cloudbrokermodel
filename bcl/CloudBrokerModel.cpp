@@ -536,54 +536,66 @@ namespace cloudbrokermodels {
 		return;
 	}
 
-	void CloudBrokerModel::RunModel(bool enforce_integer, int time_limit) {
-		if(time_limit >= 0) {
-			XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_MAXTIME, time_limit);
-		}
+	void CloudBrokerModel::RunModel(bool enforce_integer, int time_limit, const char *opt_alg) {
+		
+		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_MAXTIME, time_limit);
 
 		if(enforce_integer) {
-			master_problem.mipOptimise();
+			master_problem.mipOptimise(opt_alg);
 		} else {
-			master_problem.lpOptimise();
+			master_problem.lpOptimise(opt_alg);
 		}
 	}
 
-	void CloudBrokerModel::RunColumnGeneration(int columnGenerationMethod, int iter_limit, int col_count_limit) {
+	void CloudBrokerModel::RunColumnGeneration(int cg_alg, int cg_maxiters, int cg_maxcount, const char *opt_alg) {
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts */
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
 		master_problem.setMsgLevel(1);											/* disable default XPRS messages: error messages only */
 
 		int itercount = 0;
-		while((iter_limit < 0 || itercount < iter_limit)
-				&& (col_count_limit < 0 || data->n_mappings < col_count_limit)) {
+		while((cg_maxiters < 0 || itercount < cg_maxiters) && 
+			  (cg_maxcount < 0 || data->n_mappings < cg_maxcount)) {
 			bool foundColumn = false;
 			cout << "\nIteration " << itercount+1 << ":\n-running lp-relaxation..\n";
-			this->RunModel(false, -1);
+			this->RunModel(false, 0, opt_alg);
 			XPRBbasis basis = master_problem.saveBasis();
 
 			CloudBrokerModel::dual_vals duals = this->getDualVals();
 
-			cout << "-generating columns" << (
-					columnGenerationMethod == 1 ? " (brute force)"
-							:
-							(
-									columnGenerationMethod == 2 ? " (heuristic A)"
-									: " (heuristic B)"
-							)
-						)
-				<< "..\n";
-			// use duals to generate column(s) for each service
+			cout << "- Generating Columns: ";
+			switch(cg_alg) {
+				case CG_BRUTEFORCE:
+					cout << "Brute Force\n";
+					break;
+				case CG_HEURISTIC_A:
+					cout << "Heuristic A\n";
+					break;
+				case CG_HEURISTIC_B:
+					cout << "Heuristic B\n";
+					break;
+				default:
+					cout << "undefined cg algorithm choice: " << cg_alg << "\n";
+					break;
+			}
+			
+			// use duals to generate column(s) for each service of every customer
 			for(int cc = 0; cc < this->data->n_customers; ++cc) {
 				customer *c = &this->data->customers[cc];
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
-				//for(unsigned int ss = 0; ss < 1; ++ss) {
 					service *s = c->services[ss];
-					if(columnGenerationMethod == 1) {
-						if(this->generateMappingColumnBruteForce(s, &duals)) foundColumn = true;
-					} else if(columnGenerationMethod == 2) {
-						if(this->generateMappingHeuristicA(c, s, &duals)) foundColumn = true;
-					} else if(columnGenerationMethod == 3) {
-						if(this->generateMappingHeuristicB(c, s, &duals)) foundColumn = true;
+					
+					switch(cg_alg) {
+						case CG_BRUTEFORCE:
+							if(this->generateMappingColumnBruteForce(s, &duals)) foundColumn = true;
+							break;
+						case CG_HEURISTIC_A:
+							if(this->generateMappingHeuristicA(c, s, &duals)) foundColumn = true;
+							break;
+						case CG_HEURISTIC_B:
+							if(this->generateMappingHeuristicB(c, s, &duals)) foundColumn = true;
+							break;
+						default:
+							break;
 					}
 				}
 			}
@@ -594,10 +606,8 @@ namespace cloudbrokermodels {
 			++itercount;
 		}
 
-		cout << "added " << w_useMappingVars.size() << " mappings in total!\n";
-
-		cout << "LP-optimum: " << master_problem.getObjVal() << "\n";
-
+		cout << "- Added " << w_useMappingVars.size() << " mappings in total!\n";
+		cout << "- LP-optimum: " << master_problem.getObjVal() << "\n";
 
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 1);	/* Reenable automatic cuts */
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 1);		/* Switch presolve on again */
@@ -607,9 +617,12 @@ namespace cloudbrokermodels {
 	CloudBrokerModel::dual_vals CloudBrokerModel::getDualVals() {
 		CloudBrokerModel::dual_vals duals;
 
-		/************ serveCustomerCtr dual values **********/
+		/********* serveCustomerCtr dual values **********/
+		// make room for dual values in vector
 		duals.serveCustomerDuals.resize(data->n_services, 0.0);
+		// for every service
 		for(int ss = 0; ss < data->n_services; ++ss) {
+			// dual val for serveCustomerCtr for this service
 			duals.serveCustomerDuals[ss] = serveCustomerCtr[ss].getDual();
 		}
 
@@ -782,6 +795,7 @@ namespace cloudbrokermodels {
 		}
 
 		if(best_eval >= EPS) {
+			cout << "--> NEW MAPPING: " << best_eval << "\n";
 			this->addMappingToModel(&bestFound, s);
 			return true;
 		}
@@ -1242,7 +1256,7 @@ namespace cloudbrokermodels {
 								// add mapping to model
 								addMappingToModel(&m, s);
 
-								cout << "---> NEW MAPPING eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
+								cout << "--> NEW MAPPING eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
 								return true;
 							}
 						}
@@ -1323,7 +1337,7 @@ namespace cloudbrokermodels {
 				// add new mapping to model and finish
 				addMappingToModel(&m, s);
 
-				cout << "---> NEW MAPPING (primary only): " << - serve_customer_dual - primary_path_eval - p->price << "\n";
+				cout << "--> NEW MAPPING (primary only): " << - serve_customer_dual - primary_path_eval - p->price << "\n";
 			}
 
 			// find primary path to combine with backup by shortest path problem with resource constraints
@@ -1396,7 +1410,7 @@ namespace cloudbrokermodels {
 							// add mapping to model
 							addMappingToModel(&m, s);
 
-							cout << "---> NEW MAPPING (primary+backup): " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
+							cout << "--> NEW MAPPING (primary+backup): " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
 							return true;
 						}
 					}

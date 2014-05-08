@@ -15,6 +15,10 @@
 #include <vector>
 #include <iostream>
 
+#define CG_BRUTEFORCE 1
+#define CG_HEURISTIC_A 2
+#define CG_HEURISTIC_B 3
+
 namespace cloudbrokermodels {
 
 	class CloudBrokerModel {
@@ -79,8 +83,8 @@ namespace cloudbrokermodels {
 	public:
 		CloudBrokerModel();
 		void BuildModel(entities::dataContent * data, double beta_backupres = 0.3);
-		void RunModel(bool enforce_integer = true, int time_limit = -1);
-		void RunColumnGeneration(int columnGenerationMethod, int colgen_iter_limit, int colgen_count_limit);
+		void RunModel(bool enforce_integer = true, int time_limit = 0, const char *lp_alg = " ");
+		void RunColumnGeneration(int cg_alg, int cg_maxiters, int cg_maxcount, const char *lp_alg = " ");
 		void OutputResultsToStream(std::ostream& stream);
 	};
 }

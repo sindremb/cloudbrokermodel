@@ -46,8 +46,8 @@ program should do.
 	-o <filename>			| no default value, optional for solve/cgsolve, required for moseldata
 	specifies the filename (including relative path) for storing any results from the task to perform
 	
-	-cgmethod <integer>		| default: 3, optional
-	specifies which column generation method to use if solving the bcl model with column generation
+	-cgalg <integer>		| default: 3, optional
+	specifies which column generation algorithm to use if solving the bcl model with column generation
 		1 : brute force
 		2 : heuristic A
 		3 : heuristic B 
@@ -55,8 +55,11 @@ program should do.
 	-beta <float>			| defualt: 0.3, optional
 	sets the beta value to use in the backup reservation constraint of the model
 	
-	-miplimit <integer>		| default: -1, optional
-	sets the maximum number of seconds allowed for solving the mip model, ignores limit on -1
+	-maxtime <integer>		| default: 0, optional
+	sets the maximum number of seconds allowed for solving the mip model, ignores limit on 0
+	Notes: different interpretation depending on sign:
+		- n < 0: stops after n seconds
+		- n > 0: stops after n seconds if integer solution is found, or at first integer solution found after n seconds.
 	
 	-cgmaxiters <integer>	| default: -1, optional
 	sets the maximum number of column generation iterations allowed, ignores limit on -1
@@ -64,11 +67,23 @@ program should do.
 	-cgmaxcount <integer>	| default: -1, optional
 	sets the maximum number of columns to add by column generation, ignores limit on -1
 	
-	-plimit <integer>		| default: -1, optional
-	sets the maximum number of paths to generate for each (service, provider) combination, ignores limit on -1
+	-maxpaths <integer>		| default: -1, optional
+	sets the maximum number of paths to generate FOR EACH (service, provider) PAIR, ignores limit on -1
 	
 	-nomappings				| default: not set
 	if given, tells pregeneration to skip pregeneration of mappings where otherwise done as default
+	
+	-alg <string>			| default: " ", optional
+	Choice of the solution algorithm for MIP/LP optimisation, which should be one (or more when applicable) of:
+		LP/MIP
+		" " solve the problem using the default LP/QP/MIP/MIQP algorithm;
+		"d" solve the problem using the dual simplex algorithm;
+		"p" solve the problem using the primal simplex algorithm;
+		"b" solve the problem using the Newton barrier algorithm;
+		"n" use the network solver (LP / for the initial LP (for MIP) );
+		"c" continue a previously interrupted optimization run.
+		MIP ONLY
+		"l" stop after solving the initial continuous relaxation (using MIP information in presolve);
 	
 	
 	
