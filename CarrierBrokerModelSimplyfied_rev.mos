@@ -179,11 +179,11 @@ declarations
 	!Variables
 	! - x: binary, placement of service at provider
 	x_Placement: 		dynamic array (Services, Providers) 			of mpvar;
-	! - u (up): continuous, use of own arc for service for uplink
+	! - u: binary, use of arc for service for uplink (and oppsite arc for downlink)
 	u_Capacity:			dynamic array (Nodes,Nodes,Services)			of mpvar;
 	! - y: binary, serving of a customer
 	y_Serve:			dynamic array (Customers)						of mpvar;
-	! - b : binary, use of own arc for backup (uplink and downlink)
+	! - b : binary, use of arc for service for backup uplink (and opposite arc for downlink)
 	b_UseBackup:		dynamic array (Nodes,Nodes,Services)			of mpvar;
 	! - r : binary, is service s needs backup on its path to provider p
 	r_RequireBackup:	dynamic array(Services,Providers)				of mpvar;
@@ -257,28 +257,36 @@ end-declarations
 
 ! OBJECTIVE FUNCTION
 ! - total profits from serving customers
-Total_Profits := sum (cc in Customers) 
+Total_Profits := (
+		sum (cc in Customers) (
+			! R_Revenue from serving customer (if served)
+			R_Revenue(cc)*y_Serve(cc)
+			- 
+			! costs associated with customer's required services
+			sum (ss in S_ServiceForCustomer(cc)) (
+				! placement cost
+				sum (pp in Providers) (
+					H_PlacePrice(ss,pp)*x_Placement(ss,pp)
+				)
+				+ 
+				! network usage cost
+				sum (nn in Nodes, mm in Nodes | exists(K_CapPrice(nn,mm))) (
+					K_CapPrice(nn,mm)
+					*
 					(
-						! R_Revenue from serving customer (if served)
-						R_Revenue(cc)*y_Serve(cc)
-						- 
-						! costs associated with customer's required services
-						sum (ss in S_ServiceForCustomer(cc))
-							(
-								! placement cost
-								sum (pp in Providers)
-									H_PlacePrice(ss,pp)*x_Placement(ss,pp)
-								+ 
-								! network usage cost
-								sum (nn in Nodes, mm in Nodes) 
-									(K_CapPrice(nn,mm)
-									*(u_Capacity(nn,mm,ss)*B_BandwidthReq(ss)+u_Capacity(mm,nn,ss)*B_BandwidthReqD(ss)))
-							)
+						B_BandwidthReq(ss)*u_Capacity(nn,mm,ss)
+						+
+						B_BandwidthReqD(ss)*u_Capacity(mm,nn,ss)
 					)
-					-
-					!Backup use cost
-					sum (nn in Nodes, mm in Nodes) (K_CapPrice(nn,mm)*l_BackupRes(nn,mm))
-				;
+				)
+			)
+		)
+		-
+		!Backup use cost
+		sum (nn in Nodes, mm in Nodes | exists(K_CapPrice(nn,mm))) (
+			K_CapPrice(nn,mm)*l_BackupRes(nn,mm)
+		)
+	);
 
 ! SERVE CUSTOMER CONSTRAINT
 ! Customers can only be served if all services for customer is provided
@@ -291,9 +299,17 @@ end-do
 ! ARC TOTAL CAPACITY CONSTRAINT
 ! Use of an arc must not exceed its capacity (primary + backup cap)
 forall (nn in Nodes, mm in Nodes| exists(F_BandwidthCap(nn,mm)))do
-	ArcCapacity(nn,mm) := sum (ss in Services) (
-			u_Capacity(nn,mm,ss)*B_BandwidthReq(ss) +u_Capacity(mm,nn,ss)*B_BandwidthReqD(ss)) + l_BackupRes(nn,mm)
-		 <=F_BandwidthCap(nn,mm);
+	ArcCapacity(nn,mm) := (
+		sum (ss in Services) (
+			B_BandwidthReq(ss)*u_Capacity(nn,mm,ss)
+			+
+			B_BandwidthReqD(ss)*u_Capacity(mm,nn,ss)			
+		)
+		+
+		l_BackupRes(nn,mm)
+		<= 
+		F_BandwidthCap(nn,mm)
+	);
 end-do
 
 
@@ -304,11 +320,11 @@ end-do
 forall (cc in Customers, ss in S_ServiceForCustomer(cc), nn in I_Nodes | nn<>cc ) do
  	BandwidthFlow(ss,nn) := (
 	 		sum (mm in Nodes | exists(F_BandwidthCap(nn,mm))) u_Capacity(nn,mm,ss)
-	 		- sum(mm in Nodes | exists(F_BandwidthCap(nn,mm))) u_Capacity(mm,nn,ss)
+	 		- sum(mm in Nodes | exists(F_BandwidthCap(mm,nn))) u_Capacity(mm,nn,ss)
  		) = 0;
  	BackupFlow(ss,nn) := (
 	 		sum (mm in Nodes | exists(F_BandwidthCap(nn,mm))) b_UseBackup(nn,mm,ss)
-	 		- sum(mm in Nodes | exists(F_BandwidthCap(nn,mm))) b_UseBackup(mm,nn,ss)
+	 		- sum(mm in Nodes | exists(F_BandwidthCap(mm,nn))) b_UseBackup(mm,nn,ss)
  		) = 0;
 end-do
 
