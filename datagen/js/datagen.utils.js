@@ -4,7 +4,7 @@
 	Takes mosel data string as input and parses to dictionary of parameter names
 	as keys with their respective data.
 	
-	NOTE: does not currently support dynamic arrays containing dynamic arrays or arrays (needed?)
+	NOTE: does not currently support dynamic arrays of dynamic arrays/arrays
 */
 Datagen.utils.parseMoselData = function (data) {
 	
@@ -27,7 +27,6 @@ Datagen.utils.parseMoselData = function (data) {
 	for (var lkey in lines) {
 		// extract next line
 		var line = lines[lkey];
-		//console.log('parsing line: ', line);
 		// all words before comment symbol
 		var words = line.split('!')[0].trim().split(/\s+/g); // \s should include all whitespaces as delimiter
 		for (var wkey in words) {
@@ -235,7 +234,6 @@ Datagen.utils.parseMoselData = function (data) {
 						break;
 					default:
 						console.log('WARNING: unexpected parsing mode: ', parsingMode);
-						
 				}
 			}
 		}
@@ -370,13 +368,14 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
     for (var i = 0; i < dataObj.n_Customers; i++) {
         var customer = new CustomerViewModel(dataVM, dataObj.R_Revenue[i])
         for (var j in dataObj.S_ServiceForCustomer[i]) {
-			sNumber++;
+			var sIndex = sNumber;
 			var s = new ServiceViewModel(
-				dataVM, dataObj.B_BandwidthReq[j],
-				dataObj.B_BandwidthReqD[j],
-				dataObj.G_LatencyReq[j],
-				dataObj.Y_AvailabilityReq[j]
+				dataVM, dataObj.B_BandwidthReq[sIndex],
+				dataObj.B_BandwidthReqD[sIndex],
+				dataObj.G_LatencyReq[sIndex],
+				dataObj.Y_AvailabilityReq[sIndex]
 			);
+			sNumber++
 			for (var k in dataObj.H_PlacePrice[sNumber]) {
 				s.addPlacement(
 					dataVM.providers()[k-1],

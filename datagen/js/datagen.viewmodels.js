@@ -32,7 +32,6 @@ function MainViewModel() {
 	this.parseMoselData = function (data) {
 		this.selectedObjects.removeAll();
 		this.dataVM(Datagen.utils.networkFromDataObject(Datagen.utils.parseMoselData(data), this));
-		
 	};
 
 	// generates a new random dataVM according to current configuration
