@@ -382,7 +382,7 @@ forall (nn in Nodes, mm in Nodes) do
 			B_BandwidthReq(ss)*b_UseBackup(nn,mm,ss)
 			+
 			B_BandwidthReqD(ss)*b_UseBackup(mm,nn,ss)
-		) 
+		)
 		- 
 		l_BackupRes(nn,mm)
 		<= 0);
@@ -398,7 +398,7 @@ writeln("Model building completed in ", timestamp - timetracker, " seconds");
 
 writeln("Solving model...");
 timetracker := timestamp;
-maximize(Total_Profits);
+maximize(XPRS_PRI, Total_Profits);
 
 if (getprobstat=XPRS_OPT) then
 	writeln("Model solved in ", timestamp - timetracker," seconds");
