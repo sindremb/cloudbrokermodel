@@ -27,27 +27,28 @@
 using namespace std;
 
 struct cloudBrokerConfig {
-	// pregeneration configuartion
-	int pregen_paths_limit;
-
 	// perform tasks toggles
 	// - pregeneration tasks
 	bool pregen_paths;
 	bool pregen_mappings;
 	bool pregen_path_combos;
 	// - main tasks
-	bool generate_mosel_data;
-	bool complete_bcl_solve;
-	bool columngen_bcl_solve;
+	bool mosel_datagen;
+	bool bcl_solve;
+	bool bcl_cgsolve;
 
-	// general optimiser config
-	double model_beta;
-	int mip_time_limit;
+	// general optimiser/model config
+	int 		opt_maxtime;
+	const char* opt_alg;
+	double 		model_beta;
+	
+	// pregeneration configuartion
+	int pregen_maxpaths;
 
 	// column generation config
-	int column_generation_method;
-	int column_generation_count_limit;
-	int column_generation_iter_limit;
+	int cg_alg;
+	int cg_maxcount;
+	int cg_maxiters;
 
 	// input / output filenames
 	string input_file;
@@ -56,20 +57,27 @@ struct cloudBrokerConfig {
 
 cloudBrokerConfig defaultConfig() {
 	cloudBrokerConfig config;
+	
+	/*		TASKS DEFAULTS		*/
 	config.pregen_paths = false;
-	config.pregen_paths_limit = -1;
 	config.pregen_path_combos = false;
 	config.pregen_mappings = false;
 
-	config.generate_mosel_data = false;
-	config.complete_bcl_solve = false;
-	config.columngen_bcl_solve = false;
+	config.mosel_datagen = false;
+	config.bcl_solve = false;
+	config.bcl_cgsolve = false;
 
+	/*		CONFIGUATION DEFAULTS  		*/
 	config.model_beta = 0.3;
-	config.mip_time_limit = -1;
-	config.column_generation_method = 3;
-	config.column_generation_count_limit = -1;
-	config.column_generation_iter_limit = -1;
+	
+	config.opt_maxtime = -1;
+	config.opt_alg = " ";
+	
+	config.pregen_maxpaths = -1;
+	
+	config.cg_alg = 3;
+	config.cg_maxcount = -1;
+	config.cg_maxiters = -1;
 
 	return config;
 }
@@ -81,39 +89,34 @@ void outputMetaDataToStream(std::ostream& stream, cloudBrokerConfig* config) {
 	stream << "################## RUN META DATA ###################\n";
 
 	// add timestamp for data
-	stream << "\nTime = ";
-	time_t t = time(0);   // get time now
-	struct tm * now = localtime( & t );
-	stream 	<< (now->tm_year + 1900) << '-'
-			<< (now->tm_mon + 1) << '-'
-			<< now->tm_mday << ' '
-			<< now->tm_hour << ':' << now->tm_min << '\n';
+	time_t t = time(0);
+	stream << "\nTime = " << ctime(&t);
 
 	// add configuration data
 	stream << "Input = " << config->input_file << "\n";
-	if(config->complete_bcl_solve) {
-		stream << "Task = solve BCL model including ALL PREGENERATED MAPPINGS\n";
-	} else if (config->columngen_bcl_solve) {
-		stream << "Task = solve BCL model adding mappings by COLUMN GENERATION\n";
+	if(config->bcl_solve) {
+		stream << "Task: solve BCL model, PREGENERATED mappings\n";
+	} else if (config->bcl_cgsolve) {
+		stream << "Task: solve BCL model, adding mappings by COLUMN GENERATION\n";
 	}
 
-	if(config->complete_bcl_solve || config->columngen_bcl_solve) {
-		stream << "\n# general configuration\nMIP-solve time limit = " << config->mip_time_limit << "\n"
+	if(config->bcl_solve || config->bcl_cgsolve) {
+		stream << "\n# general configuration\nMIP-solve time limit = " << config->opt_maxtime << "\n"
 				<< "model beta = " << config->model_beta << "\n";
 	}
 
 	if(config->pregen_paths) {
 		stream << "\n# pregeneration configuration\n"
-				<< "pregen path limit (service, provider) = " << config->pregen_paths_limit << "\n"
-				<< "pregen path combo availability = " << (config->pregen_paths_limit ? "true" : "false") << "\n"
-				<< "pregen mappings = " << (config->pregen_mappings ? "true" : "false") << "\n";
+				<< "pregen max paths per (service, provider) = "	<< config->pregen_maxpaths << "\n"
+				<< "pregen path combo availability = " 				<< (config->pregen_paths_combos ? "true" : "false") << "\n"
+				<< "pregen mappings = " 							<< (config->pregen_mappings ? "true" : "false") << "\n";
 	}
 
 	if(config->columngen_bcl_solve) {
 		stream << "\n# column generation configuration\n"
-				<< "column generation method = " << config->column_generation_method << "\n"
-				<< "column generation max iterations = " << config->column_generation_iter_limit << "\n"
-				<< "column generation count limit = " << config->column_generation_count_limit << "\n";
+				<< "column generation algorithm = " 		<< config->cg_alg << "\n"
+				<< "column generation max iterations = " 	<< config->cg_maxiters << "\n"
+				<< "column generation count limit = " 		<< config->cg_maxcount << "\n";
 	}
 
 }
@@ -141,7 +144,7 @@ void runConfiguration(cloudBrokerConfig config) {
 			}
 		}
 
-		if(config.complete_bcl_solve || config.columngen_bcl_solve) {
+		if(config.bcl_solve || config.bcl_cgsolve) {
 #ifdef EXCLUDE_BCL
 			cerr << "Error: no BCL functionality available in this build\n";
 #else
@@ -153,13 +156,14 @@ void runConfiguration(cloudBrokerConfig config) {
 			build_time = build_start.elapsed();
 			cout << "MODEL BUILDING COMPLETE!\n";
 
-			if(config.columngen_bcl_solve) {
+			if(config.bcl_solve) {
 				cout << "Adding mappings by column generation..\n";
 				timer colgen_start;
 				model.RunColumnGeneration(
-					config.column_generation_method,
-					config.column_generation_iter_limit,
-					config.column_generation_count_limit
+					config.cg_alg,
+					config.cg_maxiters,
+					config.cg_maxcount,
+					config.opt_alg
 				);
 				colgen_time = colgen_start.elapsed();
 				cout << "COLUMN GENERATION COMPLETE!\n";
@@ -167,7 +171,7 @@ void runConfiguration(cloudBrokerConfig config) {
 
 			cout << "Solving CloudBroker-model..\n";
 			timer mip_start;
-			model.RunModel(true, config.mip_time_limit);
+			model.RunModel(true, config.opt_maxtime, config.opt_alg);
 			mip_time = mip_start.elapsed();
 			total_time = total_start.elapsed();
 
@@ -184,11 +188,11 @@ void runConfiguration(cloudBrokerConfig config) {
 
 					// include informaiton about time consumption
 					myfile << "\n############### TIME CONSUMPTIONS ###################\n"
-							"\nPregeneration: " << pregen_time <<
-							"\nModel building: " << build_time <<
-							"\nColumn generation: " << colgen_time <<
-							"\nMIP solve: " << mip_time <<
-							"\nTotal time consumption: " << total_time << "\n";
+							"\nPregeneration: " 		<< pregen_time <<
+							"\nModel building: " 		<< build_time <<
+							"\nColumn generation: " 	<< colgen_time <<
+							"\nMIP solve: " 			<< mip_time <<
+							"\nTotal time consumption: "<< total_time << "\n";
 
 					// include solution to optimisation problem
 					model.OutputResultsToStream(myfile);
@@ -269,11 +273,11 @@ void textUI() {
 
 		if(rootSelection == 1) {
 			// configure to generate mosel data with generated paths and mappings
-			config.generate_mosel_data = true;
+			config.mosel_datagen = true;
 			config.pregen_paths = true;
 			config.pregen_mappings = true;
-			config.complete_bcl_solve = false;
-			config.columngen_bcl_solve = false;
+			config.bcl_solve = false;
+			config.bcl_cgsolve = false;
 
 			// get filename to import
 			config.input_file = getConsoleString("\nEnter filename for data to import: ");
@@ -285,11 +289,11 @@ void textUI() {
 #ifndef EXCLUDE_BCL
 		} else if(rootSelection == 2) {
 			// configure to run complete bcl model using pregenerated paths and mappings
-			config.complete_bcl_solve = true;
+			config.bcl_solve = true;
 			config.pregen_paths = true;
 			config.pregen_mappings = true;
-			config.columngen_bcl_solve = false;
-			config.generate_mosel_data = false;
+			config.bcl_cgsolve = false;
+			config.mosel_datagen = false;
 
 			// get filename to import
 			config.input_file = getConsoleString("\nEnter filename for data to import: ");
@@ -300,11 +304,11 @@ void textUI() {
 			runConfiguration(config);
 		} else if(rootSelection == 3) {
 			// configure to solve bcl model using column generation to add mappings
-			config.columngen_bcl_solve = true;
+			config.bcl_cgsolve = true;
 			config.pregen_paths = config.column_generation_method == 1; // only pregenerate paths for brute force mapping generation (method 1)
-			config.complete_bcl_solve = false;
+			config.bcl_solve = false;
 			config.pregen_mappings = false;
-			config.generate_mosel_data = false;
+			config.mosel_datagen = false;
 
 			// get filename to import
 			config.input_file = getConsoleString("\nEnter filename for data to import: ");
@@ -318,9 +322,9 @@ void textUI() {
 			while(true) {
 				stringstream sstm;
 				sstm << "\nCloudBroker app config:"
-						"\n - Max number of paths per placement: " 		<< config.pregen_paths_limit <<
+						"\n - Max number of paths per placement: " 		<< config.pregen_maxpaths <<
 						"\n - Model backup reservation beta: " 			<< config.model_beta <<
-						"\n - Column Generation Method: " 				<< config.column_generation_method <<
+						"\n - Column Generation Method: " 				<< config.cg_alg <<
 						"\n\n Options:\n"
 						"(1) Set max number of paths per placement\n"
 						"(2) Set model backup reservation beta\n"
@@ -329,7 +333,7 @@ void textUI() {
 				int configSelection = getConsoleInt(sstm.str());
 
 				if(configSelection == 1) {
-					config.pregen_paths_limit = getConsoleInt("\nEnter max number of paths per placement: ");
+					config.pregen_maxpaths = getConsoleInt("\nEnter max number of paths per placement: ");
 				} else if (configSelection == 2) {
 					config.model_beta = getConsoleDouble("\nEnter new model backup reservation beta: ");
 				} else if (configSelection == 3){
@@ -341,7 +345,7 @@ void textUI() {
 						"\nEnter selection: "
 					);
 					if(colgenchoice > 0 && colgenchoice <= 3) {
-						config.column_generation_method = colgenchoice;
+						config.cg_alg = colgenchoice;
 					} else {
 						cout << "\nError: Unknown choice\n";
 					}
@@ -365,17 +369,17 @@ void executeArguments(int argc, char *argv[]) {
 
 	// parse what action to perform (including any pregen actions needed by main action)
 	if(string(argv[1]) == "moseldata" || string(argv[1]) == "m") {
-		config.generate_mosel_data = true;
+		config.mosel_datagen = true;
 		config.pregen_paths = true;
 		config.pregen_path_combos = true;
 		config.pregen_mappings = true;
 	} else if (string(argv[1]) == "solve" || string(argv[1]) == "s") {
-		config.complete_bcl_solve = true;
+		config.bcl_solve = true;
 		config.pregen_paths = true;
 		config.pregen_path_combos = true;
 		config.pregen_mappings = true;
 	} else if (string(argv[1]) == "cgsolve" || string(argv[1]) == "c") {
-		config.columngen_bcl_solve = true;
+		config.bcl_cgsolve = true;
 	} else {
 		cerr << "\nError: Unknown action: " << argv[1] << "\n";
 		return;
@@ -403,11 +407,11 @@ void executeArguments(int argc, char *argv[]) {
 				cerr << "\nError: Missing arguments following \"-o\" switch\n";
 				return;
 			}
-		} else if (string(argv[i]) == "-cgmethod") {
+		} else if (string(argv[i]) == "-cgalg") {
 			// next argument should be column generation method file
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
-				if(!(myStream >> config.column_generation_method)) {
+				if(!(myStream >> config.cg_alg)) {
 					cerr << "Error: Invalid integer input for \"-cgmethod\" option <" << argv[i+1] << ">\n";
 					return;
 				}
@@ -429,11 +433,11 @@ void executeArguments(int argc, char *argv[]) {
 				cerr << "\nError: Missing arguments following \"-beta\" switch\n";
 				return;
 			}
-		} else if (string(argv[i]) == "-miplimit") {
+		} else if (string(argv[i]) == "-maxtime") {
 			// next argument should be mip time limit file
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
-				if(!(myStream >> config.mip_time_limit)) {
+				if(!(myStream >> config.opt_maxtime)) {
 					cerr << "Error: Invalid integer input for \"-miplimit\" option <" << argv[i+1] << ">\n";
 					return;
 				}
@@ -446,7 +450,7 @@ void executeArguments(int argc, char *argv[]) {
 			// next argument should be mip time limit file
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
-				if(!(myStream >> config.column_generation_iter_limit)) {
+				if(!(myStream >> config.cg_maxiters)) {
 					cerr << "Error: Invalid integer input for \"-cgmaxiters\" option <" << argv[i+1] << ">\n";
 					return;
 				}
@@ -459,7 +463,7 @@ void executeArguments(int argc, char *argv[]) {
 			// next argument should be mip time limit file
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
-				if(!(myStream >> config.column_generation_count_limit)) {
+				if(!(myStream >> config.cg_maxcount)) {
 					cerr << "Error: Invalid integer input for \"-cgmaxcount\" option <" << argv[i+1] << ">\n";
 					return;
 				}
@@ -468,22 +472,29 @@ void executeArguments(int argc, char *argv[]) {
 				cerr << "\nError: Missing arguments following \"-cgmaxcount\" switch\n";
 				return;
 			}
-		} else if (string(argv[i]) == "-plimit") {
+		} else if (string(argv[i]) == "-maxpaths") {
 			// next argument should be mip time limit file
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
-				if(!(myStream >> config.pregen_paths_limit)) {
-					cerr << "Error: Invalid integer input for \"-plimit\" option <" << argv[i+1] << ">\n";
+				if(!(myStream >> config.pregen_maxpaths)) {
+					cerr << "Error: Invalid integer input for \"-maxpaths\" option <" << argv[i+1] << ">\n";
 					return;
 				}
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-plimit\" switch\n";
+				cerr << "\nError: Missing arguments following \"-maxpaths\" switch\n";
 				return;
 			}
 		} else if (string(argv[i]) == "-nomappings") {
 			// next argument should be mip time limit file
 			nomappingsoverride = true;
+		} else if (string(argv[i]) == "-alg") {
+			if(i+1 < argc) {
+				config.opt_alg = argv[i+1];
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"-alg\" switch\n";
+			}
 		} else {
 			cerr << "\nError: Unknown option switch: " << argv[i] << "\n";
 			return;
@@ -492,7 +503,7 @@ void executeArguments(int argc, char *argv[]) {
 
 	// special cases
 	// - if using column generation with method 1 (brute force), pregenerated paths is needed
-	if(config.columngen_bcl_solve && config.column_generation_method == 1) {
+	if(config.bcl_cgsolve && config.cg_alg == 1) {
 		config.pregen_paths = true;
 	}
 	// - if the nomappings flag has been given, turn off mapping pregen (no matter what other configs have set)
