@@ -19,10 +19,10 @@ uses "mmxprs", "mmsystem";
 
 parameters
 	! Data file to read from
-	Data = 'data/sm_arc_2.txt';
+	Data = 'data/sm_mosel_link.txt';
 	! Minimum proportion of total backup requirement reserved on an arc
-	MinBackupProportion = 0.3;
-	! Time limit for runtime,  maximum number of seconds for optimisation, ignored for <= 0.0 values
+	MinBackupProportion = 1.0;
+	! Time limit for runtime,  maximum number of seconds for optimisation
 	TimeLimit = -1;	
 end-parameters
 
@@ -45,7 +45,7 @@ end-if
 
 setparam("XPRS_verbose", true);	! Turn on message printing
 setparam("XPRS_MIPLOG", 1);	! only output summary message in the end of MIP-process 
-							!(alternatively use -N for report every Nth node)
+						!(alternatively use -N for report every Nth node)
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! Sets
 !!!!!!!!!!!!!!!!!!!!!!!!
@@ -188,9 +188,7 @@ declarations
 	! - r : binary, is service s needs backup on its path to provider p
 	r_RequireBackup:	dynamic array(Services,Providers)				of mpvar;
 	! - l : continuous, bandwidth reserved for backup on a (owned) link
-	l_BackupRes:		dynamic array (Nodes,Nodes)						of mpvar;
-	! - lambda: continous, amount of capacity reserved on a link for backup
-	l_Overlap:			dynamic array(Services,Services)			of mpvar;
+	l_BackupRes:		dynamic array (Nodes,Nodes)						of mpvar; 
 end-declarations	
 
 ! - for all valid combinations of service and provider
@@ -221,10 +219,7 @@ forall (nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) do
 	create(l_BackupRes(nn,mm));
 end-do
 
-forall (ss in Services, tt in Services | ss < tt) do
-	create(l_Overlap(ss,tt));
-	l_Overlap(ss,tt) is_binary;
-end-do
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! CONSTRAINTS
@@ -251,8 +246,10 @@ declarations
 	MaximumBackupUp:				dynamic array(Nodes,Nodes,Services)			of linctr;
 	LinkDisjoint:					dynamic array(Nodes,Nodes,Services)			of linctr;
 	AllocateBackupPath:				dynamic array(Services,Providers)			of linctr;
-	Overlap:						dynamic array(Nodes, Nodes, Services, Services)		of linctr;
-	ServiceOverlap:					dynamic array(Nodes, Nodes, Services, Services)		of linctr;
+	
+
+!	temp2:	real;
+!	temp:	real;
 end-declarations
 
 ! OBJECTIVE FUNCTION
@@ -332,42 +329,28 @@ end-do
 ! - bandwidth req. must be met for placement of service (else flow in = flow out)
 forall (ss in Services,pp in Providers) do
 	BandwidthRequirement(ss,pp) := (
-			sum (nn in Nodes | nn<>E_ProviderNode(pp) and exists(F_BandwidthCap(nn,E_ProviderNode(pp)))) (
-				u_Capacity(nn, E_ProviderNode(pp),ss)
-			) 
-			- 
-			sum(mm in Nodes | mm<>E_ProviderNode(pp) and exists(F_BandwidthCap(E_ProviderNode(pp),mm))) (
-				u_Capacity(E_ProviderNode(pp),mm,ss)
-			)
-			-
-			x_Placement(ss,pp)
+			sum (nn in Nodes | nn<>E_ProviderNode(pp)) (u_Capacity(nn, E_ProviderNode(pp),ss)) 
+			- sum(mm in Nodes | mm<>E_ProviderNode(pp)) (u_Capacity(E_ProviderNode(pp),mm,ss) )
+			-x_Placement(ss,pp)
 		) = 0;
 	BackupRequirement(ss,pp) := (
-			sum (nn in Nodes | nn<>E_ProviderNode(pp) and exists(F_BandwidthCap(nn,E_ProviderNode(pp)))) (
-				b_UseBackup(nn, E_ProviderNode(pp),ss)
-			)
-			- 
-			sum(mm in Nodes | mm<>E_ProviderNode(pp) and exists(F_BandwidthCap(E_ProviderNode(pp),mm))) (
-				b_UseBackup(E_ProviderNode(pp),mm,ss)
-			)
-			-
-			r_RequireBackup(ss,pp)
-		) = 0;
-	AllocateBackupPath(ss,pp):= r_RequireBackup(ss,pp) - x_Placement(ss,pp) <= 0;
+			sum (nn in Nodes | nn<>E_ProviderNode(pp)) b_UseBackup(nn, E_ProviderNode(pp),ss)
+			- sum(mm in Nodes | mm<>E_ProviderNode(pp)) b_UseBackup(E_ProviderNode(pp),mm,ss)
+			-r_RequireBackup(ss,pp)
+	) = 0;
+	if(exists(H_PlacePrice(ss,pp))) then
+		AllocateBackupPath(ss,pp):= r_RequireBackup(ss,pp) - x_Placement(ss,pp) <= 0;
+	end-if
 end-do
 
 ! LATENCY REQUIREMENT CONSTRAINTS
 ! - user -> placement: for each service, latency for any used path to a provider must meet requirements
 forall (ss in Services, pp in Providers) do
 	LatencyRequirement(ss,pp) := 
-			sum(nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) (
-				T_LinkLatency(nn,mm)*(u_Capacity(nn,mm,ss) + u_Capacity(mm,nn,ss))
-			)
+			sum(nn in Nodes, mm in Nodes) T_LinkLatency(nn,mm)*(u_Capacity(nn,mm,ss) + u_Capacity(mm,nn,ss)) 
 		<=  G_LatencyReq(ss);
 	BackupLatencyRequirement(ss,pp) :=
-			sum(nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) (
-				T_LinkLatency(nn,mm)*(b_UseBackup(nn,mm,ss) + b_UseBackup(mm,nn,ss))
-			)
+			sum(nn in Nodes, mm in Nodes) T_LinkLatency(nn,mm)*(b_UseBackup(nn,mm,ss) + b_UseBackup(mm,nn,ss))
 		<= G_LatencyReq(ss);
 end-do
 
@@ -375,93 +358,41 @@ end-do
 ! bandwidth constraints must be met out of / in to user node
 forall (cc in Customers, ss in S_ServiceForCustomer(cc)) do
 	UserSideBandwidth(ss) := (
-			sum(mm in Nodes | mm<>cc and exists(F_BandwidthCap(cc,mm))) (
-				u_Capacity(cc,mm,ss)
-			)
-			- 
-			y_Serve(cc)	
+			sum(mm in Nodes | mm<>cc) (u_Capacity(cc,mm,ss) )
+			 - y_Serve(cc)	
 		)= 0;	
 	UserSideBackup(ss) := (
-			sum(mm in Nodes | mm<>cc and exists(F_BandwidthCap(cc,mm))) (
-				b_UseBackup(cc,mm,ss)
-			)
+			sum(mm in Nodes | mm<>cc) b_UseBackup(cc,mm,ss)
 			-
-			sum(pp in Providers | exists(H_PlacePrice(ss,pp))) (
-				r_RequireBackup(ss,pp)
-			)
+			sum(pp in Providers) r_RequireBackup(ss,pp)
 		) =0;
 	end-do
 
 !AVAILABILITY CONSTRAINTS
 forall (ss in Services) do	
 	AvailabilityRequirement(ss) := (
-		sum(nn in Nodes, mm in Nodes | exists(D_AvailabilityExp(nn,mm))) u_Capacity(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm))
-		+ 
-		!This next parenthesis calculates the big M
-		(ln(Y_AvailabilityReq(ss))- sum(nn in Nodes, mm in Nodes | exists(D_AvailabilityExp(nn,mm)))ln(D_AvailabilityExp(nn,mm)))
-		sum(pp in Providers | exists(H_PlacePrice(ss,pp))) r_RequireBackup(ss,pp)
-		>=
-		ln(Y_AvailabilityReq(ss)));
+		sum( nn in Nodes, mm in Nodes | exists(D_AvailabilityExp(nn,mm))) u_Capacity(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm))
+		 + sum(pp in Providers) r_RequireBackup(ss,pp) >= ln(Y_AvailabilityReq(ss)));
 end-do
 
-! SUM BACKUP RESERVATION CONSTRAINTS
-forall (nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) do
+forall (nn in Nodes, mm in Nodes) do
 	TotalBackup(nn,mm) := (
-			MinBackupProportion*
-			sum(ss in Services) (
-				b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)
-				+
-				b_UseBackup(mm,nn,ss)*B_BandwidthReqD(ss)
-			)
-			-
-			l_BackupRes(nn,mm)
-		) >= 0;
+		MinBackupProportion*
+		sum(ss in Services) (
+			B_BandwidthReq(ss)*b_UseBackup(nn,mm,ss)
+			+
+			B_BandwidthReqD(ss)*b_UseBackup(mm,nn,ss)
+		) 
+		- 
+		l_BackupRes(nn,mm)
+		<= 0);
 end-do
 
-forall (nn in Nodes, mm in Nodes, ss in Services | exists(F_BandwidthCap(nn,mm))) do
-	! SINGLE BACKUP RESERVATION CONSTRAINTS
-	MaximumBackupUp(nn,mm,ss) := (
-		b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)
-		+
-		b_UseBackup(mm,nn,ss)*B_BandwidthReqD(ss)
-		-
-		l_BackupRes(nn,mm)
-	) <= 0;
-	
-	! LINK DISJOINT PRIMARY/BACKUP CONSTRAINTS
+forall (nn in Nodes, mm in Nodes, ss in Services ) do
+	MaximumBackupUp(nn,mm,ss) := b_UseBackup(nn,mm,ss)*B_BandwidthReq(ss)+b_UseBackup(mm,nn,ss)*B_BandwidthReqD(ss)-l_BackupRes(nn,mm) <= 0;
 	LinkDisjoint(nn,mm,ss) := b_UseBackup(nn,mm,ss) + u_Capacity(nn,mm,ss) <=1;
 end-do
 
-! SERVICE PATH OVERLAP CONSTRAINTS
-! To services have overlapping main paths if for any arc both paths are represented
-! for every service combination
-forall(cc in Customers, qq in Customers) do
-	forall(ss in S_ServiceForCustomer(cc), tt in S_ServiceForCustomer(qq) | ss < tt) do
-		! for every arc where both service ss and zz have possible paths
-		forall(nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) do
-											
-			! SERVICE PATH OVERLAP CONSTRAINTS
-			! Two services have overlapping primary paths if for any arc both paths are represented
-			ServiceOverlap(nn, mm, ss, tt):= 
-				u_Capacity(nn, mm, ss)
-				+
-				u_Capacity(nn, mm, tt)
-				-
-				l_Overlap(ss, tt)
-				<= 1;
-				
-			! BACKUP PATH OVERLAP CONSTRAINT
-			! backup paths may not overlap at an arc if their primary paths overlap anywhere
-			Overlap(nn, mm, ss, tt):= 
-				b_UseBackup(nn, mm, ss)
-				+
-				b_UseBackup(nn, mm, tt)
-				+
-				l_Overlap(ss, tt)
-				<= 2;
-		end-do
-	end-do
-end-do
 
 writeln("Model building completed in ", timestamp - timetracker, " seconds");
 
