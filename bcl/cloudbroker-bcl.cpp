@@ -108,11 +108,11 @@ void outputMetaDataToStream(std::ostream& stream, cloudBrokerConfig* config) {
 	if(config->pregen_paths) {
 		stream << "\n# pregeneration configuration\n"
 				<< "pregen max paths per (service, provider) = "	<< config->pregen_maxpaths << "\n"
-				<< "pregen path combo availability = " 				<< (config->pregen_paths_combos ? "true" : "false") << "\n"
+				<< "pregen path combo availability = " 				<< (config->pregen_path_combos ? "true" : "false") << "\n"
 				<< "pregen mappings = " 							<< (config->pregen_mappings ? "true" : "false") << "\n";
 	}
 
-	if(config->columngen_bcl_solve) {
+	if(config->bcl_cgsolve) {
 		stream << "\n# column generation configuration\n"
 				<< "column generation algorithm = " 		<< config->cg_alg << "\n"
 				<< "column generation max iterations = " 	<< config->cg_maxiters << "\n"
@@ -129,14 +129,14 @@ void runConfiguration(cloudBrokerConfig config) {
 		// run any pregeneration tasks
 		timer total_start;
 		timer pregen_start;
-		if(config.pregen_paths) pathgen::generatePaths(&data, config.pregen_paths_limit);
+		if(config.pregen_paths) pathgen::generatePaths(&data, config.pregen_maxpaths);
 		if(config.pregen_path_combos) pathgen::addPathComboAvailabilities(&data);
 		if(config.pregen_mappings) pathgen::addFeasibleMappings(&data);
 		double pregen_time = pregen_start.elapsed();
 
 		// run main tasks as configured:
 
-		if(config.generate_mosel_data) {
+		if(config.mosel_datagen) {
 			if(!config.output_file.empty()) {
 				entities::toMoselDataFile(config.output_file.c_str(), &data);
 			} else {
@@ -149,7 +149,7 @@ void runConfiguration(cloudBrokerConfig config) {
 			cerr << "Error: no BCL functionality available in this build\n";
 #else
 			double total_time = 0.0, build_time = 0.0, colgen_time = 0.0, mip_time = 0.0;
-			cloudbrokermodels::CloudBrokerModel model;
+			cloudbrokeroptimisation::CloudBrokerModel model;
 			cout << "Building CloudBroker-model..\n";
 			timer build_start;
 			model.BuildModel(&data, config.model_beta);
@@ -305,7 +305,7 @@ void textUI() {
 		} else if(rootSelection == 3) {
 			// configure to solve bcl model using column generation to add mappings
 			config.bcl_cgsolve = true;
-			config.pregen_paths = config.column_generation_method == 1; // only pregenerate paths for brute force mapping generation (method 1)
+			config.pregen_paths = config.cg_alg == 1; // only pregenerate paths for brute force mapping generation (method 1)
 			config.bcl_solve = false;
 			config.pregen_mappings = false;
 			config.mosel_datagen = false;

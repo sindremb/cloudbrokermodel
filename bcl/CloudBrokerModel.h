@@ -19,7 +19,16 @@
 #define CG_HEURISTIC_A 2
 #define CG_HEURISTIC_B 3
 
-namespace cloudbrokermodels {
+namespace cloudbrokeroptimisation {
+
+	struct dual_vals {
+		std::vector<double> 				serveCustomerDuals;	/* every customer, every service of customer */
+		std::vector<double> 				arcCapacityDuals;	/* every arc */
+		std::vector<double> 				backupSumDuals;		/* every arc */
+		std::vector<std::vector<double> >	backupSingleDuals;	/* every arc, every service */
+		std::vector<std::vector<std::vector<double> > >	primaryOverlapDuals;/* every arc, every pair of services */
+		std::vector<std::vector<std::vector<double> > >	backupOverlapDuals;	/* every arc, every pair of services */
+	};
 
 	class CloudBrokerModel {
 	private:
@@ -42,16 +51,6 @@ namespace cloudbrokermodels {
 		entities::dataContent *data;
 
 		double beta;
-
-		struct dual_vals {
-					std::vector<double> 				serveCustomerDuals;	/* every customer, every service of customer */
-					std::vector<double> 				arcCapacityDuals;	/* every arc */
-					std::vector<double> 				backupSumDuals;		/* every arc */
-					std::vector<std::vector<double> >	backupSingleDuals;	/* every arc, every service */
-					std::vector<std::vector<std::vector<double> > >	primaryOverlapDuals;/* every arc, every pair of services */
-					std::vector<std::vector<std::vector<double> > >	backupOverlapDuals;	/* every arc, every pair of services */
-
-				};
 
 		dual_vals getDualVals();
 

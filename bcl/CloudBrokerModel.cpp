@@ -21,7 +21,7 @@ using namespace entities;
 using namespace ::dashoptimization;
 using namespace std;
 
-namespace cloudbrokermodels {
+namespace cloudbrokeroptimisation {
 
 	/*
 	 * TEMPORARILY STOLEN FROM PATHGENERATOR: should make classes from entities, and add as method to returnPath ??
@@ -249,17 +249,17 @@ namespace cloudbrokermodels {
 				/* NEW CONSTRAINT: lhs expression */
 				XPRBexpr map_service_expr;
 
+				/* add serve customer var */
+				map_service_expr += y_serveCustomerVars[cc];
+
 				/* for every mapping of service*/
 				for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
 
-					/* add mapping selection var */
-					map_service_expr += (*w_itr);
+					/* subtract mapping selection var */
+					map_service_expr -= (*w_itr);
 
 					++w_itr;
 				}
-
-				/* subtract serve customer var */
-				map_service_expr -= y_serveCustomerVars[cc];
 
 				/* create final constraint */
 				serveCustomerCtr.push_back(
@@ -560,7 +560,7 @@ namespace cloudbrokermodels {
 			this->RunModel(false, 0, opt_alg);
 			XPRBbasis basis = master_problem.saveBasis();
 
-			CloudBrokerModel::dual_vals duals = this->getDualVals();
+			dual_vals duals = this->getDualVals();
 
 			cout << "- Generating Columns: ";
 			switch(cg_alg) {
@@ -614,8 +614,8 @@ namespace cloudbrokermodels {
 		master_problem.setMsgLevel(3); /* Set message level back to default */
 	}
 
-	CloudBrokerModel::dual_vals CloudBrokerModel::getDualVals() {
-		CloudBrokerModel::dual_vals duals;
+	dual_vals CloudBrokerModel::getDualVals() {
+		dual_vals duals;
 
 		/********* serveCustomerCtr dual values **********/
 		// make room for dual values in vector
@@ -810,9 +810,9 @@ namespace cloudbrokermodels {
 		/**** A^Ty: *****/
 		double At_y = 0.0;
 
-		//   - a_s
-		// add dual cost from owner's serve customer constraint
-		At_y += duals->serveCustomerDuals[owner->globalServiceIndex];
+		//   a_s
+		// subtract dual cost from owner's serve customer constraint
+		At_y -= duals->serveCustomerDuals[owner->globalServiceIndex];
 
 
 		/* for every arc */
@@ -1150,7 +1150,7 @@ namespace cloudbrokermodels {
 		// - this is the only value that can give a positive evaluation for a new mapping
 		double serve_customer_dual = duals->serveCustomerDuals[s->globalServiceIndex];
 		// - if not a "negative cost", new mapping can not have a positive evaluation, return false
-		if(serve_customer_dual >= 0.0) {
+		if(serve_customer_dual <= 0.0) {
 			return false;
 		}
 
@@ -1187,7 +1187,7 @@ namespace cloudbrokermodels {
 			if(primary_up_arcs.size() == 0) continue;
 
 			// check if found primary path can be basis for a profitable column
-			if(- serve_customer_dual - primary_path_eval - p->price >= EPS) {
+			if(serve_customer_dual - primary_path_eval - p->price >= EPS) {
 				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
 
 				// IF availability req ok
@@ -1236,7 +1236,7 @@ namespace cloudbrokermodels {
 						}
 
 						// IF total evaluation is positive
-						if(- serve_customer_dual - primary_path_eval - backup_path_eval - p->price >= EPS) {
+						if(serve_customer_dual - primary_path_eval - backup_path_eval - p->price >= EPS) {
 
 							// create a return path object and calculate combo availability
 							returnPath backup = _returnPathFromArcs(&backup_up_arcs, s, p);
@@ -1282,7 +1282,7 @@ namespace cloudbrokermodels {
 		// - this is the only value that can give a positive evaluation for a new mapping
 		double serve_customer_dual = duals->serveCustomerDuals[s->globalServiceIndex];
 		// - if not a "negative cost", new mapping can not have a positive evaluation, return false
-		if(serve_customer_dual >= 0.0) {
+		if(serve_customer_dual <= 0.0) {
 			return false;
 		}
 
@@ -1351,7 +1351,7 @@ namespace cloudbrokermodels {
 			if(primary_up_arcs.size() == 0) continue;
 
 			// check if found primary path can be basis for a profitable column
-			if(- serve_customer_dual - primary_path_eval - p->price >= EPS) {
+			if(serve_customer_dual - primary_path_eval - p->price >= EPS) {
 				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
 
 				// if primary if availability feasible, it does not need a backup and will be generated in above code -> skip
@@ -1390,7 +1390,7 @@ namespace cloudbrokermodels {
 					}
 
 					// IF total evaluation is positive
-					if(- serve_customer_dual - primary_path_eval - backup_path_eval - p->price >= EPS) {
+					if(serve_customer_dual - primary_path_eval - backup_path_eval - p->price >= EPS) {
 
 						// create a return path object and calculate combo availability
 						returnPath backup = _returnPathFromArcs(&backup_up_arcs, s, p);
