@@ -522,12 +522,4 @@ forall(nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) do
 	end-if
 end-do
 
-(!writeln("\n\nArcs with low utilisation of capacity (<=10%):");
-forall(nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) do
-	if (sum(ss in Services)(B_BandwidthReq(ss)*getsol(u_Capacity(nn,mm,ss)))) <= F_BandwidthCap(nn,mm)*0.1 then
-		writeln(" - (",nn,",",mm,") ", (
-			100*sum(ss in Services)(B_BandwidthReq(ss)*getsol(u_Capacity(nn,mm,ss))) / F_BandwidthCap(nn,mm))
-		," %");
-	end-if
-end-do!)
 end-model
