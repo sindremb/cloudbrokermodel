@@ -213,7 +213,7 @@ namespace pathgen {
 			for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
 			{
 				placement * pl = &se->possible_placements[p];
-				cout << " - generating mappings for service" << se->globalServiceIndex+1 << " at provider " << pl->globalProviderIndex+1 << "...\n";
+				cout << " - generating mappings to provider " << pl->globalProviderIndex+1 << "...\n";
 				// --- for each path at current placement
 				for (unsigned int a = 0; a < pl->paths.size(); ++a) {
 					returnPath * apath = pl->paths[a];
