@@ -207,11 +207,13 @@ namespace pathgen {
 		for (unsigned int s = 0; s < data->services.size(); ++s)
 		{
 			service * se = &data->services[s];
+			cout << "- Service #" << se->globalServiceIndex+1 << ":\n";
 			se->mappings.clear();
 			// -- for each service's placement
 			for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
 			{
 				placement * pl = &se->possible_placements[p];
+				cout << " - generating mappings for service" << se->globalServiceIndex+1 << " at provider " << pl->globalProviderIndex+1 << "...\n";
 				// --- for each path at current placement
 				for (unsigned int a = 0; a < pl->paths.size(); ++a) {
 					returnPath * apath = pl->paths[a];
@@ -256,9 +258,8 @@ namespace pathgen {
 						m->backup->backup_mappings.push_back(m);
 					}
 				}
-				cout << " - service" << se->globalServiceIndex+1 << " at provider " << pl->globalProviderIndex+1 << "\n";
-				cout << "  -# total availability feasible routings (primary[+backup]): " << se->mappings.size() << "\n";
 			}
+			cout << " - # of total availability feasible mappings: " << se->mappings.size() << "\n";
 		}
 
 		data->n_mappings = mappingCount;
