@@ -70,7 +70,7 @@ cloudBrokerConfig defaultConfig() {
 	/*		CONFIGUATION DEFAULTS  		*/
 	config.model_beta = 0.3;
 	
-	config.opt_maxtime = -1;
+	config.opt_maxtime = 0;
 	config.opt_alg = " ";
 	
 	config.pregen_maxpaths = -1;
