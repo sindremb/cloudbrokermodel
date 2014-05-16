@@ -156,8 +156,8 @@ void runConfiguration(cloudBrokerConfig config) {
 			build_time = build_start.elapsed();
 			cout << "MODEL BUILDING COMPLETE!\n";
 
-			if(config.bcl_solve) {
-				cout << "Adding mappings by column generation..\n";
+			if(config.bcl_cgsolve) {
+				cout << "\nRUNNING COLUMN GENERATION\n";
 				timer colgen_start;
 				model.RunColumnGeneration(
 					config.cg_alg,

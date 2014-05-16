@@ -83,6 +83,9 @@ namespace pathgen {
 		return complete;
 	}
 
+	/*
+	* Calculates the P(A)P(B|A) availability term only for paths *a and *b, wrapped in a pathCombo struct
+	*/
 	pathCombo _pathComboForPaths(returnPath * a, returnPath * b) {
 		pathCombo combo;
 		combo.a = a;
@@ -98,7 +101,7 @@ namespace pathgen {
 			// for all links in path a (repsented by arcs going up)
 			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
 				// path b's up-arc matches a's up-arc or its down-arc (-> link is shared)
-				if(*i == *j || *i == j->return_arc) {
+				if(*i == *j || *i == (*j)->return_arc) {
 					found = true;
 					break;
 				}
