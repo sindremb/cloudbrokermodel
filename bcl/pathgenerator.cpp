@@ -92,10 +92,13 @@ namespace pathgen {
 		// calculate prop b up given a up
 		vector<arc*> unique;
 
+		// for all links in path b (represented by arcs going up)
 		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
 			bool found = false;
+			// for all links in path a (repsented by arcs going up)
 			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
-				if(*i == *j) {
+				// path b's up-arc matches a's up-arc or its down-arc (-> link is shared)
+				if(*i == *j || *i == j->return_arc) {
 					found = true;
 					break;
 				}

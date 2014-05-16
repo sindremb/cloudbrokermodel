@@ -24,22 +24,25 @@ using namespace std;
 namespace cloudbrokeroptimisation {
 
 	/*
-	 * TEMPORARILY STOLEN FROM PATHGENERATOR: should make classes from entities, and add as method to returnPath ??
+	 * TAKEN FROM PATHGENERATOR:
 	 * Calculates the P(A)P(B|A) availability term for paths *a and *b, wrapped in a pathCombo struct
 	 */
-	pathCombo _pathComboForPaths(returnPath *a, returnPath *b) {
+	pathCombo _pathComboForPaths(returnPath * a, returnPath * b) {
 		pathCombo combo;
 		combo.a = a;
 		combo.b = b;
-		combo.exp_b_given_a = a->exp_availability; // intitial: P(A)
+		combo.exp_b_given_a = a->exp_availability;
 
-		// *P(B|A)
-		// -  find all arcs unique to *b
+		// calculate prop b up given a up
 		vector<arc*> unique;
+
+		// for all links in path b (represented by arcs going up)
 		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
 			bool found = false;
+			// for all links in path a (repsented by arcs going up)
 			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
-				if(*i == *j) {
+				// path b's up-arc matches a's up-arc or its down-arc (-> link is shared)
+				if(*i == *j || *i == j->return_arc) {
 					found = true;
 					break;
 				}
@@ -48,7 +51,7 @@ namespace cloudbrokeroptimisation {
 				unique.push_back(*i);
 			}
 		}
-		// - multiply with P(B|A) by multiplying availability of all unique arcs
+
 		for(unsigned int i = 0; i < unique.size(); ++i) {
 			combo.exp_b_given_a *= unique[i]->exp_availability;
 		}
