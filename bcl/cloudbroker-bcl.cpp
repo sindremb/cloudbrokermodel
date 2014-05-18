@@ -21,7 +21,7 @@
 #include "pathgenerator.h"
 
 #ifndef EXCLUDE_BCL
-#include "CloudBrokerModel.h"
+#include "CloudBrokerOptimisation.hpp"
 #endif
 
 using namespace std;
