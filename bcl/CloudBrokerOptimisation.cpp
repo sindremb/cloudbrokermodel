@@ -1,4 +1,4 @@
-#include "CloudBrokerModel.h"
+#include "CloudBrokerOptimisation.hpp"
 #include "entities.h"
 
 #include "xprb_cpp.h"
@@ -22,42 +22,6 @@ using namespace ::dashoptimization;
 using namespace std;
 
 namespace cloudbrokeroptimisation {
-
-	/*
-	 * TAKEN FROM PATHGENERATOR:
-	 * Calculates the P(A)P(B|A) availability term only for paths *a and *b, wrapped in a pathCombo struct
-	 */
-	pathCombo _pathComboForPaths(returnPath * a, returnPath * b) {
-		pathCombo combo;
-		combo.a = a;
-		combo.b = b;
-		combo.exp_b_given_a = a->exp_availability;
-
-		// calculate prop b up given a up
-		vector<arc*> unique;
-
-		// for all links in path b (represented by arcs going up)
-		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
-			bool found = false;
-			// for all links in path a (repsented by arcs going up)
-			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
-				// path b's up-arc matches a's up-arc or its down-arc (-> link is shared)
-				if(*i == *j || *i == (*j)->return_arc) {
-					found = true;
-					break;
-				}
-			}
-			if(!found) {
-				unique.push_back(*i);
-			}
-		}
-
-		for(unsigned int i = 0; i < unique.size(); ++i) {
-			combo.exp_b_given_a *= unique[i]->exp_availability;
-		}
-
-		return combo;
-	}
 
 	/****** Parameters: ******
 	 * - Utility class used to translate data entities to model parameters
@@ -791,8 +755,8 @@ namespace cloudbrokeroptimisation {
 					for (unsigned int bb = 0; bb < p->paths.size(); ++bb) {
 						returnPath * b = p->paths[bb];
 						// calculate combo availability [ P(A)*P(B|A) ]
-						pathCombo combo = _pathComboForPaths(k, b);
-						if(k->exp_availability + b->exp_availability - combo.exp_b_given_a >= s->availability_req) {
+						double k_and_b = entities::prob_paths_a_and_b(k, b);
+						if(k->exp_availability + b->exp_availability - k_and_b >= s->availability_req) {
 							// combination of a as primary and b as backup is feasible -> add routing
 							mapping m;
 							m.primary = k;
@@ -1260,10 +1224,10 @@ namespace cloudbrokeroptimisation {
 
 							// create a return path object and calculate combo availability
 							returnPath backup = _returnPathFromArcs(&backup_up_arcs, s, p);
-							pathCombo combo = _pathComboForPaths(&primary, &backup);
+							double p_and_b = entities::prob_paths_a_and_b(&primary, &backup);
 
 							// IF availability req ok
-							if(primary.exp_availability + backup.exp_availability - combo.exp_b_given_a >= s->availability_req) {
+							if(primary.exp_availability + backup.exp_availability - p_and_b >= s->availability_req) {
 								// create a new mapping
 								mapping m;
 
@@ -1414,10 +1378,10 @@ namespace cloudbrokeroptimisation {
 
 						// create a return path object and calculate combo availability
 						returnPath backup = _returnPathFromArcs(&backup_up_arcs, s, p);
-						pathCombo combo = _pathComboForPaths(&primary, &backup);
+						double p_and_b = entities::prob_paths_a_and_b(&primary, &backup);
 
 						// IF availability req ok
-						if(primary.exp_availability + backup.exp_availability - combo.exp_b_given_a >= s->availability_req) {
+						if(primary.exp_availability + backup.exp_availability - p_and_b >= s->availability_req) {
 							// create a new mapping
 							mapping m;
 
