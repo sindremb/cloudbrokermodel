@@ -52,7 +52,7 @@ program should do.
 		2 : heuristic A
 		3 : heuristic B 
 	
-	-beta <float>			| defualt: 0.3, optional
+	-beta <float>			| defualt: 0.25, optional
 	sets the beta value to use in the backup reservation constraint of the model
 	
 	-maxtime <integer>		| default: 0, optional
@@ -82,7 +82,7 @@ program should do.
 		"b" solve the problem using the Newton barrier algorithm;
 		"n" use the network solver (LP / for the initial LP (for MIP) );
 		"c" continue a previously interrupted optimization run.
-		MIP ONLY
+		MIP ONLY (will work for solve, but not cgsolve)
 		"l" stop after solving the initial continuous relaxation (using MIP information in presolve);
 	
 	
