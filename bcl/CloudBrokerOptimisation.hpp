@@ -5,8 +5,8 @@
  *      Author: sindremo
  */
 
-#ifndef CLOUDBROKERMODELS_H_
-#define CLOUDBROKERMODELS_H_
+#ifndef CLOUDBROKERMODEL_H_
+#define CLOUDBROKERMODEL_H_
 
 #include "entities.h"
 #include "xprb_cpp.h"

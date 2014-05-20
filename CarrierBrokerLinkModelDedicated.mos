@@ -1,0 +1,516 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!
+!! BrokerCarrierOptimisation v1:
+!!
+!!- The following script implements the MIP model defined in chapter
+!!	6 of Mari Holmen's and Sindre Møgster Braaten's project thesis
+!!	fall 2013.
+!!
+!!- Authors: Mari Holmen and Sindre Møgster Braaten
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+model BrokerCarrierOptimization
+
+options explterm
+options noimplicit
+
+uses "mmxprs", "mmsystem";
+
+parameters
+	! Data file to read from
+	Data = 'data/sm_mosel_link.txt';
+	! Time limit for runtime,  maximum number of seconds for optimisation
+	TimeLimit = -1;	
+end-parameters
+
+writeln("Model Parameters:");
+writeln("Data:", Data);
+writeln("MinBackupProportion(beta):", MinBackupProportion);
+writeln("TimeLimit:", TimeLimit);
+
+declarations
+	timetracker:	real; ! used to log timestamps for time consumption output
+end-declarations
+
+writeln("Building model...");
+timetracker := timestamp;
+
+!setparam("XPRS_presolve", 0);	! uncomment to turn of presolve
+if(TimeLimit>0.0) then
+	setparam("XPRS_maxtime", TimeLimit);
+end-if
+
+setparam("XPRS_verbose", true);	! Turn on message printing
+setparam("XPRS_MIPLOG", 1);	! only output summary message in the end of MIP-process 
+						!(alternatively use -N for report every Nth node)
+!!!!!!!!!!!!!!!!!!!!!!!!
+! Sets
+!!!!!!!!!!!!!!!!!!!!!!!!
+
+declarations
+! Set sizes
+	n_Customers: 			integer; ! number of customers
+	n_Services:				integer; ! number of services
+	n_Providers:			integer; ! number of providers
+	n_Nodes:				integer; ! number of nodes in total
+
+! Sets	
+	Customers:				set of integer; 
+	Providers:				set of integer;
+	! Used as shorthand for 'cc in Customers, ss in S_ServiceForCustomer(cc)' when cc is not needed 
+	Services:				set of integer;
+	! Set of nodes in the network. 
+	! - First we have the customer nodes, then the internal nodes, the the provider nodes.
+	Nodes:					set of integer; 
+	! Set of internal nodes in the network + all customer nodes 
+	! - usage for internal nodes for each customer cc: 'nn in I_Nodes | nn<>cc'
+	I_Nodes:				set of integer;
+	! Node for each provider
+	E_ProviderNode:			set of integer; 
+end-declarations
+
+initializations from Data
+	n_Customers;
+	n_Services;
+	n_Providers;
+	n_Nodes;
+end-initializations
+
+Customers:= 1..n_Customers;
+Services:= 1..n_Services;  
+Providers:= 1..n_Providers;
+Nodes:= 1..n_Nodes;
+I_Nodes:= 1..(n_Nodes-n_Providers);
+E_ProviderNode:=(n_Nodes-n_Providers+1)..n_Nodes;
+
+finalize(Customers);
+finalize(Services);
+finalize(Providers);
+finalize(Nodes);
+finalize(I_Nodes);
+finalize(E_ProviderNode);
+
+!!!!!!!!!!!!!!!!!!!!!!!
+! Parameters
+!!!!!!!!!!!!!!!!!!!!!!!
+
+declarations
+!Parameters
+	!Price per used capacity between nodes
+	K_CapPrice:					dynamic array(Nodes,Nodes) of real;
+	!R_Revenue from serving each customer
+	R_Revenue:					dynamic array(Customers) of real;
+	!Price of placing a service at a provider
+	H_PlacePrice:				dynamic array(Services,Providers) of real;
+	!Lists of services for each customer
+	S_ServiceForCustomer:			set of set of integer; 
+	!Latency requirement for each service from customer to provider
+	G_LatencyReq:				array(Services) of real;
+	!Bandwidth requirement for each service from customer to provider
+	B_BandwidthReq:				array(Services) of real;
+	!Bandwidth requirement for each service from provider to customer
+	B_BandwidthReqD:			array(Services) of real;
+	!Minimum avarage availability for each service
+	Y_AvailabilityReq:			array(Services) of real; 
+	!Lateny between each pair of nodes
+	T_LinkLatency:				dynamic array(Nodes,Nodes) of real;
+	!Bandwidth capacity between each pair of nodes
+	F_BandwidthCap:				dynamic array(Nodes,Nodes) of real;
+	!Expected availability for each owned link between each pair of nodes
+	D_AvailabilityExp:			dynamic array(Nodes,Nodes) of real;
+
+! Network data interpretation configuration
+	Symmetric:				boolean;
+
+end-declarations
+
+initialisations from Data				
+	K_CapPrice;					
+	R_Revenue;				
+	H_PlacePrice;				
+	S_ServiceForCustomer;				 				
+	G_LatencyReq;	
+	B_BandwidthReq;
+	B_BandwidthReqD;
+	Y_AvailabilityReq;						
+	T_LinkLatency;						
+	F_BandwidthCap;						
+	D_AvailabilityExp;
+
+	Symmetric;
+end-initialisations
+
+! If Symmetric is set to true in provided dataset
+! - duplicate all arcs in dataset in its opposite direction if opposite not already specified
+if(Symmetric) then
+	forall(nn in Nodes, mm in Nodes) do
+
+		if(exists(K_CapPrice(nn,mm)) and not exists(K_CapPrice(mm,nn))) then
+			create(K_CapPrice(mm,nn));
+			K_CapPrice(mm,nn):=K_CapPrice(nn,mm);
+		end-if
+
+		if(exists(T_LinkLatency(nn,mm)) and not exists(T_LinkLatency(mm,nn))) then
+			create(T_LinkLatency(mm,nn));
+			T_LinkLatency(mm,nn):=T_LinkLatency(nn,mm);
+		end-if
+
+		if(exists(F_BandwidthCap(nn,mm)) and not exists(F_BandwidthCap(mm,nn))) then
+			create(F_BandwidthCap(mm,nn));
+			F_BandwidthCap(mm,nn):=F_BandwidthCap(nn,mm);
+		end-if
+
+		if(exists(D_AvailabilityExp(nn,mm)) and not exists(D_AvailabilityExp(mm,nn))) then
+			create(D_AvailabilityExp(mm,nn));
+			D_AvailabilityExp(mm,nn) :=D_AvailabilityExp(nn,mm);
+		end-if
+	end-do
+end-if
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Variables
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+declarations	
+	!Variables
+	! - x: binary, placement of service at provider
+	x_Placement: 		dynamic array (Services, Providers) 			of mpvar;
+	! - u: binary, use of arc for service for uplink (and oppsite arc for downlink)
+	u_UsePrimary:		dynamic array (Nodes,Nodes,Services)			of mpvar;
+	! - y: binary, serving of a customer
+	y_Serve:			dynamic array (Customers)						of mpvar;
+	! - b : binary, use of arc for service for backup uplink (and opposite arc for downlink)
+	b_UseBackup:		dynamic array (Nodes,Nodes,Services)			of mpvar;
+	! - r : binary, is service s needs backup on its path to provider p
+	r_RequireBackup:	dynamic array(Services,Providers)				of mpvar;
+	! - l (lambda): continuous, bandwidth reserved for backup on a (owned) link
+	l_BackupRes:		dynamic array (Nodes,Nodes)						of mpvar;
+end-declarations	
+
+! - for all valid combinations of service and provider
+forall (ss in Services, pp in Providers | exists(H_PlacePrice(ss,pp))) do
+	create (x_Placement(ss,pp));
+	x_Placement(ss,pp) is_binary;
+	create(r_RequireBackup(ss,pp));
+	r_RequireBackup(ss,pp) is_binary;
+end-do
+
+! - for every arc in network
+forall(nn in Nodes, mm in Nodes, ss in Services | exists(F_BandwidthCap(nn,mm)) and mm<>cc ) do
+	create(l_BackupRes(nn,mm));
+	
+	! - for every service
+	forall(ss in Services) do
+		create(u_UsePrimary(nn,mm,ss));
+		u_UsePrimary(nn,mm,ss) is_binary;
+		create(b_UseBackup(nn,mm,ss));
+		b_UseBackup(nn,mm,ss) is_binary;
+	end-do
+end-do
+
+! - for all customers
+forall(cc in Customers) do
+	create(y_Serve(cc));
+	y_Serve(cc) is_binary;
+end-do
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! CONSTRAINTS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+declarations
+! Objective function
+	Total_Profits:																linctr;
+
+! Constraints
+	ServeCustomer:					dynamic array(Services)						of linctr;
+	ArcCapacity:					dynamic array(Nodes,Nodes)					of linctr;	
+	BandwidthFlow:					dynamic array(Services,I_Nodes)				of linctr;
+	BackupFlow:						dynamic array(Services,I_Nodes)				of linctr;
+	BandwidthRequirement:			dynamic array(Services,Providers)			of linctr;
+	BackupRequirement:				dynamic array(Services,Providers)			of linctr;
+	LatencyRequirement:				dynamic array(Services,Providers)			of linctr;
+	BackupLatencyRequirement:		dynamic array(Services,Providers)			of linctr;
+	UserSideBandwidth:				dynamic array(Services)						of linctr;
+	UserSideBackup:					dynamic array(Services)						of linctr;
+	AvailabilityBoundD:				dynamic array(Nodes,Nodes,Services)			of linctr;
+	AvailabilityRequirement:		dynamic array(Services)						of linctr;
+	TotalBackup:					dynamic array(Nodes,Nodes)					of linctr;
+	LinkDisjoint:					dynamic array(Nodes,Nodes,Services)			of linctr;
+	AllocateBackupPath:				dynamic array(Services,Providers)			of linctr;
+end-declarations
+
+! OBJECTIVE FUNCTION
+! - total profits from serving customers
+Total_Profits := (
+		sum (cc in Customers) (
+			! R_Revenue from serving customer (if served)
+			R_Revenue(cc)*y_Serve(cc)
+			- 
+			! costs associated with customer's required services
+			sum (ss in S_ServiceForCustomer(cc)) (
+				! placement cost
+				sum (pp in Providers) (
+					H_PlacePrice(ss,pp)*x_Placement(ss,pp)
+				)
+				+ 
+				! network usage cost
+				sum (nn in Nodes, mm in Nodes | exists(K_CapPrice(nn,mm))) (
+					K_CapPrice(nn,mm)
+					*
+					(
+						B_BandwidthReq(ss)*u_UsePrimary(nn,mm,ss)
+						+
+						B_BandwidthReqD(ss)*u_UsePrimary(mm,nn,ss)
+					)
+				)
+			)
+		)
+		-
+		!Backup use cost
+		sum (nn in Nodes, mm in Nodes | exists(K_CapPrice(nn,mm))) (
+			K_CapPrice(nn,mm)*l_BackupRes(nn,mm)
+		)
+	);
+
+! SERVE CUSTOMER CONSTRAINT
+! Customers can only be served if all services for customer is provided
+forall(cc in Customers) do
+	forall(ss in S_ServiceForCustomer(cc)) do
+		ServeCustomer(ss) := sum (pp in Providers) x_Placement(ss,pp) - y_Serve(cc) = 0;
+	end-do
+end-do
+
+! ARC TOTAL CAPACITY CONSTRAINT
+! Use of an arc must not exceed its capacity (primary + backup cap)
+forall (nn in Nodes, mm in Nodes| exists(F_BandwidthCap(nn,mm)))do
+	ArcCapacity(nn,mm) := (
+		sum (ss in Services) (
+			B_BandwidthReq(ss)*u_UsePrimary(nn,mm,ss)
+			+
+			B_BandwidthReqD(ss)*u_UsePrimary(mm,nn,ss)			
+		)
+		+
+		l_BackupRes(nn,mm)
+		<= 
+		F_BandwidthCap(nn,mm)
+	);
+end-do
+
+
+
+! BANDWIDTH FLOW CONSTRAINTS
+! - bandwidth in to a node for a service must be equal to the flow out 
+!	(unless a it is a provider node or the service's customer node)
+forall (cc in Customers, ss in S_ServiceForCustomer(cc), nn in I_Nodes | nn<>cc ) do
+ 	BandwidthFlow(ss,nn) := (
+	 		sum (mm in Nodes | exists(F_BandwidthCap(nn,mm))) u_UsePrimary(nn,mm,ss)
+	 		- sum(mm in Nodes | exists(F_BandwidthCap(mm,nn))) u_UsePrimary(mm,nn,ss)
+ 		) = 0;
+ 	BackupFlow(ss,nn) := (
+	 		sum (mm in Nodes | exists(F_BandwidthCap(nn,mm))) b_UseBackup(nn,mm,ss)
+	 		- sum(mm in Nodes | exists(F_BandwidthCap(mm,nn))) b_UseBackup(mm,nn,ss)
+ 		) = 0;
+end-do
+
+! PLACEMENT SIDE BANDWIDTH REQUIREMENT CONSTRAINTS
+! - bandwidth req. must be met for placement of service (else flow in = flow out)
+forall (ss in Services,pp in Providers) do
+	BandwidthRequirement(ss,pp) := (
+			sum (nn in Nodes | nn<>E_ProviderNode(pp)) (u_UsePrimary(nn, E_ProviderNode(pp),ss)) 
+			- sum(mm in Nodes | mm<>E_ProviderNode(pp)) (u_UsePrimary(E_ProviderNode(pp),mm,ss) )
+			-x_Placement(ss,pp)
+		) = 0;
+	BackupRequirement(ss,pp) := (
+			sum (nn in Nodes | nn<>E_ProviderNode(pp)) b_UseBackup(nn, E_ProviderNode(pp),ss)
+			- sum(mm in Nodes | mm<>E_ProviderNode(pp)) b_UseBackup(E_ProviderNode(pp),mm,ss)
+			-r_RequireBackup(ss,pp)
+	) = 0;
+	if(exists(H_PlacePrice(ss,pp))) then
+		AllocateBackupPath(ss,pp):= r_RequireBackup(ss,pp) - x_Placement(ss,pp) <= 0;
+	end-if
+end-do
+
+! LATENCY REQUIREMENT CONSTRAINTS
+! - user -> placement: for each service, latency for any used path to a provider must meet requirements
+forall (ss in Services, pp in Providers) do
+	LatencyRequirement(ss,pp) := 
+			sum(nn in Nodes, mm in Nodes) T_LinkLatency(nn,mm)*(u_UsePrimary(nn,mm,ss) + u_UsePrimary(mm,nn,ss)) 
+		<=  G_LatencyReq(ss);
+	BackupLatencyRequirement(ss,pp) :=
+			sum(nn in Nodes, mm in Nodes) T_LinkLatency(nn,mm)*(b_UseBackup(nn,mm,ss) + b_UseBackup(mm,nn,ss))
+		<= G_LatencyReq(ss);
+end-do
+
+! USER SIDE BANDWIDTH CONSTRAINTS
+! bandwidth constraints must be met out of / in to user node
+forall (cc in Customers, ss in S_ServiceForCustomer(cc)) do
+	UserSideBandwidth(ss) := (
+			sum(mm in Nodes | mm<>cc) (u_UsePrimary(cc,mm,ss) )
+			 - y_Serve(cc)	
+		)= 0;	
+	UserSideBackup(ss) := (
+			sum(mm in Nodes | mm<>cc) b_UseBackup(cc,mm,ss)
+			-
+			sum(pp in Providers) r_RequireBackup(ss,pp)
+		) =0;
+	end-do
+
+!AVAILABILITY CONSTRAINTS
+forall (ss in Services) do	
+	AvailabilityRequirement(ss) := (
+		sum( nn in Nodes, mm in Nodes | exists(D_AvailabilityExp(nn,mm))) u_UsePrimary(nn,mm,ss)* ln(D_AvailabilityExp(nn,mm))
+		 + sum(pp in Providers) r_RequireBackup(ss,pp) >= ln(Y_AvailabilityReq(ss)));
+end-do
+
+forall (nn in Nodes, mm in Nodes) do
+	TotalBackup(nn,mm) := (
+		MinBackupProportion*
+		sum(ss in Services) (
+			B_BandwidthReq(ss)*b_UseBackup(nn,mm,ss)
+			+
+			B_BandwidthReqD(ss)*b_UseBackup(mm,nn,ss)
+		)
+		- 
+		l_BackupRes(nn,mm)
+		<= 0);
+end-do
+
+forall (nn in Nodes, mm in Nodes, ss in Services ) do
+	! LINK DISJOINT CONSTRAINTS
+	! The primary and backup path (if given) for a service must be link disjoint
+	LinkDisjoint(nn,mm,ss) := b_UseBackup(nn,mm,ss) + u_UsePrimary(nn,mm,ss) <=1;
+end-do
+
+writeln("Model building completed in ", timestamp - timetracker, " seconds");
+
+writeln("Solving model...");
+timetracker := timestamp;
+maximize(XPRS_PRI, Total_Profits);
+
+if (getprobstat=XPRS_OPT) then
+	writeln("Model solved in ", timestamp - timetracker," seconds");
+else
+	writeln("Model was not solved after ", timestamp - timetracker," seconds");
+end-if
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+!	Solution output:
+! - this following part contains logic for outputting the solution as human
+!	readable text and is not part of the model itself.
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+writeln("\nTotal Profits: ", getobjval);
+writeln("\nBackup Costs: ", sum(nn in Nodes, mm in Nodes) getsol(l_BackupRes(nn,mm))*K_CapPrice(nn,mm));
+
+! for all customers
+forall(cc in Customers) do
+	! Check if customer is served
+	if (getsol(y_Serve(cc)) > 0.1) then
+		! output served customer and generated profits for customer
+		writeln("\n\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
+			R_Revenue(cc)*getsol(y_Serve(cc)),"\n - profits: ",(
+				R_Revenue(cc)*getsol(y_Serve(cc))
+				- 
+				! costs associated with customer's required services
+				sum (ss in S_ServiceForCustomer(cc))
+					(
+						! placement cost
+						sum (pp in Providers)
+							H_PlacePrice(ss,pp)*getsol(x_Placement(ss,pp))
+						+ 
+						! network usage cost
+						sum (nn in Nodes, mm in Nodes) (
+								K_CapPrice(nn,mm)*(getsol(u_UsePrimary(nn,mm,ss)*B_BandwidthReq(ss))
+								+getsol(u_UsePrimary(mm,nn,ss)*B_BandwidthReqD(ss)))
+								)
+					)
+				)
+			);
+
+		! output for all served customers services
+		forall(ss in S_ServiceForCustomer(cc)) do
+			! find and output provider placement for service
+			forall(pp in Providers) do
+				! find provider used for service
+				if (getsol(x_Placement(ss,pp)) > 0.1) then
+					writeln("\n - Service ",ss,":\n  - Costs: ", (
+						! Calculate costs for this specific service
+						H_PlacePrice(ss,pp)*getsol(x_Placement(ss,pp))
+						+ 
+						sum (nn in Nodes, mm in Nodes) (
+							K_CapPrice(nn,mm)
+							*( (getsol(u_UsePrimary(nn,mm,ss))*B_BandwidthReq(ss)) 
+							+ (getsol(u_UsePrimary(mm,nn,ss))*B_BandwidthReqD(ss)) )
+						)), "\n  - placement: provider #", pp, " (node ",(n_Nodes-n_Providers+pp),
+						") - Cost: ",H_PlacePrice(ss,pp));
+						writeln("    -Availability without backup: ", sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(u_UsePrimary(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm))));
+						writeln("    -Availability requirement: ", ln(getsol(Y_AvailabilityReq(ss)))); 
+
+					! output network routing for service
+					! - up-link
+					writeln("   - ARCS:\n      - primary usage up:");
+					forall(nn in Nodes, mm in Nodes) do
+						if (getsol(u_UsePrimary(nn,mm,ss)) >0) then
+							writeln("        - (", nn, ",", mm, ") : ", B_BandwidthReq(ss)*getsol(u_UsePrimary(nn,mm,ss)), 
+								"    (",
+								K_CapPrice(nn,mm)*B_BandwidthReq(ss)*getsol(u_UsePrimary(nn,mm,ss)),")" );
+						end-if
+					end-do
+					writeln("      - primary usage down:");
+					forall(nn in Nodes, mm in Nodes) do
+						if (getsol(u_UsePrimary(nn,mm,ss)) >0) then
+							writeln("        - (", mm, ",", nn, ") : ", B_BandwidthReqD(ss)*getsol(u_UsePrimary(nn,mm,ss)), 
+								"    (",
+								K_CapPrice(nn,mm)*B_BandwidthReqD(ss)*getsol(u_UsePrimary(nn,mm,ss)),")" );
+						end-if
+					end-do
+					if ( sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(u_UsePrimary(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm)))< ln(getsol(Y_AvailabilityReq(ss))) ) then
+						writeln("      - backup usage up:");
+							forall (nn in Nodes, mm in Nodes) do
+							if (getsol(b_UseBackup(nn,mm,ss))=1) then
+								writeln("        - (",nn,",",mm,"): ", getsol(l_BackupRes(nn,mm)));
+							end-if
+							end-do
+					end-if
+					if ( sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(u_UsePrimary(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm)))< ln(getsol(Y_AvailabilityReq(ss))) ) then
+						writeln("      - backup usage down:");
+							forall (nn in Nodes, mm in Nodes) do
+							if (getsol(b_UseBackup(nn,mm,ss))=1) then
+								writeln("        - (",mm,",",nn,"): ", getsol(l_BackupRes(mm,nn)));
+							end-if
+							end-do
+					end-if
+				end-if
+			end-do
+		end-do
+	end-if
+end-do
+
+writeln("\n\nArcs with high utilisation of capacity (>=90%):");
+forall(nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) do
+	if (sum(ss in Services) B_BandwidthReq(ss)*getsol(u_UsePrimary(nn,mm,ss))) >= F_BandwidthCap(nn,mm)*0.9 then
+		writeln(" - (",nn,",",mm,") ", ( 
+			100*sum(ss in Services) B_BandwidthReq(ss)*getsol(u_UsePrimary(nn,mm,ss)) / F_BandwidthCap(nn,mm))," %");
+	end-if
+end-do
+
+writeln("\n\nArcs with medium utilisation of capacity (< 10%, < 90%):");
+forall(nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm))) do
+	if ((sum(ss in Services)B_BandwidthReq(ss)*getsol(u_UsePrimary(nn,mm,ss))) > F_BandwidthCap(nn,mm)*0.1 and
+		(sum(ss in Services)B_BandwidthReq(ss)*getsol(u_UsePrimary(nn,mm,ss))) < F_BandwidthCap(nn,mm)*0.9) then
+		writeln(" - (",nn,",",mm,") ", (
+			100*sum(ss in Services)(B_BandwidthReq(ss)*getsol(u_UsePrimary(nn,mm,ss))) / F_BandwidthCap(nn,mm))
+		," %");
+	end-if
+end-do
+
+
+end-model

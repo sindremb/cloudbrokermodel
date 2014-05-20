@@ -21,7 +21,7 @@
 #include "pathgenerator.h"
 
 #ifndef EXCLUDE_BCL
-#include "CloudBrokerModel.h"
+#include "CloudBrokerOptimisation.hpp"
 #endif
 
 using namespace std;
@@ -68,9 +68,9 @@ cloudBrokerConfig defaultConfig() {
 	config.bcl_cgsolve = false;
 
 	/*		CONFIGUATION DEFAULTS  		*/
-	config.model_beta = 0.3;
+	config.model_beta = 0.25;
 	
-	config.opt_maxtime = -1;
+	config.opt_maxtime = 0;
 	config.opt_alg = " ";
 	
 	config.pregen_maxpaths = -1;
@@ -125,14 +125,19 @@ void runConfiguration(cloudBrokerConfig config) {
 	// load input data
 	entities::dataContent data;
 	if(entities::loadFromJSONFile(config.input_file.c_str(), &data)) {
-
-		// run any pregeneration tasks
+	
+		// time consumption containers
+		double pregen_time = 0.0, total_time = 0.0, build_time = 0.0, colgen_time = 0.0, mip_time = 0.0;
+	
+		// start total timer and first subtask timer
 		timer total_start;
 		timer pregen_start;
+
+		// run any pregeneration tasks
 		if(config.pregen_paths) pathgen::generatePaths(&data, config.pregen_maxpaths);
 		if(config.pregen_path_combos) pathgen::addPathComboAvailabilities(&data);
 		if(config.pregen_mappings) pathgen::addFeasibleMappings(&data);
-		double pregen_time = pregen_start.elapsed();
+		pregen_time = pregen_start.elapsed();
 
 		// run main tasks as configured:
 
@@ -148,7 +153,6 @@ void runConfiguration(cloudBrokerConfig config) {
 #ifdef EXCLUDE_BCL
 			cerr << "Error: no BCL functionality available in this build\n";
 #else
-			double total_time = 0.0, build_time = 0.0, colgen_time = 0.0, mip_time = 0.0;
 			cloudbrokeroptimisation::CloudBrokerModel model;
 			cout << "Building CloudBroker-model..\n";
 			timer build_start;
@@ -156,8 +160,8 @@ void runConfiguration(cloudBrokerConfig config) {
 			build_time = build_start.elapsed();
 			cout << "MODEL BUILDING COMPLETE!\n";
 
-			if(config.bcl_solve) {
-				cout << "Adding mappings by column generation..\n";
+			if(config.bcl_cgsolve) {
+				cout << "\nRUNNING COLUMN GENERATION\n";
 				timer colgen_start;
 				model.RunColumnGeneration(
 					config.cg_alg,
@@ -186,7 +190,7 @@ void runConfiguration(cloudBrokerConfig config) {
 					// include information from configuration used
 					outputMetaDataToStream(myfile, &config);
 
-					// include informaiton about time consumption
+					// include informaiton about time consumption in output file
 					myfile << "\n############### TIME CONSUMPTIONS ###################\n"
 							"\nPregeneration: " 		<< pregen_time <<
 							"\nModel building: " 		<< build_time <<
@@ -205,6 +209,16 @@ void runConfiguration(cloudBrokerConfig config) {
 			}
 #endif
 		}
+		
+		cout << "\nAll tasks completed!\n";
+		
+		// log informaiton about time consumption to stream
+		cout << "\n############### TIME CONSUMPTIONS ###################\n"
+				"\nPregeneration: " 		<< pregen_time <<
+				"\nModel building: " 		<< build_time <<
+				"\nColumn generation: " 	<< colgen_time <<
+				"\nMIP solve: " 			<< mip_time <<
+				"\nTotal time consumption: "<< total_time << "\n";
 	} else {
 		cerr << "Error: Unable to load input data from <" << config.input_file << ">\n";
 	}

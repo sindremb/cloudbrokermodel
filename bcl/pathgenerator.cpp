@@ -83,35 +83,6 @@ namespace pathgen {
 		return complete;
 	}
 
-	pathCombo _pathComboForPaths(returnPath * a, returnPath * b) {
-		pathCombo combo;
-		combo.a = a;
-		combo.b = b;
-		combo.exp_b_given_a = a->exp_availability;
-
-		// calculate prop b up given a up
-		vector<arc*> unique;
-
-		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
-			bool found = false;
-			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
-				if(*i == *j) {
-					found = true;
-					break;
-				}
-			}
-			if(!found) {
-				unique.push_back(*i);
-			}
-		}
-
-		for(unsigned int i = 0; i < unique.size(); ++i) {
-			combo.exp_b_given_a *= unique[i]->exp_availability;
-		}
-
-		return combo;
-	}
-
 	void generatePaths(dataContent * data, int max_paths_per_placement) {
 
 		// create arcs from node pointers for each node
@@ -191,7 +162,11 @@ namespace pathgen {
 				for (unsigned int apath = 0; apath < pl->paths.size(); ++apath) {
 					for (unsigned int bpath = 0; bpath < pl->paths.size(); ++bpath) {
 						// calculate combo availability [ P(A)*P(B|A) ]
-						data->pathCombos.push_back(_pathComboForPaths(pl->paths[apath], pl->paths[bpath]));
+						pathCombo combo;
+						combo.a = pl->paths[apath];
+						combo.b = pl->paths[bpath];
+						combo.prob_a_and_b = entities::prob_paths_a_and_b(pl->paths[apath], pl->paths[bpath]);
+						data->pathCombos.push_back(combo);
 					}
 				}
 			}
@@ -207,11 +182,13 @@ namespace pathgen {
 		for (unsigned int s = 0; s < data->services.size(); ++s)
 		{
 			service * se = &data->services[s];
+			cout << "- Service #" << se->globalServiceIndex+1 << ":\n";
 			se->mappings.clear();
 			// -- for each service's placement
 			for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
 			{
 				placement * pl = &se->possible_placements[p];
+				cout << " - generating mappings to provider " << pl->globalProviderIndex+1 << "...\n";
 				// --- for each path at current placement
 				for (unsigned int a = 0; a < pl->paths.size(); ++a) {
 					returnPath * apath = pl->paths[a];
@@ -233,8 +210,8 @@ namespace pathgen {
 						for (unsigned int b = 0; b < pl->paths.size(); ++b) {
 							returnPath * bpath = pl->paths[b];
 							// calculate combo availability [ P(A)*P(B|A) ]
-							pathCombo combo = _pathComboForPaths(apath, bpath);
-							if(apath->exp_availability + bpath->exp_availability - combo.exp_b_given_a >= se->availability_req) {
+							double prob_a_and_b = entities::prob_paths_a_and_b(apath, bpath);
+							if(apath->exp_availability + bpath->exp_availability - prob_a_and_b >= se->availability_req) {
 								// combination of a as primary and b as backup is feasible -> add routing
 								mapping m;
 								m.globalMappingIndex = mappingCount;
@@ -248,7 +225,7 @@ namespace pathgen {
 					}
 				}
 
-				// register mappings for service at used paths
+				// register all mappings for service s at used paths to easily get all mappings using any given path
 				for (list<mapping*>::iterator m_itr = se->mappings.begin(), m_end = se->mappings.end(); m_itr != m_end; ++m_itr) {
 					mapping *m = *m_itr;
 					m->primary->primary_mappings.push_back(m);
@@ -256,9 +233,8 @@ namespace pathgen {
 						m->backup->backup_mappings.push_back(m);
 					}
 				}
-				cout << " - service" << se->globalServiceIndex+1 << " at provider " << pl->globalProviderIndex+1 << "\n";
-				cout << "  -# total availability feasible routings (primary[+backup]): " << se->mappings.size() << "\n";
 			}
+			cout << " - # of total availability feasible mappings: " << se->mappings.size() << "\n";
 		}
 
 		data->n_mappings = mappingCount;

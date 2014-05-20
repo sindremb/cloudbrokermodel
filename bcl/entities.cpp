@@ -450,7 +450,7 @@ namespace entities {
 
 		*file << "\n\nD_CombinationAvailability: [\n";
 		for (list<pathCombo>::const_iterator i = data->pathCombos.begin(), end = data->pathCombos.end(); i != end; ++i) {
-			*file << " (" << i->a->globalPathIndex+1 << " " << i->b->globalPathIndex+1<< ") " << i->exp_b_given_a;
+			*file << " (" << i->a->globalPathIndex+1 << " " << i->b->globalPathIndex+1<< ") " << i->prob_a_and_b;
 		}
 		*file << "\n]";
 	}
@@ -532,5 +532,40 @@ namespace entities {
 		myfile.close();
 
 		return;
+	}
+
+	/*
+	 * Calculates the P(A)P(B|A) availability term only for paths *a and *b (ie. probability of a and b simultaneously)
+	 */
+	double prob_paths_a_and_b(returnPath * a, returnPath * b) {
+
+		// P(A)
+		double a_and_b = a->exp_availability;
+
+		// find unique links in B for calculating P(B|A)
+		vector<arc*> unique;
+
+		// for all links in path b (represented by arcs going up)
+		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
+			bool found = false;
+			// for all links in path a (represented by arcs going up)
+			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
+				// path b's up-arc matches a's up-arc or its down-arc (-> link is shared)
+				if(*i == *j || *i == (*j)->return_arc) {
+					found = true;
+					break;
+				}
+			}
+			if(!found) {
+				unique.push_back(*i);
+			}
+		}
+
+		// P(B|A)
+		for(unsigned int i = 0; i < unique.size(); ++i) {
+			a_and_b *= unique[i]->exp_availability;
+		}
+
+		return a_and_b;
 	}
 }

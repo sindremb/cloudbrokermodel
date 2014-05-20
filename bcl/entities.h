@@ -76,7 +76,7 @@ namespace entities {
 		returnPath * b;
 
 		// P(A)P(B|A) for this path combo
-		double exp_b_given_a;
+		double prob_a_and_b;
 	};
 
 	struct mapping {
@@ -152,9 +152,20 @@ namespace entities {
 
 	};
 
-	bool loadFromJSONFile(const char *, dataContent *);
+	/*
+	 * Calculates the P(A)P(B|A) availability term only for paths *a and *b (ie. probability of a and b simultaneously)
+	 */
+	double prob_paths_a_and_b(returnPath * a, returnPath * b);
 
-	void toMoselDataFile(const char *, dataContent *);
+	/*
+	 * Loads content of a JSON formatted file as dataContent object
+	 */
+	bool loadFromJSONFile(const char * filename, dataContent * content);
+
+	/*
+	 * Outputs data content object to mosel data compatible file
+	 */
+	void toMoselDataFile(const char * filename, dataContent * content);
 
 }
 

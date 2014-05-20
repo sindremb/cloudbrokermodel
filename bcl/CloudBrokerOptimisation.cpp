@@ -1,4 +1,4 @@
-#include "CloudBrokerModel.h"
+#include "CloudBrokerOptimisation.hpp"
 #include "entities.h"
 
 #include "xprb_cpp.h"
@@ -22,39 +22,6 @@ using namespace ::dashoptimization;
 using namespace std;
 
 namespace cloudbrokeroptimisation {
-
-	/*
-	 * TEMPORARILY STOLEN FROM PATHGENERATOR: should make classes from entities, and add as method to returnPath ??
-	 * Calculates the P(A)P(B|A) availability term for paths *a and *b, wrapped in a pathCombo struct
-	 */
-	pathCombo _pathComboForPaths(returnPath *a, returnPath *b) {
-		pathCombo combo;
-		combo.a = a;
-		combo.b = b;
-		combo.exp_b_given_a = a->exp_availability; // intitial: P(A)
-
-		// *P(B|A)
-		// -  find all arcs unique to *b
-		vector<arc*> unique;
-		for (list<arc*>::const_iterator i = b->arcs_up.begin(), end = b->arcs_up.end(); i != end; ++i) {
-			bool found = false;
-			for (list<arc*>::const_iterator j = a->arcs_up.begin(), end = a->arcs_up.end(); j != end; ++j) {
-				if(*i == *j) {
-					found = true;
-					break;
-				}
-			}
-			if(!found) {
-				unique.push_back(*i);
-			}
-		}
-		// - multiply with P(B|A) by multiplying availability of all unique arcs
-		for(unsigned int i = 0; i < unique.size(); ++i) {
-			combo.exp_b_given_a *= unique[i]->exp_availability;
-		}
-
-		return combo;
-	}
 
 	/****** Parameters: ******
 	 * - Utility class used to translate data entities to model parameters
@@ -255,7 +222,9 @@ namespace cloudbrokeroptimisation {
 				/* for every mapping of service*/
 				for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
 
-					/* subtract mapping selection var */
+					/* subtract mapping selection var
+					* - mapping selection var w is created in same order, can therefore loop over global w list
+					*/
 					map_service_expr -= (*w_itr);
 
 					++w_itr;
@@ -541,13 +510,22 @@ namespace cloudbrokeroptimisation {
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_MAXTIME, time_limit);
 
 		if(enforce_integer) {
-			master_problem.mipOptimise(opt_alg);
+			if(string(opt_alg) == " ") {
+				master_problem.mipOptimise();
+			} else {
+				master_problem.mipOptimise(opt_alg);
+			}
 		} else {
-			master_problem.lpOptimise(opt_alg);
+			if(string(opt_alg) == " ") {
+				master_problem.lpOptimise();
+			} else {
+				master_problem.lpOptimise(opt_alg);
+			}
 		}
 	}
 
 	void CloudBrokerModel::RunColumnGeneration(int cg_alg, int cg_maxiters, int cg_maxcount, const char *opt_alg) {
+	
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_CUTSTRATEGY, 0);	/* Disable automatic cuts */
 		XPRSsetintcontrol(master_problem.getXPRSprob(), XPRS_PRESOLVE, 0);		/* Switch presolve off */
 		master_problem.setMsgLevel(1);											/* disable default XPRS messages: error messages only */
@@ -698,7 +676,7 @@ namespace cloudbrokeroptimisation {
 		z_objective -= Parameters::E_PrimaryPathCost(m->primary) * (*w);
 
 		// add mapping var to service's 'serveCustomer'-constraint
-		serveCustomerCtr[owner->globalServiceIndex] += *w;
+		serveCustomerCtr[owner->globalServiceIndex] -= *w;
 
 		// for every arc
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
@@ -777,8 +755,8 @@ namespace cloudbrokeroptimisation {
 					for (unsigned int bb = 0; bb < p->paths.size(); ++bb) {
 						returnPath * b = p->paths[bb];
 						// calculate combo availability [ P(A)*P(B|A) ]
-						pathCombo combo = _pathComboForPaths(k, b);
-						if(k->exp_availability + b->exp_availability - combo.exp_b_given_a >= s->availability_req) {
+						double k_and_b = entities::prob_paths_a_and_b(k, b);
+						if(k->exp_availability + b->exp_availability - k_and_b >= s->availability_req) {
 							// combination of a as primary and b as backup is feasible -> add routing
 							mapping m;
 							m.primary = k;
@@ -795,7 +773,7 @@ namespace cloudbrokeroptimisation {
 		}
 
 		if(best_eval >= EPS) {
-			cout << "--> NEW MAPPING: " << best_eval << "\n";
+			cout << "--> NEW MAPPING (BF): " << best_eval << "\n";
 			this->addMappingToModel(&bestFound, s);
 			return true;
 		}
@@ -812,6 +790,7 @@ namespace cloudbrokeroptimisation {
 
 		//   a_s
 		// subtract dual cost from owner's serve customer constraint
+		// all mapping vars have -1 as coefficient in serve customer ctr
 		At_y -= duals->serveCustomerDuals[owner->globalServiceIndex];
 
 
@@ -826,21 +805,25 @@ namespace cloudbrokeroptimisation {
 
 			/* DUAL PRICE: TOTAL CAPACITY CTR (PRIMARY)
 			 * add dual cost for use on this arc for this mapping
+			 * mapping coef. is equal to primary path's usage
 			 */
 			At_y += u_primary_usage * duals->arcCapacityDuals[aa];
 
 			/* DUAL PRICE: SUM BACKUP CTR (BACKUP)
 			 * add dual cost for backup use on arc for mapping with beta factor
+			 * mapping coef. is equal to backup path's usage * beta
 			 */
 			At_y += beta * q_backup_usage * duals->backupSumDuals[aa];
 
 			/* DUAL PRICE: SINGLE BACKUP CTR (BACKUP)
 			 * add dual cost for backup use on arc for mapping
+			 * mapping coef. is equal to backup path's usage
 			 */
 			At_y += q_backup_usage * duals->backupSingleDuals[aa][owner->globalServiceIndex];
 
 			/* DUAL PRICE: PRIMARY OVERLAP CTR (PRIMARY)
 			 * add overlap dual price if primary path uses arc for each service pair where owner takes part (usage > 0)
+			 * mapping coef. 1 only when actually using arc for primary, 0 otherwise
 			 */
 			if(u_primary_usage >= EPS) {
 				/* for every service pair where owner service takes part */
@@ -858,6 +841,7 @@ namespace cloudbrokeroptimisation {
 
 			/* DUAL PRICE: BACKUP OVERLAP CTR (BACKUP)
 			 * add overlap dual price if backup path uses arc for each service pair where owner takes part (usage > 0)
+			 * mapping coef. 1 only when actually using arc capacity for backup, 0 otherwise
 			 */
 			if(q_backup_usage >= EPS) {
 				/* for every service pair where owner service takes part */
@@ -1203,7 +1187,7 @@ namespace cloudbrokeroptimisation {
 					// add new mapping to model and finish
 					addMappingToModel(&m, s);
 
-					cout << "---> NEW MAPPING eval: " << - serve_customer_dual - primary_path_eval - p->price << "\n";
+					cout << "---> NEW MAPPING (HA): " << serve_customer_dual - primary_path_eval - p->price << "\n";
 					return true;
 				} else {
 					// ELSE: try finding primary/backup combo
@@ -1240,10 +1224,10 @@ namespace cloudbrokeroptimisation {
 
 							// create a return path object and calculate combo availability
 							returnPath backup = _returnPathFromArcs(&backup_up_arcs, s, p);
-							pathCombo combo = _pathComboForPaths(&primary, &backup);
+							double p_and_b = entities::prob_paths_a_and_b(&primary, &backup);
 
 							// IF availability req ok
-							if(primary.exp_availability + backup.exp_availability - combo.exp_b_given_a >= s->availability_req) {
+							if(primary.exp_availability + backup.exp_availability - p_and_b >= s->availability_req) {
 								// create a new mapping
 								mapping m;
 
@@ -1256,7 +1240,7 @@ namespace cloudbrokeroptimisation {
 								// add mapping to model
 								addMappingToModel(&m, s);
 
-								cout << "--> NEW MAPPING eval: " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
+								cout << "--> NEW MAPPING (HB): " << serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
 								return true;
 							}
 						}
@@ -1324,7 +1308,7 @@ namespace cloudbrokeroptimisation {
 									   &arc_costs_primary, &arc_restrictions_primary, s->latency_req,
 									   1, s->availability_req, &primary_up_arcs);
 			// see if a path was found at all and is profitable
-			if(primary_up_arcs.size() > 0 && - serve_customer_dual - primary_path_eval - p->price >= EPS) {
+			if(primary_up_arcs.size() > 0 && serve_customer_dual - primary_path_eval - p->price >= EPS) {
 				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
 				// create new mapping
 				mapping m;
@@ -1337,7 +1321,7 @@ namespace cloudbrokeroptimisation {
 				// add new mapping to model and finish
 				addMappingToModel(&m, s);
 
-				cout << "--> NEW MAPPING (primary only): " << - serve_customer_dual - primary_path_eval - p->price << "\n";
+				cout << "--> NEW MAPPING (HB): " << serve_customer_dual - primary_path_eval - p->price << "\n";
 			}
 
 			// find primary path to combine with backup by shortest path problem with resource constraints
@@ -1394,10 +1378,10 @@ namespace cloudbrokeroptimisation {
 
 						// create a return path object and calculate combo availability
 						returnPath backup = _returnPathFromArcs(&backup_up_arcs, s, p);
-						pathCombo combo = _pathComboForPaths(&primary, &backup);
+						double p_and_b = entities::prob_paths_a_and_b(&primary, &backup);
 
 						// IF availability req ok
-						if(primary.exp_availability + backup.exp_availability - combo.exp_b_given_a >= s->availability_req) {
+						if(primary.exp_availability + backup.exp_availability - p_and_b >= s->availability_req) {
 							// create a new mapping
 							mapping m;
 
@@ -1410,7 +1394,7 @@ namespace cloudbrokeroptimisation {
 							// add mapping to model
 							addMappingToModel(&m, s);
 
-							cout << "--> NEW MAPPING (primary+backup): " << - serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
+							cout << "--> NEW MAPPING (HB): " << serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
 							return true;
 						}
 					}

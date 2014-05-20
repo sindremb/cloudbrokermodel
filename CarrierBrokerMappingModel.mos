@@ -134,8 +134,6 @@ declarations
 	w_UseMapping:		dynamic array (Mappings)					of mpvar; 
 	! - lambda: continous, amount of capacity reserved on a link for backup
 	l_Lambda:			dynamic array(Nodes,Nodes)					of mpvar;
-	! - q: continous, amount of backup capacity needed on an arc for a service
-	!q_backupPerService:	dynamic array(Nodes, Nodes, Services)		of mpvar;
 	! - l: binary, indicates if two services' primary paths overlap
 	l_Overlap:			dynamic array(Services,Services)			of mpvar;
 end-declarations
@@ -154,10 +152,6 @@ end-do
 forall (ii in Nodes, jj in Nodes | exists(F_BandwidthCap(ii,jj))) do
 	create(l_Lambda(ii,jj));
 end-do
-
-!forall (ii in Nodes, jj in Nodes, ss in Services | exists(F_BandwidthCap(ii,jj))) do
-!	create(q_backupPerService(ii,jj,ss));
-!end-do
 
 forall (ss in Services, tt in Services | ss < tt) do
 	create(l_Overlap(ss,tt));
@@ -193,16 +187,16 @@ end-do
 
 declarations
 ! Objective function
-	Total_Profits:																linctr;
+	Total_Profits:															linctr;
 
 ! Constraints
-	AllocateMapping:				dynamic array(Services)							of linctr;
-	PathArcBandwidth:				dynamic array(Nodes,Nodes)						of linctr;
-	SumBackupLimit:					dynamic array(Nodes,Nodes)						of linctr;
-	MinBackupLimit:					dynamic array(Nodes,Nodes,Services)				of linctr;
-	BackupReqPerService:			dynamic array(Nodes,Nodes,Services)				of linctr;
-	BackupServiceOverlap:			dynamic array(Nodes,Nodes,Services, Services)	of linctr;
-	PrimaryServiceOverlap:			dynamic array(Nodes,Nodes,Services, Services)	of linctr;
+	AllocateMapping:		dynamic array(Services)							of linctr;
+	PathArcBandwidth:		dynamic array(Nodes,Nodes)						of linctr;
+	SumBackupLimit:			dynamic array(Nodes,Nodes)						of linctr;
+	MinBackupLimit:			dynamic array(Nodes,Nodes,Services)				of linctr;
+	BackupReqPerService:	dynamic array(Nodes,Nodes,Services)				of linctr;
+	BackupOverlap:			dynamic array(Nodes,Nodes,Services, Services)	of linctr;
+	PrimaryOverlap:			dynamic array(Nodes,Nodes,Services, Services)	of linctr;
 end-declarations
 
 write(" - obj. fn. ..");	
@@ -224,9 +218,9 @@ Total_Profits := sum (cc in Customers) (
 				)
 				-
 				! for each arc
-				sum(nn in Nodes, mm in Nodes | exists(F_BandwidthCap(nn,mm)))(
+				sum(ii in Nodes, jj in Nodes | exists(F_BandwidthCap(ii,jj)))(
 					! add cost of bandwidth reserved for backup paths
-					C_BackupCost(nn, mm)*l_Lambda(nn, mm)
+					C_BackupCost(ii, jj)*l_Lambda(ii, jj)
 				);
 
 write("DONE\n - use path cnstr. ..");	
@@ -244,17 +238,20 @@ write("DONE\n - arc cap cnstr. ..");
 ! ARC CAPACITY CONSTRAINT
 ! The total used bandwidth for primary paths and reserved for backup paths must not exceed the
 ! arcs capacity
-forall(nn in Nodes, mm in Nodes | exists(L_PathsUsingLink(nn,mm))) do
-	PathArcBandwidth(nn,mm) := 
+forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
+	PathArcBandwidth(ii,jj) := 
 		! for each path using link
-		sum(kk in L_PathsUsingLink(nn,mm)) (
+		sum(kk in L_PathsUsingLink(ii,jj)) (
 			! add bw req for path for each mapping using path being used
-			U_PathBandwidthUsage(nn,mm,kk)
-			*(sum(pp in M_PrimaryMappingsPerPath(kk))w_UseMapping(pp))
+			U_PathBandwidthUsage(ii,jj,kk)
+			*
+			(
+				sum(mm in M_PrimaryMappingsPerPath(kk))w_UseMapping(mm)
+			)
 		)
 		! add bandwidth reserved for backup paths on arc
-		+ l_Lambda(nn,mm) 
-		<= F_BandwidthCap(nn,mm);
+		+ l_Lambda(ii,jj) 
+		<= F_BandwidthCap(ii,jj);
 end-do
 
 write("DONE\n - backup path bw use cnstr. 1 ..");
@@ -262,7 +259,7 @@ write("DONE\n - backup path bw use cnstr. 1 ..");
 ! ACCUMULATIVE BACKUP PATHS BANDWIDTH CONSTRAINTS
 ! bandwidth reserved for backup paths on an arc is at least a fraction of the total bandwidth of all
 ! backup paths using that arc
-forall( ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
+forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
 	SumBackupLimit(ii,jj) := 
 		MinBackupProportion*
 		sum(mm in Mappings) (
@@ -294,7 +291,7 @@ forall(cc in Customers, qq in Customers) do
 		
 			! SERVICE PATH OVERLAP CONSTRAINTS
 			! Two services have overlapping primary paths if for any arc both paths are represented
-			PrimaryServiceOverlap(ii,jj,ss,tt):=
+			PrimaryOverlap(ii,jj,ss,tt):=
 				sum(kk in L_PathsUsingLink(ii,jj))(
 					sum(mm in M_MappingsPerService(ss)*M_PrimaryMappingsPerPath(kk))(
 						w_UseMapping(mm)
@@ -313,7 +310,7 @@ forall(cc in Customers, qq in Customers) do
 			
 			! BACKUP PATH OVERLAP CONSTRAINT
 			! backup paths may not overlap at an arc if their primary paths overlap anywhere
-			BackupServiceOverlap(ii,jj,ss,tt):= 
+			BackupOverlap(ii,jj,ss,tt):= 
 				sum(kk in L_PathsUsingLink(ii,jj))(
 					sum(mm in M_MappingsPerService(ss)*M_BackupMappingsPerPath(kk) | Q_BackupReservation(ii,jj,mm) > 0)(
 						w_UseMapping(mm)
