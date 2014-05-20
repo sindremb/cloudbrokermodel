@@ -370,8 +370,8 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
         for (var j in dataObj.S_ServicesForCustomer[i]) {
 			var sIndex = sNumber;
 			var s = new ServiceViewModel(
-				dataVM, dataObj.B_BandwidthReq[sIndex],
-				dataObj.B_BandwidthReqD[sIndex],
+				dataVM, dataObj.B_BandwidthReqUp[sIndex],
+				dataObj.B_BandwidthReqDown[sIndex],
 				dataObj.G_LatencyReq[sIndex],
 				dataObj.Y_AvailabilityReq[sIndex]
 			);
@@ -441,14 +441,14 @@ Datagen.utils.toMoselData = function (dataVM) {
     data = data + ']\n'
 
     data = data + '\n! (s) Required bandwidth for service s from customer to provider (UPLINK)\n'
-    data = data + 'B_BandwidthReq: ['
+    data = data + 'B_BandwidthReqUp: ['
     for (var i in dataVM.services()) {
         data = data + dataVM.services()[i].bandwidthRequirementUp() + ' ';
     }
     data = data + ']\n'
 
     data = data + '\n! (s) Required bandwith for service s from provider to customer (DOWNLINK)\n'
-    data = data + 'B_BandwidthReqD: ['
+    data = data + 'B_BandwidthReqDown: ['
     for (var i in dataVM.services()) {
         data = data + dataVM.services()[i].bandwidthRequirementDown() + ' ';
     }
