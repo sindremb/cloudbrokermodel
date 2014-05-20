@@ -15,7 +15,6 @@ end-parameters
 
 writeln("Model Parameters:");
 writeln("Data:", Data);
-writeln("MinBackupProportion(beta):", MinBackupProportion);
 writeln("TimeLimit:", TimeLimit);
 
 declarations
@@ -90,7 +89,7 @@ declarations
 	!Possible paths for each pair of service and provider
 	K_Paths:					dynamic array(Services,Providers) of set of integer;
 	!set of paths  using each link
-	L_PathsUsingLink:			dynamic array(Nodes,Nodes) of set	of integer;
+	L_PathsUsingArc:			dynamic array(Nodes,Nodes) of set	of integer;
 	!bandwidth usage for path
 	U_PathBandwidthUsage:		dynamic array(Nodes,Nodes,Paths)	of real;
 	! cost of using path k
@@ -106,8 +105,7 @@ declarations
 	! array of availability req for services
 	Y_AvailabilityReq:			dynamic array(Services)				of real;
 	
-	Symmetric:				boolean;
-	BigMBackup:					dynamic array(Nodes,Nodes,Services)	of real;
+	Symmetric:					boolean;
 
 end-declarations
 
@@ -116,7 +114,7 @@ initialisations from Data
 	R_Revenue;
 	F_BandwidthCap;	
 	K_Paths;
-	L_PathsUsingLink;
+	L_PathsUsingArc;
 	U_PathBandwidthUsage;
 	C_PathCost;
 	C_BackupCost;
@@ -128,24 +126,13 @@ initialisations from Data
 end-initialisations
 
 if(Symmetric) then
-forall(ii in Nodes, jj in Nodes) do
-	if(exists(F_BandwidthCap(ii,jj)) and not exists(F_BandwidthCap(jj,ii))) then
-			create(F_BandwidthCap(jj,ii));
-			F_BandwidthCap(jj,ii):=F_BandwidthCap(ii,jj);
-	end-if
-end-do
-end-if
-
-forall(ii in Nodes, jj in Nodes| exists(F_BandwidthCap(ii,jj))) do
-	forall( ss in Services, pp in Providers | exists(K_Paths(ss,pp))) do
-		forall(kk in (K_Paths(ss,pp)*L_PathsUsingLink(ii,jj))) do
-			if(BigMBackup(ii,jj,ss) < U_PathBandwidthUsage(ii,jj,kk) or not exists(BigMBackup(ii,jj,ss)) ) then
-				BigMBackup(ii,jj,ss):= U_PathBandwidthUsage(ii,jj,kk);
-			end-if
-		end-do
+	forall(ii in Nodes, jj in Nodes) do
+		if(exists(F_BandwidthCap(ii,jj)) and not exists(F_BandwidthCap(jj,ii))) then
+				create(F_BandwidthCap(jj,ii));
+				F_BandwidthCap(jj,ii):=F_BandwidthCap(ii,jj);
+		end-if
 	end-do
-end-do
-
+end-if
 
 declarations	
 	!Variables
@@ -161,8 +148,6 @@ declarations
 	o_UseCombination:	dynamic array(Paths,Paths)					of mpvar;
 	! - lambda: continous, amount of capacity reserved on a link for backup
 	l_Lambda:			dynamic array(Nodes,Nodes)					of mpvar;
-	! f: binary, indicates if a service has a need to reserve backup capacity on a arc
-	f_needsBackup:		dynamic array(Nodes,Nodes,Services)			of mpvar;
 	! - q: continous, amount of backup capacity needed on an arc for a service
 	q_backupPerService:	dynamic array(Nodes, Nodes, Services)		of mpvar;
 end-declarations
@@ -197,8 +182,6 @@ end-do
 
 forall (ii in Nodes, jj in Nodes, ss in Services | exists(F_BandwidthCap(ii,jj))) do
 	create(q_backupPerService(ii,jj,ss));
-	create(f_needsBackup(ii,jj,ss));
-	f_needsBackup(ii,jj,ss) is_binary;
 end-do
 
 
@@ -228,21 +211,21 @@ end-declarations
 ! OBJECTIVE FUNCTION
 ! - total profits from serving customers
 Total_Profits := sum (cc in Customers) (
-					! R_Revenue from serving customer (if served)
-					R_Revenue(cc)*y_Serve(cc)
-				)
-				- 
-				! for all paths
-				sum(kk in Paths) (
-					! add path cost if used as primary
-					C_PathCost(kk)*u_UsePath(kk)
-				)
-				-
-				! for eac arc
-				sum(ii in Nodes, jj in Nodes | exists(F_BandwidthCap(ii,jj)))(
-					! add cost of bandwidth reserved for backup paths
-					C_BackupCost(ii, jj)*l_Lambda(ii, jj)
-				);
+			! R_Revenue from serving customer (if served)
+			R_Revenue(cc)*y_Serve(cc)
+		)
+		- 
+		! for all paths
+		sum(kk in Paths) (
+			! add path cost if used as primary
+			C_PathCost(kk)*u_UsePath(kk)
+		)
+		-
+		! for eac arc
+		sum(ii in Nodes, jj in Nodes | exists(F_BandwidthCap(ii,jj)))(
+			! add cost of bandwidth reserved for backup paths
+			C_BackupCost(ii, jj)*l_Lambda(ii, jj)
+	);
 					
 					
 ! SERVE CUSTOMER CONSTRAINT
@@ -264,10 +247,10 @@ end-do
 ! ARC CAPACITY CONSTRAINT
 ! The total used bandwidth for main paths and reserved for backup paths must not exceed the
 ! arcs capacity
-forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
+forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingArc(ii,jj))) do
 	PathArcBandwidth(ii,jj) := 
 		! for each path
-		sum(kk in L_PathsUsingLink(ii,jj)) (
+		sum(kk in L_PathsUsingArc(ii,jj)) (
 			! add bw req for path if used as primary
 			U_PathBandwidthUsage(ii,jj,kk)*u_UsePath(kk)
 		)
@@ -308,17 +291,12 @@ end-do
 
 
 ! BACKUP CAPACITY RESERVATION NEEDS CONSTRAINTS
-! 
-forall (ii in Nodes, jj in Nodes, ss in Services | exists(F_BandwidthCap(ii,jj))) do
-	! Sets the f variable to 1 if there is a need for backup capacity reservation 
-	!for the service on the arc 
-	NeedsBackupCapacity(ii,jj,ss) := 
-		q_backupPerService(ii,jj,ss) - BigMBackup(ii,jj,ss)*f_needsBackup(ii,jj,ss) <= 0;
+forall (ii in Nodes, jj in Nodes, ss in Services | exists(F_BandwidthCap(ii,jj))) do 
 	! Sets the amount of backup capacity on links used in the backup path to be the difference
 	! between the primary and backup  path bandwidth usage if both paths use the link, 
 	! and otherwise to the primary bandwidth usage
 	NeededBackupCapacity(ii,jj,ss) :=
-		sum(pp in Providers | exists(K_Paths(ss,pp)))(sum(kk in (K_Paths(ss,pp)*L_PathsUsingLink(ii,jj)))(
+		sum(pp in Providers | exists(K_Paths(ss,pp)))(sum(kk in (K_Paths(ss,pp)*L_PathsUsingArc(ii,jj)))(
 			U_PathBandwidthUsage(ii,jj,ss)*(v_UseBackupPath(kk) - u_UsePath(kk))
 			- q_backupPerService(ii,jj,ss))) <= 0;
 end-do
@@ -329,7 +307,7 @@ end-do
 ! ACCUMULATIVE BACKUP PATHS BANDWIDTH CONSTRAINTS
 ! bandwidth reserved for backup paths on an arc is at least a fraction of the total bandwidth of all
 ! backup paths using that arc
-forall( ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
+forall( ii in Nodes, jj in Nodes | exists(L_PathsUsingArc(ii,jj))) do
 	SumBackupLimit(ii,jj) := 
 		sum(cc in Customers) (
 			sum(ss in S_ServiceForCustomer(cc)) (
@@ -343,13 +321,13 @@ end-do
 ! a service will require a backup reservation at an arc equal to its backup link requirement
 ! minus the capacity used by the primary path at the same link (as this capacity will be released
 ! if the primary path goes down and the backup is needed)
-forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
+forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingArc(ii,jj))) do
 	forall(cc in Customers) do
 		forall(ss in S_ServiceForCustomer(cc)) do
 			BackupReqPerService(ii,jj,ss) := 
 				! sum for all paths for service using this link
 				sum(pp in Providers | exists(K_Paths(ss,pp)))(
-					sum(kk in K_Paths(ss,pp)*L_PathsUsingLink(ii,jj))(
+					sum(kk in K_Paths(ss,pp)*L_PathsUsingArc(ii,jj))(
 						! bandwidth req of path is used as backup
 						U_PathBandwidthUsage(ii,jj,kk)
 						*v_UseBackupPath(kk)
@@ -454,7 +432,7 @@ declarations
 	temp: real;
 end-declarations
 
-forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
+forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingArc(ii,jj))) do
 	! Find the actual single maximal backup requirement on arc
 	temp := 0.0;
 	forall(ss in Services) do
@@ -473,7 +451,7 @@ forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingLink(ii,jj))) do
 			strfmt(C_BackupCost(ii,jj), 10),
 			"     "
 		);
-		forall(kk in L_PathsUsingLink(ii,jj) | getsol(v_UseBackupPath(kk)) > 0.001) do
+		forall(kk in L_PathsUsingArc(ii,jj) | getsol(v_UseBackupPath(kk)) > 0.001) do
 			write(kk, ", ");
 		end-do
 		write("\n");

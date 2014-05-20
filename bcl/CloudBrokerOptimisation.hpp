@@ -32,15 +32,19 @@ namespace cloudbrokeroptimisation {
 
 	class CloudBrokerModel {
 	private:
+		/*	MODEL PROBLEM OBJECT		*/
 		::dashoptimization::XPRBprob master_problem;
 
+		/*	MODEL OBJECTIVE FUNCTION	*/
 		::dashoptimization::XPRBctr z_objective;
 
+		/*  MODEL VARIABLES 			*/
 		std::vector< ::dashoptimization::XPRBvar > 					y_serveCustomerVars; 	/* for every customer*/
 		std::vector< std::vector< ::dashoptimization::XPRBvar > > 	l_servicesOverlapVars;	/* for every pair of two customers */
 		std::vector< ::dashoptimization::XPRBvar>					d_arcBackupUsage;		/* for every arc */
 		std::list< ::dashoptimization::XPRBvar >					w_useMappingVars;		/* for every service, for every mapping of service */
 
+		/*	MODEL CONSTRAINTS 			*/
 		std::vector< ::dashoptimization::XPRBctr> 								 serveCustomerCtr;	/* for every service of customer */
 		std::vector< ::dashoptimization::XPRBctr> 								 arcCapacityCtr;	/* for every arc */
 		std::vector< ::dashoptimization::XPRBctr> 								 backupSumCtr;		/* for every arc */
@@ -48,14 +52,16 @@ namespace cloudbrokeroptimisation {
 		std::vector< std::vector< std::vector < ::dashoptimization::XPRBctr> > > primaryOverlapCtr;	/* for every arc, for every pair of services */
 		std::vector< std::vector< std::vector < ::dashoptimization::XPRBctr> > > backupOverlapCtr;	/* for every arc, for every pair of services */
 
+		/*	PROBLEM DATA				*/
 		entities::dataContent *data;
 
+		/*	PROBLEM CONFIG 				*/
 		double beta;
+		bool dedicated;
 
+		/**** Helper functions ****/
 		dual_vals getDualVals();
-
 		::dashoptimization::XPRBvar* mappingVarForMappingIndex(int mappingIndex);
-
 		void addMappingToModel(entities::mapping *m, entities::service *s);
 
 		/**** BRUTE FORCE HEURISTIC ****/
@@ -81,7 +87,7 @@ namespace cloudbrokeroptimisation {
 
 	public:
 		CloudBrokerModel();
-		void BuildModel(entities::dataContent * data, double beta_backupres = 0.3);
+		void BuildModel(entities::dataContent * data, double beta_backupres = 0.3, bool dedicated = false);
 		void RunModel(bool enforce_integer = true, int time_limit = 0, const char *lp_alg = " ");
 		void RunColumnGeneration(int cg_alg, int cg_maxiters, int cg_maxcount, const char *lp_alg = " ");
 		void OutputResultsToStream(std::ostream& stream);

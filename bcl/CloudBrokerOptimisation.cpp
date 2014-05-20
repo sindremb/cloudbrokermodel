@@ -69,12 +69,17 @@ namespace cloudbrokeroptimisation {
 	 *
 	 * Builds the MIP-model from the provided dataContent and beta model parameter
 	 */
-	void CloudBrokerModel::BuildModel(dataContent * input_data, double beta_backupres) {
+	void CloudBrokerModel::BuildModel(dataContent * input_data, double beta_backupres, bool dedicated_only) {
 
 		/********* SETUP **********/
 
 		this->data = input_data;
-		this->beta = beta_backupres;
+		this->dedicated = dedicated_only;
+		if(this->dedicated) {
+			this->beta = 1.0; // dedicated protection scheme -> beta = 1.0
+		} else {
+			this->beta = beta_backupres;
+		}
 
 		/* w variable iterator */
 		list<XPRBvar>::iterator w_itr;
@@ -118,23 +123,25 @@ namespace cloudbrokeroptimisation {
 		 */
 		int l_count = 0;
 		/* for every service s (except last service) */
-		l_servicesOverlapVars.resize(data->n_services-1);
-		for(int ss = 0; ss < data->n_services-1; ss++) {
+		if(!this->dedicated) {
+			l_servicesOverlapVars.resize(data->n_services-1);
+			for(int ss = 0; ss < data->n_services-1; ss++) {
 
-			/* for every service t | t > s */
-			l_servicesOverlapVars[ss].reserve(data->n_services-1-ss);
-			for(int tt = ss+1; tt < data->n_services; tt++) {
+				/* for every service t | t > s */
+				l_servicesOverlapVars[ss].reserve(data->n_services-1-ss);
+				for(int tt = ss+1; tt < data->n_services; tt++) {
 
-				l_servicesOverlapVars[ss].push_back(
-					master_problem.newVar(
-						XPRBnewname("l_service_overlaps_%d_%d", ss+1, tt+1),
-						XPRB_BV, 0, 1
-					)
-				);
-				++l_count;
+					l_servicesOverlapVars[ss].push_back(
+						master_problem.newVar(
+							XPRBnewname("l_service_overlaps_%d_%d", ss+1, tt+1),
+							XPRB_BV, 0, 1
+						)
+					);
+					++l_count;
+				}
 			}
+			cout << "   - created " << l_count << " l-variables\n";
 		}
-		cout << "   - created " << l_count << " l-variables\n";
 
 		/* Arc Backup Usage variable
 		 * for: every arc a
@@ -292,52 +299,56 @@ namespace cloudbrokeroptimisation {
 		 *
 		 *   for: every arc
 		 *   	for: every customer
-		 *   		for: every customer's servicek
+		 *   		for: every customer's service
+		 *
+		 *	When using dedicated protection scheme -> beta = 1.0 -> this constraint is made irrelevant by SUM BACKUP RESERVATION CONSTRAINT
 		 */
-		cout <<	"  - SINGLE BACKUP RESERVATION CONSTRAINTS..";
+		if(!this->dedicated) {
+			cout <<	"  - SINGLE BACKUP RESERVATION CONSTRAINTS..";
 
-		/* for every arc		*/
-		backupSingleCtr.resize(data->n_arcs);
-		int backupSingleCount = 0;
-		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			arc * a = &data->arcs[aa];
+			/* for every arc		*/
+			backupSingleCtr.resize(data->n_arcs);
+			int backupSingleCount = 0;
+			for(int aa = 0; aa < data->n_arcs; ++aa) {
+				arc * a = &data->arcs[aa];
 
-			/* for every service */
-			backupSingleCtr[aa].reserve(data->n_customers);
-			w_itr = w_useMappingVars.begin();
-			for(int cc = 0; cc < data->n_customers; ++cc) {
-				customer * c = &data->customers[cc];
-				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {	/* for every service 	*/
-					service * s = c->services[ss];
+				/* for every service */
+				backupSingleCtr[aa].reserve(data->n_customers);
+				w_itr = w_useMappingVars.begin();
+				for(int cc = 0; cc < data->n_customers; ++cc) {
+					customer * c = &data->customers[cc];
+					for(unsigned int ss = 0; ss < c->services.size(); ++ss) {	/* for every service 	*/
+						service * s = c->services[ss];
 
-					/* NEW CONSTRAINT: lhs expression */
-					XPRBexpr service_backup_req_on_arc;
+						/* NEW CONSTRAINT: lhs expression */
+						XPRBexpr service_backup_req_on_arc;
 
-					/* for every mapping of service */
-					for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
-						mapping * m = *m_itr;
+						/* for every mapping of service */
+						for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
+							mapping * m = *m_itr;
 
-						/* add backup requirement on arc for used mapping */
-						service_backup_req_on_arc += (Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m))*(*w_itr);
+							/* add backup requirement on arc for used mapping */
+							service_backup_req_on_arc += (Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m))*(*w_itr);
 
-						++w_itr;
+							++w_itr;
+						}
+
+						/* subtract arc backup usage variable */
+						service_backup_req_on_arc -= d_arcBackupUsage[aa];
+
+						/* create final constraint */
+						backupSingleCtr[aa].push_back(
+							master_problem.newCtr(
+								XPRBnewname("backup_single_ctr_%d_%d_%d", a->startNode, a->endNode, s->globalServiceIndex+1),
+									service_backup_req_on_arc <= 0.0
+							)
+						);
+						++backupSingleCount;
 					}
-
-					/* subtract arc backup usage variable */
-					service_backup_req_on_arc -= d_arcBackupUsage[aa];
-
-					/* create final constraint */
-					backupSingleCtr[aa].push_back(
-						master_problem.newCtr(
-							XPRBnewname("backup_single_ctr_%d_%d_%d", a->startNode, a->endNode, s->globalServiceIndex+1),
-								service_backup_req_on_arc <= 0.0
-						)
-					);
-					++backupSingleCount;
 				}
 			}
+			cout << "DONE! (" << backupSingleCount << " created) \n";
 		}
-		cout << "DONE! (" << backupSingleCount << " created) \n";
 
 		/* SUM BACKUP RESERVATION CONSTRAINT
 		 * - a proportion of total backup requirement on an arc must be reserved
@@ -388,116 +399,124 @@ namespace cloudbrokeroptimisation {
 		 *   two services are said to overlap
 		 *
 		 *   for: every pair of two services services
+		 *
+		 * NOTE: Only used for shared backup path protection scheme
 		 */
-		cout << "  - PRIMARY OVERLAP CONSTRAINTS..";
-		int primaryOverlapCtrCount = 0;
-		/* for every arc a */
-		primaryOverlapCtr.resize(data->n_arcs);
-		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			arc *a = &data->arcs[aa];
-			primaryOverlapCtr[aa].resize(data->n_services-1);
+		if(!this->dedicated) {
+			cout << "  - PRIMARY OVERLAP CONSTRAINTS..";
+			int primaryOverlapCtrCount = 0;
+			/* for every arc a */
+			primaryOverlapCtr.resize(data->n_arcs);
+			for(int aa = 0; aa < data->n_arcs; ++aa) {
+				arc *a = &data->arcs[aa];
+				primaryOverlapCtr[aa].resize(data->n_services-1);
 
-			/* for every pair of two services (s, t) */
-			for(int ss = 0; ss < data->n_services-1; ++ss) {
-				service *s = &data->services[ss];
-				primaryOverlapCtr[aa][ss].reserve(data->n_services-1-ss);
-				for(int tt = ss+1; tt < data->n_services; ++tt) {
-					service *t = &data->services[tt];
+				/* for every pair of two services (s, t) */
+				for(int ss = 0; ss < data->n_services-1; ++ss) {
+					service *s = &data->services[ss];
+					primaryOverlapCtr[aa][ss].reserve(data->n_services-1-ss);
+					for(int tt = ss+1; tt < data->n_services; ++tt) {
+						service *t = &data->services[tt];
 
-					/* NEW CONSTRAINT: lhs expression */
-					XPRBexpr primary_overlap_expr;
+						/* NEW CONSTRAINT: lhs expression */
+						XPRBexpr primary_overlap_expr;
 
-					/* sum over all mappings for service s using arc a */
-					for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
-						mapping * m = *m_itr;
-						if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
-							primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+						/* sum over all mappings for service s using arc a */
+						for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
+							mapping * m = *m_itr;
+							if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
+								primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+							}
 						}
-					}
 
-					/* sum over all mappings for service t using arc a */
-					for (list<mapping*>::iterator m_itr = t->mappings.begin(), m_end = t->mappings.end(); m_itr != m_end; ++m_itr) {
-						mapping * m = *m_itr;
-						if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
-							primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+						/* sum over all mappings for service t using arc a */
+						for (list<mapping*>::iterator m_itr = t->mappings.begin(), m_end = t->mappings.end(); m_itr != m_end; ++m_itr) {
+							mapping * m = *m_itr;
+							if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
+								primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+							}
 						}
+
+						/* subtract primary overlap var for service pair (s, t)*/
+						primary_overlap_expr -= l_servicesOverlapVars[ss][tt-ss-1];
+
+						/* create final constraint */
+						primaryOverlapCtr[aa][ss].push_back(
+							master_problem.newCtr(
+								XPRBnewname("primary_overlap_ctr_%d_%d", a->startNode, a->endNode),
+								primary_overlap_expr <= 1.0
+							)
+						);
+						++primaryOverlapCtrCount;
 					}
-
-					/* subtract primary overlap var for service pair (s, t)*/
-					primary_overlap_expr -= l_servicesOverlapVars[ss][tt-ss-1];
-
-					/* create final constraint */
-					primaryOverlapCtr[aa][ss].push_back(
-						master_problem.newCtr(
-							XPRBnewname("primary_overlap_ctr_%d_%d", a->startNode, a->endNode),
-							primary_overlap_expr <= 1.0
-						)
-					);
-					++primaryOverlapCtrCount;
 				}
 			}
+			cout << "DONE! (" << primaryOverlapCtrCount << " created)\n";
 		}
-		cout << "DONE! (" << primaryOverlapCtrCount << " created)\n";
 
 		/* BACKUP OVERLAP CONSTRAINT
 		 * - if two services' primary paths overlap, their backup paths can not have bandwidth requirements at
 		 *   the same arc
 		 *
 		 *   for: every pair of two services services
+		 *
+		 * NOTE: Only used for shared backup path protection scheme
 		 */
-		cout << "  - BACKUP OVERLAP CONSTRAINTS..";
-		int backupOverlapCtrCount = 0;
-		/* for every arc a */
-		backupOverlapCtr.resize(data->n_arcs);
-		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			arc *a = &data->arcs[aa];
-			backupOverlapCtr[aa].resize(data->n_services-1);
+		if(!this->dedicated) {
+			cout << "  - BACKUP OVERLAP CONSTRAINTS..";
+			int backupOverlapCtrCount = 0;
+			/* for every arc a */
+			backupOverlapCtr.resize(data->n_arcs);
+			for(int aa = 0; aa < data->n_arcs; ++aa) {
+				arc *a = &data->arcs[aa];
+				backupOverlapCtr[aa].resize(data->n_services-1);
 
-			/* for every pair of two services (s, t) */
-			for(int ss = 0; ss < data->n_services-1; ++ss) {
-				service *s = &data->services[ss];
-				backupOverlapCtr[aa][ss].reserve(data->n_services-1-ss);
-				for(int tt = ss+1; tt < data->n_services; ++tt) {
-					service *t = &data->services[tt];
+				/* for every pair of two services (s, t) */
+				for(int ss = 0; ss < data->n_services-1; ++ss) {
+					service *s = &data->services[ss];
+					backupOverlapCtr[aa][ss].reserve(data->n_services-1-ss);
+					for(int tt = ss+1; tt < data->n_services; ++tt) {
+						service *t = &data->services[tt];
 
-					/* NEW CONSTRAINT: lhs expression */
-					XPRBexpr backup_overlap_expr;
+						/* NEW CONSTRAINT: lhs expression */
+						XPRBexpr backup_overlap_expr;
 
-					/* sum over all mappings for service s using arc a */
-					for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
-						mapping * m = *m_itr;
-						if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) >= EPS) {
+						/* sum over all mappings for service s using arc a */
+						for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
+							mapping * m = *m_itr;
+							if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) >= EPS) {
 
-							/* add mapping selection var for mapping */
-							backup_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+								/* add mapping selection var for mapping */
+								backup_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+							}
 						}
-					}
 
-					/* sum over all mappings for service t using arc a */
-					for (list<mapping*>::iterator m_itr = t->mappings.begin(), m_end = t->mappings.end(); m_itr != m_end; ++m_itr) {
-						mapping * m = *m_itr;
-						if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) >= EPS) {
+						/* sum over all mappings for service t using arc a */
+						for (list<mapping*>::iterator m_itr = t->mappings.begin(), m_end = t->mappings.end(); m_itr != m_end; ++m_itr) {
+							mapping * m = *m_itr;
+							if(Parameters::Q_BackupBandwidthUsageOnArcForMapping(a, m) >= EPS) {
 
-							/* add mapping selection var for mapping */
-							backup_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+								/* add mapping selection var for mapping */
+								backup_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+							}
 						}
+
+						/* add primary overlap var for service pair (s, t) */
+						backup_overlap_expr += l_servicesOverlapVars[ss][tt-ss-1];
+
+						/* create final constraint */
+						this->backupOverlapCtr[aa][ss].push_back(
+							this->master_problem.newCtr(
+								XPRBnewname("backup_overlap_ctr_%d_%d", a->startNode, a->endNode),
+								backup_overlap_expr <= 2.0
+							)
+						);
+						++backupOverlapCtrCount;
 					}
-
-					/* add primary overlap var for service pair (s, t) */
-					backup_overlap_expr += l_servicesOverlapVars[ss][tt-ss-1];
-
-					/* create final constraint */
-					this->backupOverlapCtr[aa][ss].push_back(
-						this->master_problem.newCtr(
-							XPRBnewname("backup_overlap_ctr_%d_%d", a->startNode, a->endNode),
-							backup_overlap_expr <= 2.0
-						)
-					);
-					++backupOverlapCtrCount;
 				}
 			}
+			cout << "DONE! (" << backupOverlapCtrCount  << " created)\n";
 		}
-		cout << "DONE! (" << backupOverlapCtrCount  << " created)\n";
 
 		// set problem to maximise objective
 		master_problem.setSense(XPRB_MAXIM);
@@ -691,39 +710,42 @@ namespace cloudbrokeroptimisation {
 			arcCapacityCtr[aa] += u_primary_usage * (*w);
 
 			// add mapping backup usage to arc's 'backupSingle'-constraint
-			backupSingleCtr[aa][owner->globalServiceIndex] += q_backup_usage * (*w);
+			if(!this->dedicated) { // constraint only exists for shared protection scheme
+				backupSingleCtr[aa][owner->globalServiceIndex] += q_backup_usage * (*w);
+			}
 
 			// add mapping backup usage (*beta) to arc's 'backupSum'-constraint
 			backupSumCtr[aa] += beta * q_backup_usage * (*w);
 
-			// if primary path uses capacity on arc
-			if(u_primary_usage >= EPS) {
-				// add mapping selection var to 'primaryOverlap'-constraints for every service pair where owner service takes part
-				int tt, ss;
-				ss = owner->globalServiceIndex;
-				for(tt = ss+1; tt < data->n_services; ++tt) {
-					primaryOverlapCtr[aa][ss][tt-ss-1] += *w;
-				}
-				tt = owner->globalServiceIndex;
-				for(ss = 0; ss < tt; ++ss) {
-					primaryOverlapCtr[aa][ss][tt-ss-1] += *w;
+			if(!this->dedicated) { // constraints only exist for shared protection scheme
+				// if primary path uses capacity on arc
+				if(u_primary_usage >= EPS) {
+					// add mapping selection var to 'primaryOverlap'-constraints for every service pair where owner service takes part
+					int tt, ss;
+					ss = owner->globalServiceIndex;
+					for(tt = ss+1; tt < data->n_services; ++tt) {
+						primaryOverlapCtr[aa][ss][tt-ss-1] += *w;
+					}
+					tt = owner->globalServiceIndex;
+					for(ss = 0; ss < tt; ++ss) {
+						primaryOverlapCtr[aa][ss][tt-ss-1] += *w;
+					}
+
 				}
 
-			}
-
-			// if backup path uses capacity on arc
-			if(q_backup_usage >= EPS) {
-				// add mapping selection var to 'backupOverlap'-constraints for every service pair where owner service takes part
-				int tt, ss;
-				ss = owner->globalServiceIndex;
-				for(tt = ss+1; tt < data->n_services; ++tt) {
-					backupOverlapCtr[aa][ss][tt-ss-1] += *w;
+				// if backup path uses capacity on arc
+				if(q_backup_usage >= EPS) {
+					// add mapping selection var to 'backupOverlap'-constraints for every service pair where owner service takes part
+					int tt, ss;
+					ss = owner->globalServiceIndex;
+					for(tt = ss+1; tt < data->n_services; ++tt) {
+						backupOverlapCtr[aa][ss][tt-ss-1] += *w;
+					}
+					tt = owner->globalServiceIndex;
+					for(ss = 0; ss < tt; ++ss) {
+						backupOverlapCtr[aa][ss][tt-ss-1] += *w;
+					}
 				}
-				tt = owner->globalServiceIndex;
-				for(ss = 0; ss < tt; ++ss) {
-					backupOverlapCtr[aa][ss][tt-ss-1] += *w;
-				}
-
 			}
 		}
 	}
@@ -1417,11 +1439,8 @@ namespace cloudbrokeroptimisation {
 	 */
 	void CloudBrokerModel::OutputResultsToStream(ostream& stream) {
 
-		//bool optimalSolution = (master_problem.getProbStat()&XPRB_SOL) == XPRB_SOL;
-
 		stream << "\n################### RUN RESULTS ####################\n";
 
-		//stream << "\nProfits = " << master_problem.getObjVal() << (optimalSolution ? " OPTIMAL" : " NON-OPTIMAL")<< "\n";
 		stream << "\nProfits = " << master_problem.getObjVal() << "\n";
 
 		double backup_costs = 0.0;
@@ -1437,10 +1456,12 @@ namespace cloudbrokeroptimisation {
 
 		double total_backup_requirement = 0.0;
 		int service_count = 0;
+		int customer_count = 0;
 		int backup_count = 0;
 		for(int cc = 0; cc < data->n_customers; ++cc) {
 			customer *c = &data->customers[cc];
 			if(y_serveCustomerVars[cc].getSol() > 0.01) {
+				customer_count++;
 				stream << "\nCustomer #" << cc+1 << " is being served (" << y_serveCustomerVars[cc].getSol() << ")\n";
 				stream << "- Revenue: " << c->revenue << "\n";
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
@@ -1488,7 +1509,8 @@ namespace cloudbrokeroptimisation {
 			}
 		}
 
-		stream << "\nTotal services provided: " << service_count
+		stream << "\nTotal customers served: " << customer_count
+				<< "\nTotal services provided: " << service_count
 				<< "\nNumber of services with backup: " << backup_count
 				<< " ("<< (service_count > 0 ? backup_count * 100.0 / service_count : 100.0) << "%)\n";
 

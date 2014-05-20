@@ -320,7 +320,7 @@ namespace entities {
 		}
 		*file << "]";
 
-		*file << "\n\nS_ServiceForCustomer: [";
+		*file << "\n\nS_ServicesForCustomer: [";
 		int globalServiceNumber = 0;
 		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
@@ -372,7 +372,7 @@ namespace entities {
 ;
 		*file << "\n\nn_Paths: " << data->n_paths;
 
-		*file << "\n\nK_Paths: [";
+		*file << "\n\nK_PathsServiceProvider: [";
 		int globalServiceNumber = 0;
 		for (unsigned int i = 0; i < data->customers.size(); ++i) {
 			customer * c = &data->customers[i];
@@ -392,7 +392,7 @@ namespace entities {
 		}
 		*file << "\n]";
 
-		*file << "\n\nL_PathsUsingLink: [\n";
+		*file << "\n\nL_PathsUsingArc: [\n";
 		for (unsigned int i = 0; i < data->arcs.size(); ++i) {
 			arc* a = &data->arcs[i];
 			*file << " (" << a->startNode + 1 << " " << a->endNode + 1 << ") [";

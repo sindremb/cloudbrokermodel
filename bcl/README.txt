@@ -38,7 +38,7 @@ program should do.
 	to be interpreted as. The order of the arguments is not fixed. If an argument is specified 
 	multiple times, the latter will overwrite any previous specifications.
 	
-	supported arguments are:
+	supported option arguments are:
 	
 	-i <filename>			| no default value, required
 	specifies the filename (including relative path) for importing data to the model
@@ -84,6 +84,11 @@ program should do.
 		"c" continue a previously interrupted optimization run.
 		MIP ONLY (will work for solve, but not cgsolve)
 		"l" stop after solving the initial continuous relaxation (using MIP information in presolve);
+		
+	-dedicated 				| default: not set
+	if given, all constraint related to not allowing overlap between both backup paths and primary paths of two services
+	are skipped, as these are only useful when using a shared protection scheme.
+	(this flag also makes the model ignore any beta values given and sets beta to 1.0)
 	
 	
 	

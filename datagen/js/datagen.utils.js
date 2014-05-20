@@ -367,7 +367,7 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
 	var sNumber = 0;
     for (var i = 0; i < dataObj.n_Customers; i++) {
         var customer = new CustomerViewModel(dataVM, dataObj.R_Revenue[i])
-        for (var j in dataObj.S_ServiceForCustomer[i]) {
+        for (var j in dataObj.S_ServicesForCustomer[i]) {
 			var sIndex = sNumber;
 			var s = new ServiceViewModel(
 				dataVM, dataObj.B_BandwidthReq[sIndex],
@@ -400,7 +400,7 @@ Datagen.utils.toMoselData = function (dataVM) {
     data = data + 'n_Providers: ' + dataVM.numProviders() + ' ! number of providers\n';
     data = data + 'n_Nodes: ' + dataVM.network().numberOfNodes() + ' ! number of nodes in total (customer, internal and provider nodes)\n';
 
-    data = data + '\nSymmetric: ' + (dataVM.network().isSymmetric() ? 'true' : 'false') + '! indicates wether or not arc provided in dataset goes both ways\n';
+    data = data + '\nSymmetric: ' + (dataVM.network().isSymmetric() ? 'true' : 'false') + '! indicates whether or not arc provided in dataset goes both ways\n';
 
     data = data + '\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n';
     data = data + '! Customers, Services and Providers data\n';
@@ -414,7 +414,7 @@ Datagen.utils.toMoselData = function (dataVM) {
     data = data + ']\n';
 
     data = data + '\n! (c) Set of services for customers c\n'
-    data = data + 'S_ServiceForCustomer:	[\n'
+    data = data + 'S_ServicesForCustomer:	[\n'
     for (var i in dataVM.customers()) {
         var customer = dataVM.customers()[i]
         data = data + ' ['

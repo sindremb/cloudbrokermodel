@@ -41,6 +41,7 @@ struct cloudBrokerConfig {
 	int 		opt_maxtime;
 	const char* opt_alg;
 	double 		model_beta;
+	bool		dedicated;
 	
 	// pregeneration configuartion
 	int pregen_maxpaths;
@@ -69,6 +70,7 @@ cloudBrokerConfig defaultConfig() {
 
 	/*		CONFIGUATION DEFAULTS  		*/
 	config.model_beta = 0.25;
+	config.dedicated = false;
 	
 	config.opt_maxtime = 0;
 	config.opt_alg = " ";
@@ -509,6 +511,8 @@ void executeArguments(int argc, char *argv[]) {
 			} else {
 				cerr << "\nError: Missing arguments following \"-alg\" switch\n";
 			}
+		} else if (string(argv[i]) == "-dedicated") {
+			config.dedicated = true;
 		} else {
 			cerr << "\nError: Unknown option switch: " << argv[i] << "\n";
 			return;
