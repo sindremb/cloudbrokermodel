@@ -105,7 +105,7 @@ namespace cloudbrokeroptimisation {
 		 * 	for: every customer
 		 *	 for: every service of customer
 		 *	  for: every mapping of service
-		 * ]
+		 * ] (global mapping list is ordered accordingly)
 		 */
 		for(int mm = 0; mm < data->n_mappings; mm++) {
 			w_useMappingVars.push_back(
@@ -148,14 +148,14 @@ namespace cloudbrokeroptimisation {
 		 */
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc * a = &data->arcs[aa];
-			d_arcBackupUsage.push_back(
+			lambda_arcBackupRes.push_back(
 				master_problem.newVar(
-					XPRBnewname("d_backup_usage_%d_%d", a->startNode, a->endNode),
+					XPRBnewname("lambda_backup_res_%d_%d", a->startNode, a->endNode),
 					XPRB_PL, 0, a->bandwidth_cap
 				)
 			);
 		}
-		cout << "   - created " << d_arcBackupUsage.size() << " d-variables\n";
+		cout << "   - created " << lambda_arcBackupRes.size() << " lambda-variables\n";
 
 		/******* CREATE OBJECTIVE FUNCTION ********/
 
@@ -191,7 +191,7 @@ namespace cloudbrokeroptimisation {
 		 */
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc * a = &data->arcs[aa];
-			z_obj_expression -= Parameters::E_PerBandwidthCostForArc(a)*d_arcBackupUsage[aa];
+			z_obj_expression -= Parameters::E_PerBandwidthCostForArc(a)*lambda_arcBackupRes[aa];
 		}
 
 		/* create final objective function */
@@ -281,7 +281,7 @@ namespace cloudbrokeroptimisation {
 			}
 
 			/* add bandwidth reserved for backup paths on arc */
-			arc_bw_usage += d_arcBackupUsage[aa];
+			arc_bw_usage += lambda_arcBackupRes[aa];
 
 			/* create final constraint: arc bandwidth usage <= arc capacity */
 			arcCapacityCtr.push_back(
@@ -334,7 +334,7 @@ namespace cloudbrokeroptimisation {
 						}
 
 						/* subtract arc backup usage variable */
-						service_backup_req_on_arc -= d_arcBackupUsage[aa];
+						service_backup_req_on_arc -= lambda_arcBackupRes[aa];
 
 						/* create final constraint */
 						backupSingleCtr[aa].push_back(
@@ -382,7 +382,7 @@ namespace cloudbrokeroptimisation {
 			}
 
 			/* subtract backup reservation on arc variable*/
-			total_backup_req_expr-= d_arcBackupUsage[aa];
+			total_backup_req_expr-= lambda_arcBackupRes[aa];
 
 			/* create final constraint */
 			backupSumCtr.push_back(
@@ -400,55 +400,68 @@ namespace cloudbrokeroptimisation {
 		 *
 		 *   for: every pair of two services services
 		 *
-		 * NOTE: Only used for shared backup path protection scheme
+		 * NOTE: not needed for dedicated protection scheme as backup collision will never happen
 		 */
 		if(!this->dedicated) {
 			cout << "  - PRIMARY OVERLAP CONSTRAINTS..";
 			int primaryOverlapCtrCount = 0;
-			/* for every arc a */
-			primaryOverlapCtr.resize(data->n_arcs);
+			
+			/* for every LINK
+			* ( for every arc where startNode < endNode )
+			*/
+			primaryOverlapCtr.resize(data->n_arcs/2); // half as many links as arcs
+			int link_index = 0;
 			for(int aa = 0; aa < data->n_arcs; ++aa) {
+			
 				arc *a = &data->arcs[aa];
-				primaryOverlapCtr[aa].resize(data->n_services-1);
+				if(a->startNode < a->endNode) { // one arc per link: arcs where startNode < endNode
+				
+					primaryOverlapCtr[link_index].resize(data->n_services-1);
 
-				/* for every pair of two services (s, t) */
-				for(int ss = 0; ss < data->n_services-1; ++ss) {
-					service *s = &data->services[ss];
-					primaryOverlapCtr[aa][ss].reserve(data->n_services-1-ss);
-					for(int tt = ss+1; tt < data->n_services; ++tt) {
-						service *t = &data->services[tt];
+					/* for every pair of two services (s, t) */
+					for(int ss = 0; ss < data->n_services-1; ++ss) {
+						service *s = &data->services[ss];
+						primaryOverlapCtr[link_index][ss].reserve(data->n_services-1-ss);
+						for(int tt = ss+1; tt < data->n_services; ++tt) {
+							service *t = &data->services[tt];
 
-						/* NEW CONSTRAINT: lhs expression */
-						XPRBexpr primary_overlap_expr;
+							/* NEW CONSTRAINT: lhs expression */
+							XPRBexpr primary_overlap_expr;
 
-						/* sum over all mappings for service s using arc a */
-						for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
-							mapping * m = *m_itr;
-							if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
-								primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+							/* sum over all mappings for service s using arc a */
+							for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
+								mapping * m = *m_itr;
+								if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
+									primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+								}
 							}
-						}
 
-						/* sum over all mappings for service t using arc a */
-						for (list<mapping*>::iterator m_itr = t->mappings.begin(), m_end = t->mappings.end(); m_itr != m_end; ++m_itr) {
-							mapping * m = *m_itr;
-							if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
-								primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+							/* sum over all mappings for service t using arc a */
+							for (list<mapping*>::iterator m_itr = t->mappings.begin(), m_end = t->mappings.end(); m_itr != m_end; ++m_itr) {
+								mapping * m = *m_itr;
+								if(Parameters::U_PrimaryBandwidthUsageOnArcForMapping(a, m) >= EPS) {
+									primary_overlap_expr += *mappingVarForMappingIndex(m->globalMappingIndex);
+								}
 							}
+
+							/* subtract primary overlap var for service pair (s, t)*/
+							primary_overlap_expr -= l_servicesOverlapVars[ss][tt-ss-1];
+
+							/* create final constraint */
+							primaryOverlapCtr[link_index][ss].push_back(
+								master_problem.newCtr(
+									XPRBnewname(
+										"primary_overlap_ctr_%d_%d_%d_%d",
+										a->startNode, a->endNode, ss, tt
+									),
+									primary_overlap_expr <= 1.0
+								)
+							);
+							++primaryOverlapCtrCount;
 						}
-
-						/* subtract primary overlap var for service pair (s, t)*/
-						primary_overlap_expr -= l_servicesOverlapVars[ss][tt-ss-1];
-
-						/* create final constraint */
-						primaryOverlapCtr[aa][ss].push_back(
-							master_problem.newCtr(
-								XPRBnewname("primary_overlap_ctr_%d_%d", a->startNode, a->endNode),
-								primary_overlap_expr <= 1.0
-							)
-						);
-						++primaryOverlapCtrCount;
 					}
+					
+					++link_index;
 				}
 			}
 			cout << "DONE! (" << primaryOverlapCtrCount << " created)\n";
@@ -460,7 +473,7 @@ namespace cloudbrokeroptimisation {
 		 *
 		 *   for: every pair of two services services
 		 *
-		 * NOTE: Only used for shared backup path protection scheme
+		 * NOTE: not needed for dedicated protection scheme as backup collision will never happen
 		 */
 		if(!this->dedicated) {
 			cout << "  - BACKUP OVERLAP CONSTRAINTS..";
@@ -612,6 +625,7 @@ namespace cloudbrokeroptimisation {
 	}
 
 	dual_vals CloudBrokerModel::getDualVals() {
+	
 		dual_vals duals;
 
 		/********* serveCustomerCtr dual values **********/
@@ -628,21 +642,19 @@ namespace cloudbrokeroptimisation {
 		duals.arcCapacityDuals.resize(data->n_arcs, 0.0);
 		duals.backupSumDuals.resize(data->n_arcs, 0.0);
 		duals.backupSingleDuals.resize(data->n_arcs);
-		duals.primaryOverlapDuals.resize(data->n_arcs);
+		duals.primaryOverlapDuals.resize(data->n_arcs/2); // per link only
 		duals.backupOverlapDuals.resize(data->n_arcs);
 
 		// for every arc
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
+		
 			// dual val for arcCapacityCtr for this arc
 			duals.arcCapacityDuals[aa] = arcCapacityCtr[aa].getDual();
-
 			// dual val for backupSumCtr for this arc
 			duals.backupSumDuals[aa] = backupSumCtr[aa].getDual();
 
 			// make room for dual values (second dimension)
 			duals.backupSingleDuals[aa].resize(data->n_services, 0.0);
-			duals.primaryOverlapDuals[aa].resize(data->n_services-1);
-			duals.primaryOverlapDuals[aa].resize(data->n_services-1);
 			duals.backupOverlapDuals[aa].resize(data->n_services-1);
 
 			// for every service
@@ -656,16 +668,42 @@ namespace cloudbrokeroptimisation {
 			for(int ss = 0; ss < data->n_services-1; ++ss) {
 
 				// make room for dual values (third dimension)
-				duals.primaryOverlapDuals[aa][ss].resize(data->n_services-1-ss);
 				duals.backupOverlapDuals[aa][ss].resize(data->n_services-1-ss);
 
 				// - for every second service t
 				for(int tt = ss+1; tt < data->n_services; ++tt) {
-					// dual val for primaryOverlapCtr for arc a and service pair (s, t)
-					duals.primaryOverlapDuals[aa][ss][tt-ss-1] = primaryOverlapCtr[aa][ss][tt-ss-1].getDual();
 					// dual val for backupOverlapCtr for arc a and service pair (s, t)
 					duals.backupOverlapDuals[aa][ss][tt-ss-1] = backupOverlapCtr[aa][ss][tt-ss-1].getDual();
 				}
+			}
+		}
+		
+		// for every link (arcs where startNode < endNode)
+		int link_index = 0;
+		for(int aa = 0; aa < data->n_arcs; ++aa) {
+			arc *a = &data->arcs[aa];
+			if(a->startNode < a->endNode) {
+			
+				// make room for dual variables (second dimension)
+				duals.primaryOverlapDuals[link_index].resize(data->n_services-1);
+			
+				// for every pair of two services (s, t)
+				// - for every first service s
+				for(int ss = 0; ss < data->n_services-1; ++ss) {
+				
+					// make room for dual values (third dimension)
+					duals.primaryOverlapDuals[link_index][ss].resize(data->n_services-1-ss);
+				
+					// - for every second service t
+					for(int tt = ss+1; tt < data->n_services; ++tt) {
+						
+						// dual val for primaryOverlapCtr for arc a and service pair (s, t)
+						duals.primaryOverlapDuals[link_index][ss][tt-ss-1] = primaryOverlapCtr[link_index][ss][tt-ss-1].getDual();
+					}
+				
+				}
+				
+				++link_index;
 			}
 		}
 
@@ -697,7 +735,8 @@ namespace cloudbrokeroptimisation {
 		// add mapping var to service's 'serveCustomer'-constraint
 		serveCustomerCtr[owner->globalServiceIndex] -= *w;
 
-		// for every arc
+		// for every arc [/ link (primary overlap ctr)]
+		int link_index = 0;
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc * a = &data->arcs[aa];
 
@@ -718,19 +757,25 @@ namespace cloudbrokeroptimisation {
 			backupSumCtr[aa] += beta * q_backup_usage * (*w);
 
 			if(!this->dedicated) { // constraints only exist for shared protection scheme
-				// if primary path uses capacity on arc
-				if(u_primary_usage >= EPS) {
-					// add mapping selection var to 'primaryOverlap'-constraints for every service pair where owner service takes part
-					int tt, ss;
-					ss = owner->globalServiceIndex;
-					for(tt = ss+1; tt < data->n_services; ++tt) {
-						primaryOverlapCtr[aa][ss][tt-ss-1] += *w;
-					}
-					tt = owner->globalServiceIndex;
-					for(ss = 0; ss < tt; ++ss) {
-						primaryOverlapCtr[aa][ss][tt-ss-1] += *w;
-					}
+			
+				// primary ovelap ctr: only one per link -> only arcs where startNode < endNode
+				if(a->startNode < a->endNode) {
+					// if primary path uses capacity on arc
+					if(u_primary_usage >= EPS) {
+						// add mapping selection var to 'primaryOverlap'-constraints for every service pair where owner service takes part
+						int tt, ss;
+						ss = owner->globalServiceIndex;
+						for(tt = ss+1; tt < data->n_services; ++tt) {
+							primaryOverlapCtr[link_index][ss][tt-ss-1] += *w;
+						}
+						tt = owner->globalServiceIndex;
+						for(ss = 0; ss < tt; ++ss) {
+							primaryOverlapCtr[link_index][ss][tt-ss-1] += *w;
+						}
 
+					}
+					
+					++link_index;
 				}
 
 				// if backup path uses capacity on arc
@@ -816,7 +861,8 @@ namespace cloudbrokeroptimisation {
 		At_y -= duals->serveCustomerDuals[owner->globalServiceIndex];
 
 
-		/* for every arc */
+		/* for every arc [/ link (primary overlap ctr)] */
+		int link_index = 0;
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc * a = &data->arcs[aa];
 
@@ -844,21 +890,23 @@ namespace cloudbrokeroptimisation {
 			At_y += q_backup_usage * duals->backupSingleDuals[aa][owner->globalServiceIndex];
 
 			/* DUAL PRICE: PRIMARY OVERLAP CTR (PRIMARY)
-			 * add overlap dual price if primary path uses arc for each service pair where owner takes part (usage > 0)
-			 * mapping coef. 1 only when actually using arc for primary, 0 otherwise
+			 * add overlap dual price if primary path uses LINK for each service pair where owner takes part (usage > 0)
+			 * mapping coef. 1 only when actually using LINK for primary, 0 otherwise
 			 */
-			if(u_primary_usage >= EPS) {
-				/* for every service pair where owner service takes part */
-				int tt, ss;
-				ss = owner->globalServiceIndex;
-				for(tt = ss+1; tt < data->n_services; ++tt) {
-					At_y += duals->primaryOverlapDuals[aa][ss][tt-ss-1];
+			if(a->startNode < a->endNode) { // per link only: arcs where startNode < endNode
+				if(u_primary_usage >= EPS) {
+					/* for every service pair where owner service takes part */
+					int tt, ss;
+					ss = owner->globalServiceIndex;
+					for(tt = ss+1; tt < data->n_services; ++tt) {
+						At_y += duals->primaryOverlapDuals[link_index][ss][tt-ss-1];
+					}
+					tt = owner->globalServiceIndex;
+					for(ss = 0; ss < tt; ++ss) {
+						At_y += duals->primaryOverlapDuals[link_index][ss][tt-ss-1];
+					}
 				}
-				tt = owner->globalServiceIndex;
-				for(ss = 0; ss < tt; ++ss) {
-					At_y += duals->primaryOverlapDuals[aa][ss][tt-ss-1];
-				}
-
+				++link_index;
 			}
 
 			/* DUAL PRICE: BACKUP OVERLAP CTR (BACKUP)
@@ -889,7 +937,8 @@ namespace cloudbrokeroptimisation {
 	vector<double> CloudBrokerModel::_dualPrimaryArcCostsForService(entities::service *s, dual_vals *duals) {
 		vector<double> arc_costs(data->n_arcs, 0.0);
 
-		/* for every arc (with return arc) */
+		/* for every arc (with return arc) [for every LINK (primary overlap ctr dual cost)]*/
+		int link_index = 0;
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc * a = &data->arcs[aa];
 			arc * a_return = a->return_arc;
@@ -906,20 +955,26 @@ namespace cloudbrokeroptimisation {
 			 */
 			arc_costs[aa] += s->bandwidth_req_up 	* duals->arcCapacityDuals[aa]
 			               + s->bandwidth_req_down 	* duals->arcCapacityDuals[aa_return];
+						   
+			if(a->startNode < a->endNode) { // once per link only: arcs where startNode < endNode
+			
+				/* DUAL PRICE: PRIMARY OVERLAP CTR (PRIMARY)
+				 * add primary overlap dual price for this LINK as cost to both arcs of this link,
+				 * for each service pair where owner service takes part
+				 */
+				int tt, ss;
+				ss = s->globalServiceIndex;
+				for(tt = ss+1; tt < data->n_services; ++tt) {
+					arc_costs[aa	   ] += duals->primaryOverlapDuals[link_index][ss][tt-ss-1];
+					arc_costs[aa_return] += duals->primaryOverlapDuals[link_index][ss][tt-ss-1];
+				}
+				tt = s->globalServiceIndex;
+				for(ss = 0; ss < tt; ++ss) {
+					arc_costs[aa	   ] += duals->primaryOverlapDuals[link_index][ss][tt-ss-1];
+					arc_costs[aa_return] += duals->primaryOverlapDuals[link_index][ss][tt-ss-1];
+				}
 
-			/* DUAL PRICE: PRIMARY OVERLAP CTR (PRIMARY)
-			 * add overlap dual price for this arc and return arc, for each service pair where owner takes part
-			 */
-			int tt, ss;
-			ss = s->globalServiceIndex;
-			for(tt = ss+1; tt < data->n_services; ++tt) {
-				arc_costs[aa] += duals->primaryOverlapDuals[aa		 ][ss][tt-ss-1]
-				               + duals->primaryOverlapDuals[aa_return][ss][tt-ss-1];
-			}
-			tt = s->globalServiceIndex;
-			for(ss = 0; ss < tt; ++ss) {
-				arc_costs[aa] += duals->primaryOverlapDuals[aa		 ][ss][tt-ss-1]
-					           + duals->primaryOverlapDuals[aa_return][ss][tt-ss-1];
+				++link_index;
 			}
 		}
 
@@ -1446,7 +1501,7 @@ namespace cloudbrokeroptimisation {
 		double backup_costs = 0.0;
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
 			arc *a = &data->arcs[aa];
-			backup_costs += a->bandwidth_price * d_arcBackupUsage[aa].getSol();
+			backup_costs += a->bandwidth_price * lambda_arcBackupRes[aa].getSol();
 		}
 		stream << "\nBackup costs = " << backup_costs << "\n";
 
@@ -1502,10 +1557,10 @@ namespace cloudbrokeroptimisation {
 		double total_backup_reserved = 0.0;
 		stream << "\nArc backup reservations (non-zero)\n";
 		for(int aa = 0; aa < data->n_arcs; ++aa) {
-			if(d_arcBackupUsage[aa].getSol() > 0.00001) {
+			if(lambda_arcBackupRes[aa].getSol() > 0.00001) {
 				arc *a = &data->arcs[aa];
-				total_backup_reserved += d_arcBackupUsage[aa].getSol();
-				stream << "(" << a->startNode+1 << "," << a->endNode+1 << ") = " << d_arcBackupUsage[aa].getSol() << "\n";
+				total_backup_reserved += lambda_arcBackupRes[aa].getSol();
+				stream << "(" << a->startNode+1 << "," << a->endNode+1 << ") = " << lambda_arcBackupRes[aa].getSol() << "\n";
 			}
 		}
 

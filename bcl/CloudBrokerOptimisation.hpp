@@ -41,7 +41,7 @@ namespace cloudbrokeroptimisation {
 		/*  MODEL VARIABLES 			*/
 		std::vector< ::dashoptimization::XPRBvar > 					y_serveCustomerVars; 	/* for every customer*/
 		std::vector< std::vector< ::dashoptimization::XPRBvar > > 	l_servicesOverlapVars;	/* for every pair of two customers */
-		std::vector< ::dashoptimization::XPRBvar>					d_arcBackupUsage;		/* for every arc */
+		std::vector< ::dashoptimization::XPRBvar>					lambda_arcBackupRes;	/* for every arc */
 		std::list< ::dashoptimization::XPRBvar >					w_useMappingVars;		/* for every service, for every mapping of service */
 
 		/*	MODEL CONSTRAINTS 			*/

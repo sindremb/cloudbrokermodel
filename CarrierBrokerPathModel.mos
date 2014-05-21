@@ -353,7 +353,7 @@ forall (ii in Nodes, jj in Nodes, ss in Services | exists(F_BandwidthCap(ii,jj))
 		! bandwidth for backup minus bandwidth for primary on arc
 		sum(pp in Providers | exists(K_PathsServiceProvider(ss,pp)))(
 			sum(kk in (K_PathsServiceProvider(ss,pp)*L_PathsUsingArc(ii,jj)))(
-				U_PathBandwidthUsage(ii,jj,ss)
+				U_PathBandwidthUsage(ii,jj,kk)
 				*
 				(
 					v_UseBackupPath(kk)
@@ -408,25 +408,28 @@ end-do
 ! for every service combination
 forall(ss in Services, tt in Services | ss < tt) do
 	! for every LINK (every (ii,jj) where ii < jj)
-	forall(ii in Nodes, jj in Nodes | ii < jj and exists(L_PathsUsingArc(ii,jj))) do
-										
-		! SERVICE PATH OVERLAP CONSTRAINTS
-		! Two services have overlapping primary paths if for any LINK both paths are represented
-		PrimaryOverlap(ii, jj, ss, tt):= 
-			sum(pp in Providers | exists(K_PathsServiceProvider(ss,pp)))(
-				! L_PathsUsingArc(ii,jj) = L_PathsUsingArc(jj,ii) -> only need one for all paths using LINK ii,jj
-				sum(kk in (K_PathsServiceProvider(ss,pp)*L_PathsUsingArc(ii,jj))) (
-					u_UsePrimaryPath(kk)
+	forall(ii in Nodes, jj in Nodes | exists(L_PathsUsingArc(ii,jj))) do
+					
+		! only for evey link (ii < jj) (failured happen at link level -> failing both arcs)
+		if(ii < jj) then
+			! SERVICE PATH OVERLAP CONSTRAINTS
+			! Two services have overlapping primary paths if for any LINK both paths are represented
+			PrimaryOverlap(ii, jj, ss, tt):= 
+				sum(pp in Providers | exists(K_PathsServiceProvider(ss,pp)))(
+					! L_PathsUsingArc(ii,jj) = L_PathsUsingArc(jj,ii) -> only need one for all paths using LINK ii,jj
+					sum(kk in (K_PathsServiceProvider(ss,pp)*L_PathsUsingArc(ii,jj))) (
+						u_UsePrimaryPath(kk)
+					)
 				)
-			)
-			+
-			sum(pp in Providers | exists(K_PathsServiceProvider(tt,pp)))(
-				sum(kk in (K_PathsServiceProvider(tt,pp)*L_PathsUsingArc(ii,jj))) (
-					u_UsePrimaryPath(kk)
+				+
+				sum(pp in Providers | exists(K_PathsServiceProvider(tt,pp)))(
+					sum(kk in (K_PathsServiceProvider(tt,pp)*L_PathsUsingArc(ii,jj))) (
+						u_UsePrimaryPath(kk)
+					)
 				)
-			)
-			-l_Overlap(ss, tt)
-			<= 1;
+				-l_Overlap(ss, tt)
+				<= 1;
+		end-if
 			
 		! BACKUP PATH OVERLAP CONSTRAINT
 		! backup paths may not overlap at any ARC if their primary paths overlap on any LINK
