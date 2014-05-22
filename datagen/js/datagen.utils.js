@@ -278,7 +278,7 @@ Datagen.utils.dataModelToDataVM = function(model, main) {
 		));
 	}
 	
-	// add owned arcs according to data object
+	// add arcs according to data object
 	for(var i in model.network.arcs) {
 		network.arcs.push(new ArcViewModel(
 			network.nodes()[model.network.arcs[i].nodeTo],
@@ -336,24 +336,13 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
 		));
 	}
 	
-	// add owned arcs according to data object
+	// add arcs according to data object
 	for(var i in dataObj.F_BandwidthCap) {
 		for(var j in dataObj.F_BandwidthCap[i]) {
 			network.arcs.push(new ArcViewModel(
 				network.nodes()[i-1], network.nodes()[j-1], // -1 because 1-indexed -> 0-indexed
 				dataObj.T_LinkLatency[i][j], dataObj.F_BandwidthCap[i][j],
 				dataObj.K_CapPrice[i][j], dataObj.D_AvailabilityExp[i][j]
-			));
-		}
-	}
-	
-	// add leasable arcs according to data object
-	for(var i in dataObj.O_LeasedBandwidthCap) {
-		for(var j in dataObj.O_LeasedBandwidthCap[i]) {
-			network.leasableArcs.push(new ArcViewModel(
-				network.nodes()[i-1], network.nodes()[j-1], // -1 because 1-indexed -> 0-indexed
-				dataObj.V_LeaseLatency[i][j], dataObj.O_LeasedBandwidthCap[i][j],
-				dataObj.L_LeasedPrice[i][j], 1.0
 			));
 		}
 	}
@@ -476,7 +465,7 @@ Datagen.utils.toMoselData = function (dataVM) {
     data = data + '! Network data\n';
     data = data + '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n';
 
-    data = data + '\n!!! Own network\n';
+    data = data + '\n!!! arc attributes\n';
 
     data = data + '\n! (i,j) Latency for arc between nodes i and j\n';
     data = data + 'T_LinkLatency: [\n';
@@ -494,7 +483,7 @@ Datagen.utils.toMoselData = function (dataVM) {
     }
     data = data + ']\n';
 
-    data = data + '\n! (i,j) Price per unit of used own capacity between node i and j\n'
+    data = data + '\n! (i,j) Price per unit of used capacity between node i and j\n'
     data = data + 'K_CapPrice: [\n'
     for (var i in dataVM.network().arcs()) {
         var arc = dataVM.network().arcs()[i];
@@ -508,32 +497,6 @@ Datagen.utils.toMoselData = function (dataVM) {
         data = data + ' (' + arc.nodeTo().nodeNumber() + ' ' + arc.nodeFrom().nodeNumber() + ') ' + arc.expectedAvailability();
     }
 	data = data + ']\n'
-
-    data = data + '\n!!! Leasable network\n';
-
-    data = data + '\n! (i,j) Price per unit leased capacity between node i and j\n';
-    data = data + 'L_LeasedPrice: [\n';
-    for (var i in dataVM.network().leasableArcs()) {
-        var arc = dataVM.network().leasableArcs()[i];
-        data = data + ' (' + arc.nodeTo().nodeNumber() + ' ' + arc.nodeFrom().nodeNumber() + ') ' + arc.bandwidthPrice();
-    }
-    data = data + ']\n';
-
-    data = data + '\n! (i,j) Latency for leased link between nodes i and j\n';
-    data = data + 'V_LeaseLatency: [\n';
-    for (var i in dataVM.network().leasableArcs()) {
-        var arc = dataVM.network().leasableArcs()[i];
-        data = data + ' (' + arc.nodeTo().nodeNumber() + ' ' + arc.nodeFrom().nodeNumber() + ') ' + arc.latency();
-    }
-    data = data + ']\n';
-
-    data = data + '\n! (i,j) Capacity for leased link between nodes i and j\n';
-    data = data + 'O_LeasedBandwidthCap:[\n';
-    for (var i in dataVM.network().leasableArcs()) {
-        var arc = dataVM.network().leasableArcs()[i];
-        data = data + ' (' + arc.nodeTo().nodeNumber() + ' ' + arc.nodeFrom().nodeNumber() + ') ' + arc.bandwidthCap();
-    }
-    data = data + ']\n';
 	
 	data = data + '\n!!! Following data used purely by \'datagen\': keep in file to allow easy editing\n';
 	data = data + '\n! X-coordinates of nodes\n';

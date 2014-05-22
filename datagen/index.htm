@@ -99,12 +99,11 @@ Select two nodes to add an arc between.
     <button data-bind="click: function() {generateRandomNetwork('dataOutputBox')}">Generate network</button><span id="showconfigbutton" data-bind="click: function(){$('#genConfigs, #showconfigbutton').toggle()}">v settings v</span>
 </div>
 <div id="genConfigs" style="display: none;">
-	# node levels = <input type="text" data-bind="value: generationConfig().numNodeLevels" /><br />
-	# nodes per cluster = <input type="text" data-bind="value: generationConfig().numNodesPerCluster" /><br />
-    Number of leasable arcs: <input type="text" data-bind="value: generationConfig().numLeasableArcs" /><br />
-    Number of customers: <input type="text" data-bind="value: generationConfig().numberOfCustomers" /><br />
-    Number of providers: <input type="text" data-bind="value: generationConfig().numberOfProviders" /><br />
-    Max number of services per customer: <input type="text" data-bind="value: generationConfig().maxNumberOfServicesPerCustomer" /><br />
+	# of node levels = <input type="text" data-bind="value: generationConfig().numNodeLevels" /><br />
+	# of nodes per cluster = <input type="text" data-bind="value: generationConfig().numNodesPerCluster" /><br />
+    # of customers: <input type="text" data-bind="value: generationConfig().numberOfCustomers" /><br />
+    # of providers: <input type="text" data-bind="value: generationConfig().numberOfProviders" /><br />
+    Max # of services per customer: <input type="text" data-bind="value: generationConfig().maxNumberOfServicesPerCustomer" /><br />
     Proportion of eligible providers: <input type="text" data-bind="value: generationConfig().proportionEligibleProviders" /><br />
 	Avg arc latency: <input type="text" data-bind="value: generationConfig().avgArcLatency" /><br />
 	Avg. service latency requirement: <input type="text" data-bind="value: generationConfig().avgServiceLatencyReq" /><br />
@@ -136,17 +135,6 @@ Select two nodes to add an arc between.
 					},
 					click: function(d, e) {toggleSelect(e);}
 				"
-				style="stroke-width:4" />
-		</g>
-		<g data-bind="foreach: dataVM().network().leasableArcs">
-			<line 
-				data-bind="
-					attr: { 
-						x1: nodeFrom().x, y1: nodeFrom().y, x2: nodeTo().x, y2: nodeTo().y,
-						stroke : selected() ? 'aqua' : 'blue'
-					},
-					click: function(d, e) {toggleSelect(e);}
-				" 
 				style="stroke-width:4" />
 		</g>
 		<g data-bind="foreach: dataVM().network().nodes">

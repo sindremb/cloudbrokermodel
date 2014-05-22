@@ -23,7 +23,6 @@ function NetworkModel(networkvm) {
 
     this.arcs = []
 	this.nodes = []
-    this.leasableArcs = []
 	
 	for(var i in networkvm.arcs()) {
 		this.arcs.push(new ArcModel(networkvm.arcs()[i]));
@@ -31,10 +30,6 @@ function NetworkModel(networkvm) {
 	
 	for(var i in networkvm.nodes()) {
 		this.nodes.push(new NodeModel(networkvm.nodes()[i]));
-	}
-	
-	for(var i in networkvm.leasableArcs()) {
-		this.leasableArcs.push(new ArcModel(networkvm.leasableArcs()[i]));
 	}
 }
 
