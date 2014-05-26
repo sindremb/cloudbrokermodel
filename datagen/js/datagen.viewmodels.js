@@ -126,8 +126,8 @@ function MainViewModel() {
 		} else if(this.mode() == 'addnode') {
 			console.log(e);
 			this.dataVM().network().addInternalNodeForLocation(
-				(e.offsetX !== undefined) ? e.offsetX : (e.pageX-$('#networksvgcontainer').offset().left),
-				(e.offsetY !== undefined) ? e.offsetY : (e.pageY-$('#networksvgcontainer').offset().top)
+				(e.offsetX !== undefined) ? e.offsetX : (e.pageX-$(e.currentTarget).offset().left),
+				(e.offsetY !== undefined) ? e.offsetY : (e.pageY-$(e.currentTarget).offset().top)
 			);
 		}
 		e.cancelBubble = true;
