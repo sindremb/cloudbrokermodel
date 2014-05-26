@@ -50,6 +50,7 @@ struct cloudBrokerConfig {
 	int cg_alg;
 	int cg_maxcount;
 	int cg_maxiters;
+	int cg_maxtime;
 
 	// input / output filenames
 	string input_file;
@@ -80,6 +81,7 @@ cloudBrokerConfig defaultConfig() {
 	config.cg_alg = 3;
 	config.cg_maxcount = -1;
 	config.cg_maxiters = -1;
+	config.cg_maxtime = -1;
 
 	return config;
 }
@@ -168,7 +170,8 @@ void runConfiguration(cloudBrokerConfig config) {
 					config.cg_alg,
 					config.cg_maxiters,
 					config.cg_maxcount,
-					config.opt_alg
+					config.opt_alg,
+					config.cg_maxtime
 				);
 				colgen_time = colgen_start.elapsed();
 				cout << "COLUMN GENERATION COMPLETE!\n";
@@ -405,86 +408,99 @@ void executeArguments(int argc, char *argv[]) {
 	// parse option arguments
 	for(int i = 2; i < argc; i++) {
 		if(string(argv[i]) == "-i") {
-			// next argument should be input file
+			// next argument should be input file name
 			if(i+1 < argc) {
 				config.input_file = argv[i+1];
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-i\" switch\n";
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
 				return;
 			}
 		} else if (string(argv[i]) == "-o") {
-			// next argument should be output file
+			// next argument should be output file name
 			if(i+1 < argc) {
 				config.output_file = argv[i+1];
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-o\" switch\n";
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
 				return;
 			}
 		} else if (string(argv[i]) == "-cgalg") {
-			// next argument should be column generation method file
+			// next argument should be column generation method (int)
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
 				if(!(myStream >> config.cg_alg)) {
-					cerr << "Error: Invalid integer input for \"-cgmethod\" option <" << argv[i+1] << ">\n";
+					cerr << "Error: Invalid integer input for \"" << argv[i] << "\" option <" << argv[i+1] << ">\n";
 					return;
 				}
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-cgmethod\" switch\n";
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
 				return;
 			}
 		} else if (string(argv[i]) == "-beta") {
-			// next argument should be model beta file
+			// next argument should be model beta (float)
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
 				if(!(myStream >> config.model_beta)) {
-					cerr << "Error: Invalid real number input for \"-beta\" option <" << argv[i+1] << ">\n";
+					cerr << "Error: Invalid real number input for \"" << argv[i] << "\" option <" << argv[i+1] << ">\n";
 					return;
 				}
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-beta\" switch\n";
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
 				return;
 			}
 		} else if (string(argv[i]) == "-maxtime") {
-			// next argument should be mip time limit file
+			// next argument should be mip time limit (int)
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
 				if(!(myStream >> config.opt_maxtime)) {
-					cerr << "Error: Invalid integer input for \"-miplimit\" option <" << argv[i+1] << ">\n";
+					cerr << "Error: Invalid integer input for \"" << argv[i] << "\" option <" << argv[i+1] << ">\n";
 					return;
 				}
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-miplimit\" switch\n";
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
 				return;
 			}
 		} else if (string(argv[i]) == "-cgmaxiters") {
-			// next argument should be mip time limit file
+			// next argument should max number of cg iterations (int)
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
 				if(!(myStream >> config.cg_maxiters)) {
-					cerr << "Error: Invalid integer input for \"-cgmaxiters\" option <" << argv[i+1] << ">\n";
+					cerr << "Error: Invalid integer input for \"" << argv[i] << "\" option <" << argv[i+1] << ">\n";
 					return;
 				}
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-cgmaxiters\" switch\n";
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
 				return;
 			}
 		} else if (string(argv[i]) == "-cgmaxcount") {
-			// next argument should be mip time limit file
+			// next argument should be max number of mappings by cg (int)
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
 				if(!(myStream >> config.cg_maxcount)) {
-					cerr << "Error: Invalid integer input for \"-cgmaxcount\" option <" << argv[i+1] << ">\n";
+					cerr << "Error: Invalid integer input for \"" << argv[i] << "\" option <" << argv[i+1] << ">\n";
 					return;
 				}
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-cgmaxcount\" switch\n";
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
+				return;
+			}
+		} else if (string(argv[i]) == "-cgmaxtime") {
+			// next argument should max time consumption for cg only in seconds (int)
+			if(i+1 < argc) {
+				stringstream myStream(argv[i+1]);
+				if(!(myStream >> config.cg_maxtime)) {
+					cerr << "Error: Invalid integer input for \"" << argv[i] << "\" option <" << argv[i+1] << ">\n";
+					return;
+				}
+				i++;
+			} else {
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
 				return;
 			}
 		} else if (string(argv[i]) == "-maxpaths") {
@@ -492,12 +508,12 @@ void executeArguments(int argc, char *argv[]) {
 			if(i+1 < argc) {
 				stringstream myStream(argv[i+1]);
 				if(!(myStream >> config.pregen_maxpaths)) {
-					cerr << "Error: Invalid integer input for \"-maxpaths\" option <" << argv[i+1] << ">\n";
+					cerr << "Error: Invalid integer input for \"" << argv[i] << "\" option <" << argv[i+1] << ">\n";
 					return;
 				}
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-maxpaths\" switch\n";
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
 				return;
 			}
 		} else if (string(argv[i]) == "-nomappings") {
@@ -508,7 +524,7 @@ void executeArguments(int argc, char *argv[]) {
 				config.opt_alg = argv[i+1];
 				i++;
 			} else {
-				cerr << "\nError: Missing arguments following \"-alg\" switch\n";
+				cerr << "\nError: Missing arguments following \"" << argv[i] << "\" switch\n";
 			}
 		} else if (string(argv[i]) == "-dedicated") {
 			config.dedicated = true;

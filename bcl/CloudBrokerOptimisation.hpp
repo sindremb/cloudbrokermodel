@@ -27,7 +27,7 @@ namespace cloudbrokeroptimisation {
 	public:
 		CloudBrokerOptimiser(entities::dataContent * data, double beta_backupres = 0.3, bool dedicated = false);
 		void Solve(bool enforce_integer = true, int time_limit = 0, const char *lp_alg = " ");
-		void RunColumnGeneration(int cg_alg, int cg_maxiters, int cg_maxcount, const char *lp_alg = " ");
+		void RunColumnGeneration(int cg_alg, int cg_maxiters, int cg_maxcount, const char *lp_alg = " ", int max_cg_time = -1);
 		void OutputResultsToStream(std::ostream& stream);
 	};
 }
