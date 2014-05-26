@@ -67,6 +67,9 @@ program should do.
 	-cgmaxcount <integer>	| default: -1, optional
 	sets the maximum number of columns to add by column generation, ignores limit on -1
 	
+	-cgmaxtime <integer>	| default: -1, optional
+	sets the maximum time consumption (in seconds) for column generation, ignores limit on -1
+	
 	-maxpaths <integer>		| default: -1, optional
 	sets the maximum number of paths to generate FOR EACH (service, provider) PAIR, ignores limit on -1
 	

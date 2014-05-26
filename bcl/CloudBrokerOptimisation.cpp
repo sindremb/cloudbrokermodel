@@ -31,9 +31,10 @@ namespace cloudbrokeroptimisation {
 		this->model.OutputResultsToStream(stream);
 	}
 
-	void CloudBrokerOptimiser::RunColumnGeneration(int cg_alg, int cg_maxiters, int cg_maxcount, const char *opt_alg)
+	void CloudBrokerOptimiser::RunColumnGeneration(int cg_alg, int cg_maxiters, int cg_maxcount, const char *opt_alg, int max_cg_time)
 	{
 		AbstractColumnGenerator * cg;
+		bool time_restricted = max_cg_time > -1;
 
 		cout << "- Column Generation By: ";
 		switch(cg_alg) {
@@ -55,6 +56,7 @@ namespace cloudbrokeroptimisation {
 		}
 		cout << "-- max iterations: " << cg_maxiters << "\n";
 		cout << "-- max mappings: " << cg_maxcount << "\n";
+		cout << "-- max cg time: " << max_cg_time << "\n";
 
 		timer run_cg_total_start;
 		double lp_time_total = 0.0;
@@ -105,6 +107,14 @@ namespace cloudbrokeroptimisation {
 
 			this->model.LoadSavedBasis();
 			++itercount;
+			
+			if(time_restricted) {
+				double current_total_time = run_cg_total_start.elapsed();
+				if(current_total_time > max_cg_time) {
+					cout << "\n!! Terminating Column Generation due to time restriction\n";
+					break;
+				}
+			}
 		}
 
 		this->model.SetColumnGenerationConfiguration(false);
