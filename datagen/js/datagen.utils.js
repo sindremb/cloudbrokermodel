@@ -496,7 +496,7 @@ Datagen.utils.toMoselData = function (dataVM) {
         var arc = dataVM.network().arcs()[i];
         data = data + ' (' + arc.nodeTo().nodeNumber() + ' ' + arc.nodeFrom().nodeNumber() + ') ' + arc.expectedAvailability();
     }
-	data = data + ']\n'
+	data = data + '\n]\n'
 	
 	data = data + '\n!!! Following data used purely by \'datagen\': keep in file to allow easy editing\n';
 	data = data + '\n! X-coordinates of nodes\n';

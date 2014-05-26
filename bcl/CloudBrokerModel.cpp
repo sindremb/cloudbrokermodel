@@ -555,11 +555,12 @@ namespace cloudbrokeroptimisation {
 			customer *c = &data->customers[cc];
 			if(y_serveCustomerVars[cc].getSol() > 0.01) {
 				customer_count++;
-				stream << "\nCustomer #" << cc+1 << " is being served (" << y_serveCustomerVars[cc].getSol() << ")\n";
-				stream << "- Revenue: " << c->revenue << "\n";
+				stream << "\nCustomer #" << cc+1 << " is being served (" << y_serveCustomerVars[cc].getSol() << ")\n"
+					   << "- Revenue: " << c->revenue << "\n";
 				for(unsigned int ss = 0; ss < c->services.size(); ++ss) {
 					service *s = c->services[ss];
-					stream << " - Service #" << s->globalServiceIndex +1 << " - number of potential mappings: " << s->mappings.size() << "\n";
+					stream << " - Service #" << s->globalServiceIndex +1 << "\n  - number of potential mappings: " << s->mappings.size() 
+						   << "\n  - Availability req: " << s->availability_req << "\n";
 					for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
 						mapping * m = *m_itr;
 						XPRBvar *w = mappingVarForMappingIndex(m->globalMappingIndex);
@@ -567,18 +568,19 @@ namespace cloudbrokeroptimisation {
 							stream <<  "  !! mapping #" << m->globalMappingIndex+1 << " has no related w_useMapping variable\n";
 						}
 						else if(w->getSol() > 0.01) {
+							double availability = m->backup != NULL ? m->primary->exp_availability + m->backup->exp_availability - prob_paths_a_and_b(m->primary, m->backup) : m->primary->exp_availability; 
 							service_count++;
-							stream <<  "  -> mapping #" << m->globalMappingIndex+1 << "\n";
-							stream << "   - primary path: " << m->primary->globalPathIndex+1 << ", cost: " << m->primary->cost << "\n";
-							stream << "    - nodes up: " << m->primary->arcs_up.front()->startNode+1;
+							stream << "  -> mapping #" << m->globalMappingIndex+1 << "\n   - availability: " << availability << "\n"
+								   << "   - primary path: " << m->primary->globalPathIndex+1 << ", cost: " << m->primary->cost << "\n"
+								   << "    - nodes up: " << m->primary->arcs_up.front()->startNode+1;
 							for(list<arc*>::iterator a_itr = m->primary->arcs_up.begin(), a_end = m->primary->arcs_up.end(); a_itr != a_end; ++a_itr) {
 								stream << "->" << (*a_itr)->endNode+1;
 							}
 							stream << "\n";
 							if(m->backup != NULL) {
 								backup_count++;
-								stream << "   - backup path: " << m->backup->globalPathIndex+1 << "\n";
-								stream << "    - nodes up: " << m->backup->arcs_up.front()->startNode+1;
+								stream << "   - backup path: " << m->backup->globalPathIndex+1 << "\n"
+									   << "    - nodes up: " << m->backup->arcs_up.front()->startNode+1;
 								for(list<arc*>::iterator a_itr = m->backup->arcs_up.begin(), a_end = m->backup->arcs_up.end(); a_itr != a_end; ++a_itr) {
 									stream << "->" << (*a_itr)->endNode+1;
 									total_backup_requirement += Parameters::Q_BackupBandwidthUsageOnArcForMapping(*a_itr, m)
