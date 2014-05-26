@@ -44,8 +44,7 @@ if(TimeLimit>0.0) then
 end-if
 
 setparam("XPRS_verbose", true);	! Turn on message printing
-setparam("XPRS_MIPLOG", 1);	! only output summary message in the end of MIP-process 
-						!(alternatively use -N for report every Nth node)
+setparam("XPRS_MIPLOG", 2);	! 2: print information for each solution found (ALT: 0: no log, 1: summary in end, 3: log each node, -N: log every Nth node)
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! SETS
 !!!!!!!!!!!!!!!!!!!!!!!!

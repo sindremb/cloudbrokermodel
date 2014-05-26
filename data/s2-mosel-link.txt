@@ -1,0 +1,84 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+! Data set: #19
+! - Auto generated dataset by Cloud Broker Datagen v0.1 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+n_Customers: 6 ! number of customers
+n_Services: 8 ! number of services in total
+n_Providers: 4 ! number of providers
+n_Nodes: 18 ! number of nodes in total (customer, internal and provider nodes)
+
+Symmetric: true! indicates whether or not arc provided in dataset goes both ways
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Customers, Services and Providers data
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! (c) Revenue from serving customer c
+R_Revenue: [700 600 1100 500 2500 1600 ]
+
+! (c) Set of services for customers c
+S_ServicesForCustomer:	[
+ [1 ]
+ [2 ]
+ [3 ]
+ [4 ]
+ [5 6 ]
+ [7 8 ]
+]
+
+! (s) Required maximum latency for service s [old: from customer to provider (UPLINK)]
+G_LatencyReq: [75 120 70 60 50 90 120 60 ]
+
+! NOTE: DEPRECATED - no longer used, but kept for now for compatability
+! (s) Required maximum latency for service s from provider to customer (DOWNLINK)
+G_LatencyReqD: [75 120 70 60 50 90 120 60 ]
+
+! (s) Required bandwidth for service s from customer to provider (UPLINK)
+B_BandwidthReqUp: [10 13 30 12 35 35 12 22 ]
+
+! (s) Required bandwith for service s from provider to customer (DOWNLINK)
+B_BandwidthReqDown: [10 3 30 2 35 5 12 4 ]
+
+Y_AvailabilityReq: [0.99 0.999 0.999 0.99 0.95 0.995 0.95 0.995 ]
+
+! (s, p) Price of placing service s at provider p
+H_PlacePrice: [
+ (1 1) 180 (1 3) 220
+ (2 2) 140 (2 4) 160
+ (3 1) 380 (3 3) 450
+ (4 2) 140 (4 4) 180
+ (5 1) 450 (5 3) 590
+ (6 2) 290 (6 4) 350
+ (7 1) 250 (7 3) 280
+ (8 2) 190 (8 4) 200
+]
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Network data
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!! arc attributes
+
+! (i,j) Latency for arc between nodes i and j
+T_LinkLatency: [
+ (8 7) 7 (9 10) 8 (14 13) 4 (11 12) 2 (2 12) 4 (3 13) 4 (4 14) 4 (1 11) 6 (6 11) 6 (6 12) 6 (5 13) 7 (5 14) 3 (14 8) 8 (12 8) 10 (11 7) 8 (7 9) 32 (7 17) 5 (17 8) 4 (9 16) 4 (16 10) 7 (9 15) 9 (15 10) 7 (13 7) 12 (7 18) 4 (18 8) 3 (8 10) 7]
+
+! (i,j) Bandwidth capacity between nodes i and j
+F_BandwidthCap: [
+ (8 7) 62 (9 10) 128 (14 13) 71 (11 12) 75 (2 12) 104 (3 13) 145 (4 14) 96 (1 11) 107 (6 11) 142 (6 12) 141 (5 13) 59 (5 14) 69 (14 8) 51 (12 8) 59 (11 7) 143 (7 9) 113 (7 17) 94 (17 8) 137 (9 16) 104 (16 10) 115 (9 15) 142 (15 10) 68 (13 7) 146 (7 18) 79 (18 8) 66 (8 10) 108]
+
+! (i,j) Price per unit of used capacity between node i and j
+K_CapPrice: [
+ (8 7) 1 (9 10) 1 (14 13) 1 (11 12) 1 (2 12) 0.5 (3 13) 0.5 (4 14) 0.5 (1 11) 0.5 (6 11) 0.5 (6 12) 0.5 (5 13) 0.5 (5 14) 0.5 (14 8) 1 (12 8) 1 (11 7) 1 (7 9) 2 (7 17) 1 (17 8) 1 (9 16) 1 (16 10) 1 (9 15) 1 (15 10) 1 (13 7) 1 (7 18) 1 (18 8) 1 (8 10) 2]
+
+D_AvailabilityExp: [
+ (8 7) 0.9929484424530528 (9 10) 0.9942377589875833 (14 13) 0.9921007022354752 (11 12) 0.9940305969235487 (2 12) 0.9900674543739296 (3 13) 0.9968769988487475 (4 14) 0.9929222652618773 (1 11) 0.9904286249643192 (6 11) 0.990993305197917 (6 12) 0.9905088829156011 (5 13) 0.992796054945793 (5 14) 0.9916257908917032 (14 8) 0.996374740684405 (12 8) 0.9940548171247355 (11 7) 0.9980387456715107 (7 9) 0.998452195005957 (7 17) 0.9954203505348415 (17 8) 0.9989673098479398 (9 16) 0.9960117030702531 (16 10) 0.9992985845915973 (9 15) 0.9948033118876628 (15 10) 0.9959031212166883 (13 7) 0.9910941604501567 (7 18) 0.9965212695999071 (18 8) 0.998370676545892 (8 10) 0.990933464905247]
+
+!!! Following data used purely by 'datagen': keep in file to allow easy editing
+
+! X-coordinates of nodes
+datagen_x_coords: [238 141 152 145 144 203 299 308 516 509 230 171 180 186 547 477 329 277 ]
+
+! Y-coordinates of nodes
+datagen_y_coords: [23 48 207 329 268 24 146 272 127 223 68 109 257 322 177 176 200 200 ]
