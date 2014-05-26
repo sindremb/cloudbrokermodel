@@ -124,9 +124,10 @@ function MainViewModel() {
 		if(this.mode() == 'view' || this.mode() == 'edit' || this.mode() == 'addarc') {
 			this.selectedObjects.removeAll();
 		} else if(this.mode() == 'addnode') {
+			console.log(e);
 			this.dataVM().network().addInternalNodeForLocation(
-				(e.offsetX !== undefined) ? e.offsetX : (e.pageX-$(e.target).offset().left),
-				(e.offsetY !== undefined) ? e.offsetY : (e.pageY-$(e.target).offset().top)
+				(e.offsetX !== undefined) ? e.offsetX : (e.pageX-$('#networksvgcontainer').offset().left),
+				(e.offsetY !== undefined) ? e.offsetY : (e.pageY-$('#networksvgcontainer').offset().top)
 			);
 		}
 		e.cancelBubble = true;

@@ -131,7 +131,7 @@ Select two nodes to add an arc between.
 	<div height="20px" data-bind="template: {name: $data.mode() + '-mode-desc', data: $data.mode()}">
 	</div>
 </div>
-<div class="visualisationContainer">
+<div class="visualisationContainer" id="networksvgcontainer">
     <svg id="networksvg" height="500" width="800" data-bind="click : function(d, e) {$data.mapclick(e);}">
 		<g data-bind="foreach: dataVM().network().arcs">
 			<line 
