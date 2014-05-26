@@ -543,8 +543,8 @@ forall(cc in Customers) do
 							)
 						)), "\n  - placement: provider #", pp, " (node ",(n_Nodes-n_Providers+pp),
 						") - Cost: ",H_PlacePrice(ss,pp));
-						writeln("    -Availability without backup: ", sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(u_UsePrimary(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm))));
-						writeln("    -Availability requirement: ", ln(getsol(Y_AvailabilityReq(ss)))); 
+						writeln("    -Availability without backup: ", exp(sum( nn in Nodes, mm in Nodes | (exists(D_AvailabilityExp(nn,mm))) ) (getsol(u_UsePrimary(nn,mm,ss))*ln(D_AvailabilityExp(nn,mm)))));
+						writeln("    -Availability requirement: ", Y_AvailabilityReq(ss)); 
 
 					! output network routing for service
 					! - up-link

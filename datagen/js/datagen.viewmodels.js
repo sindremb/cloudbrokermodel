@@ -171,7 +171,6 @@ function MainViewModel() {
 function GenerationConfigViewModel() {
 	this._numNodeLevels = ko.observable(2)
 	this._numNodesPerCluster = ko.observable(5)
-    this._numLeasableArcs = ko.observable(10);
     this._numberOfCustomers = ko.observable(10);
     this._maxNumberOfServicesPerCustomer = ko.observable(3);
     this._numberOfProviders = ko.observable(10);
@@ -202,20 +201,6 @@ function GenerationConfigViewModel() {
 				}
 				else {
 					console.log('failed to set "numNodesPerCluster" to', value);
-				}
-			},
-		owner : this
-	});
-	
-	this.numLeasableArcs = ko.computed({
-		read : function() { return this._numLeasableArcs(); },
-		write : function(value) {
-				var numval = parseInt(value);
-				if(!isNaN(numval)) {
-					this._numLeasableArcs(numval)
-				}
-				else {
-					console.log('failed to set "numLeasableArcs" to', value);
 				}
 			},
 		owner : this

@@ -16,7 +16,7 @@
 #include <ctime>
 #include <fstream>
 
-#include "simpletimer.h"
+#include "simpletimer.hpp"
 #include "entities.h"
 #include "pathgenerator.h"
 
@@ -155,17 +155,16 @@ void runConfiguration(cloudBrokerConfig config) {
 #ifdef EXCLUDE_BCL
 			cerr << "Error: no BCL functionality available in this build\n";
 #else
-			cloudbrokeroptimisation::CloudBrokerModel model;
 			cout << "Building CloudBroker-model..\n";
 			timer build_start;
-			model.BuildModel(&data, config.model_beta);
+			cloudbrokeroptimisation::CloudBrokerOptimiser cb_opt(&data, config.model_beta);
 			build_time = build_start.elapsed();
 			cout << "MODEL BUILDING COMPLETE!\n";
 
 			if(config.bcl_cgsolve) {
 				cout << "\nRUNNING COLUMN GENERATION\n";
 				timer colgen_start;
-				model.RunColumnGeneration(
+				cb_opt.RunColumnGeneration(
 					config.cg_alg,
 					config.cg_maxiters,
 					config.cg_maxcount,
@@ -177,12 +176,12 @@ void runConfiguration(cloudBrokerConfig config) {
 
 			cout << "Solving CloudBroker-model..\n";
 			timer mip_start;
-			model.RunModel(true, config.opt_maxtime, config.opt_alg);
+			cb_opt.Solve(true, config.opt_maxtime, config.opt_alg);
 			mip_time = mip_start.elapsed();
 			total_time = total_start.elapsed();
 
 			// print solution to console
-			model.OutputResultsToStream(cout);
+			cb_opt.OutputResultsToStream(cout);
 			if(!config.output_file.empty()) {
 				// try storing results to file
 				ofstream myfile;
@@ -201,7 +200,7 @@ void runConfiguration(cloudBrokerConfig config) {
 							"\nTotal time consumption: "<< total_time << "\n";
 
 					// include solution to optimisation problem
-					model.OutputResultsToStream(myfile);
+					cb_opt.OutputResultsToStream(myfile);
 
 					myfile.close();
 					cout << "results were stored to file " << config.output_file << "\n";
@@ -216,10 +215,10 @@ void runConfiguration(cloudBrokerConfig config) {
 		
 		// log informaiton about time consumption to stream
 		cout << "\n############### TIME CONSUMPTIONS ###################\n"
-				"\nPregeneration: " 		<< pregen_time <<
-				"\nModel building: " 		<< build_time <<
-				"\nColumn generation: " 	<< colgen_time <<
-				"\nMIP solve: " 			<< mip_time <<
+				"\nPregeneration:          "<< pregen_time <<
+				"\nModel building:         "<< build_time <<
+				"\nColumn generation:      "<< colgen_time <<
+				"\nMIP solve:              "<< mip_time <<
 				"\nTotal time consumption: "<< total_time << "\n";
 	} else {
 		cerr << "Error: Unable to load input data from <" << config.input_file << ">\n";
