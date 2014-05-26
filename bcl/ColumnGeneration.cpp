@@ -368,7 +368,7 @@ namespace cloudbrokeroptimisation {
 			list<arc*> primary_up_arcs;
 			double primary_path_eval  = spprc(customer_node, placement_node, data->n_nodes, &node_arcs,
 									   &arc_costs_primary, &arc_restrictions_primary, s->latency_req,
-									   1, 0.0, &primary_up_arcs);
+									   -1, -1.0, &primary_up_arcs);
 
 			// see if a path was found at all -> if not, go to next iteration
 			if(primary_up_arcs.size() == 0) continue;
@@ -414,7 +414,7 @@ namespace cloudbrokeroptimisation {
 						list<arc*> backup_up_arcs;
 						double backup_path_eval = spprc(customer_node, placement_node, data->n_nodes, &node_arcs,
 														 &arc_costs_backup, &arc_restrictions_backup, s->latency_req,
-														 max_restricted_arcs_backup, 0.0, &backup_up_arcs);
+														 max_restricted_arcs_backup, -1.0, &backup_up_arcs);
 
 						if(backup_up_arcs.size() == 0) {
 							--max_restricted_arcs_backup;
@@ -517,7 +517,8 @@ namespace cloudbrokeroptimisation {
 			list<arc*> primary_up_arcs;
 			double primary_path_eval  = spprc(customer_node, placement_node, data->n_nodes, &node_arcs,
 									   &arc_costs_primary, &arc_restrictions_primary, s->latency_req,
-									   1, s->availability_req, &primary_up_arcs);
+									   -1, s->availability_req, &primary_up_arcs);
+			
 			// see if a path was found at all and is profitable
 			if(primary_up_arcs.size() > 0 && serve_customer_dual - primary_path_eval - p->price >= EPS) {
 				returnPath primary = _returnPathFromArcs(&primary_up_arcs, s, p);
@@ -535,12 +536,11 @@ namespace cloudbrokeroptimisation {
 				return true;
 			}
 
-			// find primary path to combine with backup by shortest path problem with resource constraints
-			double availability_lbd = max((s->availability_req - availability_ubd) / (1 - availability_ubd), 0.0);
+			// find primary path to combine with backup by shortest path problem with resource constraints (availability req ignored)
 			primary_up_arcs.clear();
 			primary_path_eval  = spprc(customer_node, placement_node, data->n_nodes, &node_arcs,
 									   &arc_costs_primary, &arc_restrictions_primary, s->latency_req,
-									   1, availability_lbd, &primary_up_arcs);
+									   -1, -1.0, &primary_up_arcs);
 
 			// see if a path was found at all -> if not, go to next iteration
 			if(primary_up_arcs.size() == 0) continue;
@@ -553,9 +553,6 @@ namespace cloudbrokeroptimisation {
 				if(primary.exp_availability >= s->availability_req) {
 					continue;
 				}
-
-				// try finding primary/backup combo
-				double min_availability = (s->availability_req - primary.exp_availability) / (1 - primary.exp_availability);
 
 				// extract arc costs with dual values for a backup path
 				vector<double> arc_costs_backup = _dualBackupArcCostsForService(s, duals, &primary, data, beta);
@@ -577,7 +574,7 @@ namespace cloudbrokeroptimisation {
 					list<arc*> backup_up_arcs;
 					double backup_path_eval = spprc(customer_node, placement_node, data->n_nodes, &node_arcs,
 													 &arc_costs_backup, &arc_restrictions_backup, s->latency_req,
-													 max_restricted_arcs_backup, min_availability, &backup_up_arcs);
+													 max_restricted_arcs_backup, -1.0, &backup_up_arcs);
 
 					if(backup_up_arcs.size() == 0) {
 						--max_restricted_arcs_backup;

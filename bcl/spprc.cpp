@@ -93,9 +93,9 @@ namespace cloudbrokeroptimisation {
 				// - try expand for each arc from end node
 				for(unsigned int aa = 0; aa < arcs->size(); ++aa) {
 					arc *a = arcs->at(aa);
-					if(q->latency + a->latency + a->return_arc->latency <= max_latency &&
-						q->restricted_arcs_count + arc_restrictions->at(a->globalArcIndex) <= max_restricted_arcs &&
-						q->availability * a->exp_availability >= min_availability) {
+					if(q->latency + a->latency + a->return_arc->latency <= max_latency
+						&& (max_restricted_arcs < 0  || q->restricted_arcs_count + arc_restrictions->at(a->globalArcIndex) <= max_restricted_arcs)
+						&& (min_availability < 0.0 || q->availability * a->exp_availability >= min_availability)) {
 						// resource check ok -> spawn new label
 						label child;
 						child.parent = q;
@@ -136,11 +136,17 @@ namespace cloudbrokeroptimisation {
 							// check that labels are not the same, but end at same node
 							if(!b->isdominated && a->end_node == b->end_node) {
 								// try dominate
-								if(b->cost >= a->cost && b->latency >= a->latency && b->availability <= a->availability && b->restricted_arcs_count >= a->restricted_arcs_count) {
+								if(b->cost >= a->cost && b->latency >= a->latency 						// cost and latency attributes domination check
+									&& (min_availability < 0.0 || b->availability <= a->availability)	// availability check (if considered a resource)
+									&& (max_restricted_arcs < 0 || b->restricted_arcs_count >= a->restricted_arcs_count) ) // restricted arcs count check (if considered a resource)
+								{
 									// b is equally bad or worse than a -> dominate b
 									b->isdominated = true;
 								}
-								else if(b->cost <= a->cost && b->latency <= a->latency && b->availability >= a->availability && b->restricted_arcs_count <= a->restricted_arcs_count) {
+								else if(b->cost <= a->cost && b->latency <= a->latency 						// cost and latency attributes domination check
+									&& (min_availability < 0.0 || b->availability >= a->availability)		// availability check (if considered a resource)
+									&& (max_restricted_arcs < 0 || b->restricted_arcs_count <= a->restricted_arcs_count)) // restricted arcs count check (if considered a resource)
+								{
 									// a is worse than b (not equally bad due to above if) -> dominate a
 									a->isdominated = true;
 								}
