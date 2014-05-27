@@ -152,11 +152,11 @@ namespace pathgen {
 		cout << " - calculating combo availability within each placement\n";
 		
 		// for every service placement
-		for (unsigned int s = 0; s < data->services.size(); ++s)
+		for (unsigned int ss = 0; ss < data->services.size(); ++ss)
 		{
-			service * se = &data->services[s];
-			for (unsigned int p = 0; p < se->possible_placements.size(); ++p) {
-				placement * pl = &se->possible_placements[p];
+			service * s = &data->services[ss];
+			for (unsigned int p = 0; p < s->possible_placements.size(); ++p) {
+				placement * pl = &s->possible_placements[p];
 
 				// for every combination of paths for placement
 				for (unsigned int apath = 0; apath < pl->paths.size(); ++apath) {
@@ -179,28 +179,28 @@ namespace pathgen {
 
 		cout << "\nAdding feasible mappings..\n";
 
-		for (unsigned int s = 0; s < data->services.size(); ++s)
+		for (unsigned int ss = 0; ss < data->services.size(); ++ss)
 		{
-			service * se = &data->services[s];
-			cout << "- Service #" << se->globalServiceIndex+1 << ":\n";
-			se->mappings.clear();
+			service * s = &data->services[ss];
+			cout << "- Service #" << s->globalServiceIndex+1 << ":\n";
+			s->mappings.clear();
 			// -- for each service's placement
-			for (unsigned int p = 0; p < se->possible_placements.size(); ++p)
+			for (unsigned int p = 0; p < s->possible_placements.size(); ++p)
 			{
-				placement * pl = &se->possible_placements[p];
+				placement * pl = &s->possible_placements[p];
 				cout << " - generating mappings to provider " << pl->globalProviderIndex+1 << "...\n";
 				// --- for each path at current placement
 				for (unsigned int a = 0; a < pl->paths.size(); ++a) {
 					returnPath * apath = pl->paths[a];
 					// check if feasible mapping alone
-					if(apath->exp_availability >= se->availability_req) {
+					if(apath->exp_availability >= s->availability_req) {
 						// path offers sufficient availability alone -> dont add backup path
 						mapping m;
 						m.globalMappingIndex = mappingCount;
 						m.primary = apath;
 						m.backup = NULL;
 						data->mappings.push_back(m);
-						se->mappings.push_back(&data->mappings.back());
+						s->mappings.push_back(&data->mappings.back());
 						++mappingCount;
 
 					}
@@ -211,14 +211,14 @@ namespace pathgen {
 							returnPath * bpath = pl->paths[b];
 							// calculate combo availability [ P(A)*P(B|A) ]
 							double prob_a_and_b = entities::prob_paths_a_and_b(apath, bpath);
-							if(apath->exp_availability + bpath->exp_availability - prob_a_and_b >= se->availability_req) {
+							if(apath->exp_availability + bpath->exp_availability - prob_a_and_b >= s->availability_req) {
 								// combination of a as primary and b as backup is feasible -> add routing
 								mapping m;
 								m.globalMappingIndex = mappingCount;
 								m.primary = apath;
 								m.backup = bpath;
 								data->mappings.push_back(m);
-								se->mappings.push_back(&data->mappings.back());
+								s->mappings.push_back(&data->mappings.back());
 								++mappingCount;
 							}
 						}
@@ -226,7 +226,7 @@ namespace pathgen {
 				}
 
 				// register all mappings for service s at used paths to easily get all mappings using any given path
-				for (list<mapping*>::iterator m_itr = se->mappings.begin(), m_end = se->mappings.end(); m_itr != m_end; ++m_itr) {
+				for (list<mapping*>::iterator m_itr = s->mappings.begin(), m_end = s->mappings.end(); m_itr != m_end; ++m_itr) {
 					mapping *m = *m_itr;
 					m->primary->primary_mappings.push_back(m);
 					if(m->backup != NULL) {
@@ -234,7 +234,7 @@ namespace pathgen {
 					}
 				}
 			}
-			cout << " - # of total availability feasible mappings: " << se->mappings.size() << "\n";
+			cout << " - # of total availability feasible mappings: " << s->mappings.size() << "\n";
 		}
 
 		data->n_mappings = mappingCount;
