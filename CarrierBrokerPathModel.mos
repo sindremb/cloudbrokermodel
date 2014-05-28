@@ -189,6 +189,7 @@ end-declarations
 forall (ss in Services, pp in Providers) do
 	create (x_Placement(ss,pp));
 	x_Placement(ss,pp) is_binary;
+	
 end-do
 
 ! - for all customers
@@ -247,6 +248,8 @@ declarations
 	PathComboRequirement:		dynamic array(Paths,Paths) 						of linctr;
 	PrimaryOverlap:				dynamic array(Nodes,Nodes,Services,Services)	of linctr;
 	BackupOverlap:				dynamic array(Nodes,Nodes,Services,Services)	of linctr;
+	SetVariableX:				dynamic array(Services, Providers)				of linctr;
+	SetVariableY:				dynamic array(Customers)						of linctr;
 end-declarations
 
 ! OBJECTIVE FUNCTION
@@ -440,6 +443,18 @@ forall(ss in Services, tt in Services | ss < tt) do
 			+ l_Overlap(ss, tt)
 			<= 2;
 	end-do
+end-do
+
+forall(ss in Services, pp in Providers) do
+	if((ss = 1 and pp = 3) or (ss = 4 and pp = 4) or (ss = 7 and pp = 3) or (ss = 8 and pp = 4)) then
+		SetVariableX(ss,pp) := x_Placement(ss,pp) >= 1;
+	end-if
+end-do
+
+forall(cc in Customers) do
+	if(cc = 1 or cc= 4 or cc =6) then
+		SetVariableY(cc):= y_Serve(cc) >=1;
+	end-if
 end-do
 
 writeln("\nModel building completed in ", timestamp - timetracker, " seconds");
