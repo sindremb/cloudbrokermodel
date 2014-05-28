@@ -33,8 +33,8 @@ if(TimeLimit>0.0) then
 end-if
 
 setparam("XPRS_verbose", true);	! Turn on message printing
-setparam("XPRS_MIPLOG", 2);		! 2: print information for each solution found (ALT: 0: no log, 1: summary in end, 3: log each node, -N: log every Nth node)
-
+setparam("XPRS_MIPLOG", 1);	! only output summary message in the end of MIP-process 
+							!(alternatively use -N for report every Nth node)
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! SETS
 !!!!!!!!!!!!!!!!!!!!!!!!
@@ -250,6 +250,7 @@ declarations
 	BackupOverlap:				dynamic array(Nodes,Nodes,Services,Services)	of linctr;
 	SetVariableX:				dynamic array(Services, Providers)				of linctr;
 	SetVariableY:				dynamic array(Customers)						of linctr;
+	SetPaths:					dynamic array(Paths)							of linctr;
 end-declarations
 
 ! OBJECTIVE FUNCTION
@@ -456,6 +457,16 @@ forall(cc in Customers) do
 		SetVariableY(cc):= y_Serve(cc) >=1;
 	end-if
 end-do
+
+forall(pp in Paths) do
+	if(pp =6 or pp = 67 or pp = 142 or pp =163) then
+		SetPaths(pp) := u_UsePrimaryPath(pp) >= 1;
+	end-if
+	if(pp = 5 or pp = 71 or pp = 168) then
+		SetPaths(pp) := v_UseBackupPath(pp) >= 1;
+	end-if
+end-do
+
 
 writeln("\nModel building completed in ", timestamp - timetracker, " seconds");
 
