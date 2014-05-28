@@ -2,7 +2,7 @@ div.toolbarContainer, div.selectedObjectsContainer{
 	
 }
 div.selectedObjectsContainer{
-	height: 606px;
+	height: 628px;
 	width: 370px;
 	overflow-y:scroll;
 	background-color:white;

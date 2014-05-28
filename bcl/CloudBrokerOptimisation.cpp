@@ -24,7 +24,7 @@ namespace cloudbrokeroptimisation {
 
 	void CloudBrokerOptimiser::Solve(bool enforce_integer, int time_limit, const char *lp_alg)
 	{
-		this->model.RunModel(enforce_integer, time_limit = 0, lp_alg);
+		this->model.RunModel(enforce_integer, time_limit, lp_alg);
 	}
 
 	void CloudBrokerOptimiser::OutputResultsToStream(std::ostream& stream) {

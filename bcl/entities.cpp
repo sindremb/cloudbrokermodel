@@ -479,38 +479,24 @@ namespace entities {
 		*file << "\n]";
 
 		*file << "\n\nM_PrimaryMappingsPerPath: [\n";
-		for (unsigned int i = 0; i < data->customers.size(); ++i) {
-			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (unsigned int k = 0; k < data->customers[i].services[j]->possible_placements.size(); ++k) {
-					placement * p = &data->customers[i].services[j]->possible_placements[k];
-					for (unsigned int l = 0; l < p->paths.size(); ++l) {
-						returnPath * path = p->paths[l];
-						*file << "(" << p->paths[l]->globalPathIndex+1 << ") [";
-						for (list<mapping*>::const_iterator m = path->primary_mappings.begin(), mend = path->primary_mappings.end(); m != mend; ++m) {
-							*file << (*m)->globalMappingIndex +1 << " ";
-						}
-						*file << "]\n";
-					}
-				}
+		for (unsigned int kk = 0; kk < data->paths.size(); ++kk) {
+			returnPath * k = p->paths[kk];
+			*file << "(" << k->globalPathIndex+1 << ") [";
+			for (list<mapping*>::const_iterator m = k->primary_mappings.begin(), m_end = k->primary_mappings.end(); m != m_end; ++m) {
+				*file << (*m)->globalMappingIndex +1 << " ";
 			}
+			*file << "]\n";
 		}
 		*file << "]";
 
 		*file << "\n\nM_BackupMappingsPerPath: [\n";
-		for (unsigned int i = 0; i < data->customers.size(); ++i) {
-			for (unsigned int j = 0; j < data->customers[i].services.size(); ++j) {
-				for (unsigned int k = 0; k < data->customers[i].services[j]->possible_placements.size(); ++k) {
-					placement * p = &data->customers[i].services[j]->possible_placements[k];
-					for (unsigned int l = 0; l < p->paths.size(); ++l) {
-						returnPath * path = p->paths[l];
-						*file << "(" << p->paths[l]->globalPathIndex+1 << ") [";
-						for (list<mapping*>::const_iterator m = path->backup_mappings.begin(), mend = path->backup_mappings.end(); m != mend; ++m) {
-							*file << (*m)->globalMappingIndex +1 << " ";
-						}
-						*file << "]\n";
-					}
-				}
+		for (unsigned int l = 0; l < data->paths.size(); ++l) {
+			returnPath * path = p->paths[l];
+			*file << "(" << p->paths[l]->globalPathIndex+1 << ") [";
+			for (list<mapping*>::const_iterator m = path->backup_mappings.begin(), mend = path->backup_mappings.end(); m != mend; ++m) {
+				*file << (*m)->globalMappingIndex +1 << " ";
 			}
+			*file << "]\n";
 		}
 		*file << "]";
 	}

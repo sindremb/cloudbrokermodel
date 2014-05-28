@@ -1,8 +1,0 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!! Known Bugs
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-- mosel data parser: not consistent 0-indexing or 1-indexing
- - a change in input data type from/to array to/from dynamic array may break code
-- Most viewmodels does not have proper getters and setters of observables to ensure types.
-- firefox does not include offsetX, offsetY for click events, nor properly handled by code yet.

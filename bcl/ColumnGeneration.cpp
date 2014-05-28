@@ -388,7 +388,7 @@ namespace cloudbrokeroptimisation {
 					m.backup = NULL;
 
 					// add new mapping to model and return
-					cout << "---> NEW MAPPING (HA): " << serve_customer_dual - primary_path_eval - p->price << "\n";
+					cout << "--> NEW MAPPING (HA): " << serve_customer_dual - primary_path_eval - p->price << "\n";
 					this->model->AddMappingToModel(&m, s);
 					return true;
 				} else {
@@ -440,7 +440,7 @@ namespace cloudbrokeroptimisation {
 								m.backup = &data->paths.back();
 
 								// add mapping to model and return
-								cout << "--> NEW MAPPING (HB): " << serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
+								cout << "--> NEW MAPPING (HA): " << serve_customer_dual - primary_path_eval - backup_path_eval - p->price << "\n";
 								this->model->AddMappingToModel(&m, s);
 								return true;
 							}

@@ -87,16 +87,16 @@
 Click location to add a new node.
 </script>
 <script id="view-mode-desc" type="text/html">
-Click elements to view and edit their contents.
+Click an element to view and edit its content
 </script>
 <script id="edit-mode-desc" type="text/html">
-Select elements to drag and drop or delete.
+Select multiple to view and edit their contents
 </script>
 <script id="addarc-mode-desc" type="text/html">
 Select two nodes to add an arc between.
 </script>
 <div>
-    <button data-bind="click: function() {generateRandomNetwork('dataOutputBox')}">Generate network</button><span id="showconfigbutton" data-bind="click: function(){$('#genConfigs, #showconfigbutton').toggle()}">v settings v</span>
+    <button id="showconfigbutton" data-bind="click: function(){$('#genConfigs').toggle()}">Show/Hide Settings</button>
 </div>
 <div id="genConfigs" style="display: none;">
 	# of node levels = <input type="text" data-bind="value: generationConfig().numNodeLevels" /><br />
@@ -107,25 +107,33 @@ Select two nodes to add an arc between.
     Proportion of eligible providers: <input type="text" data-bind="value: generationConfig().proportionEligibleProviders" /><br />
 	Avg arc latency: <input type="text" data-bind="value: generationConfig().avgArcLatency" /><br />
 	Avg. service latency requirement: <input type="text" data-bind="value: generationConfig().avgServiceLatencyReq" /><br />
-	<span data-bind="click: function(){$('#genConfigs, #showconfigbutton').toggle()}">^ hide ^</span>
 </div>
 
 <table class="editorTable">
 <tr>
 <td>
-<div class="toolbarContainer" data-bind="with: mode">
+<div class="toolbarContainer">
 	<h3>Network data visualisation: </h3>
-	<button data-bind="click: function() {$parent.setMode('view')}, style : {'border-style' : $data == 'view' ? 'inset' : ''}">View</button>
-	<button data-bind="click: function() {$parent.setMode('edit')}, style : {'border-style' : $data == 'edit' ? 'inset' : ''}">Edit</button>
-	<button data-bind="click: function() {$parent.setMode('addnode')}, style : {'border-style' : $data == 'addnode' ? 'inset' : ''}">Add Node</button>
-	<button data-bind="click: function() {$parent.setMode('addarc')}, style : {'border-style' : $data == 'addarc' ? 'inset' : ''}">Add Arc</button>
-	<button data-bind="click: function() {$parent.clearData()}">Clear Data</button>
-
-	<div height="20px" data-bind="template: {name: $data + '-mode-desc', data: $data}">
+	
+	<!-- function buttons -->
+	Action:
+	<button data-bind="click: function() {$data.generateRandomNetwork('dataOutputBox')}">Generate network</button>
+	<button data-bind="click: function() {$data.clearData()}">Delete All</button>
+	<button data-bind="click: function() {$data.deleteSelection()}">Delete Selection</button>
+	<br />
+	
+	<!-- mode buttions -->
+	Mode:
+	<button data-bind="click: function() {$data.setMode('view')}, style : {'border-style' : mode() == 'view' ? 'inset' : ''}">Single Select</button>
+	<button data-bind="click: function() {$data.setMode('edit')}, style : {'border-style' : mode() == 'edit' ? 'inset' : ''}">Multi Select</button>
+	<button data-bind="click: function() {$data.setMode('addnode')}, style : {'border-style' : mode() == 'addnode' ? 'inset' : ''}">Add Node</button>
+	<button data-bind="click: function() {$data.setMode('addarc')}, style : {'border-style' : mode() == 'addarc' ? 'inset' : ''}">Add Arc</button>
+	
+	<div height="20px" data-bind="template: {name: $data.mode() + '-mode-desc', data: $data.mode()}">
 	</div>
 </div>
-<div class="visualisationContainer">
-    <svg id="networksvg" height="500" width="800" data-bind="click : function(d, e) {$data.mapclick(e);}">
+<div class="visualisationContainer" data-bind="click : function(d, e) {$data.mapclick(e);}">
+    <svg id="networksvg" height="500" width="800">
 		<g data-bind="foreach: dataVM().network().arcs">
 			<line 
 				data-bind="
@@ -178,16 +186,13 @@ Select two nodes to add an arc between.
 </tr>
 </table>
 <div>
-    <button data-bind="click: function() {outputToMoselData('#dataOutputBox')}">Output data file</button>
-	<button data-bind="click: function() {parseMoselData($('#dataOutputBox').val())}">Load data file</button>
+    <button data-bind="click: function() {outputToMoselData('#dataOutputBox')}">Export mosel data</button>
+	<button data-bind="click: function() {parseMoselData($('#dataOutputBox').val())}">Import mosel data</button>
 	<button data-bind="click: function() {exportToJSON('#dataOutputBox')}">Export to JSON</button>
 	<button data-bind="click: function() {importJSON($('#dataOutputBox').val())}">Import JSON</button>
-<!--	<button data-bind="click: function() {
-		window.open('data:text/txt;charset=utf-8,' + escape($('#dataOutputBox').val()));
-	}">Download file</button>-->
 </div>
 <div>
-    <textarea id="dataOutputBox" rows="30" cols="150"></textarea>
+    <textarea id="dataOutputBox" rows="30" cols="145"></textarea>
 </div>
 </body>
 </html>

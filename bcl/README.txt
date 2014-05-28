@@ -23,9 +23,9 @@ program should do.
 
 	example: ./cloudbroker-bcl solve -i data.json -o results.txt
 
-	The first argument given is the kind of action to perform, and can be one of the following
+	The first argument given is the action to be performed, and can be one of the following
 
-		solve / s : solves the normal bcl model with all needed mappings and paths pregenerated
+		solve / s : solves the normal bcl model with needed mappings and paths pregenerated
 
 		cgsolve / c : solves the bcl model, using column generation to add mappings
 
