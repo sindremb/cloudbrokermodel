@@ -149,10 +149,10 @@ end-if
 forall(ii in Nodes, jj in Nodes | exists(F_BandwidthCap(ii,jj))) do
 	! for every service
 	forall( ss in Services, pp in Providers | exists(K_PathsServiceProvider(ss,pp))) do
-		! set BigMBackup(ii,jj,ss) to highest bandwidth usage of any k on LINK (sum of usage on both arcs) 
+		create(BigMBackup(ii,jj,ss));
+		BigMBackup(ii,jj,ss) := 0.0;
+		! set BigMBackup(ii,jj,ss) to highest bandwidth usage of any k
 		forall(kk in (K_PathsServiceProvider(ss,pp)*L_PathsUsingArc(ii,jj))) do
-			create(BigMBackup(ii,jj,ss));
-			BigMBackup(ii,jj,ss) := 0.0;
 			if(BigMBackup(ii,jj,ss) < U_PathBandwidthUsage(ii,jj,kk)) then
 				BigMBackup(ii,jj,ss):= U_PathBandwidthUsage(ii,jj,kk);
 			end-if

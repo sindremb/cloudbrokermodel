@@ -68,8 +68,8 @@ namespace cloudbrokeroptimisation {
 		this->model.SetColumnGenerationConfiguration(true);
 
 		int itercount = 0;
-		while((cg_maxiters < 0 || itercount < cg_maxiters) && 
-			  (cg_maxcount < 0 || data->n_mappings < cg_maxcount)) {
+		while((cg_maxiters <= 0 || itercount < cg_maxiters) && 
+			  (cg_maxcount <= 0 || data->n_mappings < cg_maxcount)) {
 
 			bool foundColumn = false;
 

@@ -149,10 +149,10 @@ end-if
 forall(ii in Nodes, jj in Nodes | exists(F_BandwidthCap(ii,jj))) do
 	! for every service
 	forall( ss in Services, pp in Providers | exists(K_PathsServiceProvider(ss,pp))) do
+		create(BigMBackup(ii,jj,ss));
+		BigMBackup(ii,jj,ss) := 0.0;
 		! set BigMBackup(ii,jj,ss) to highest bandwidth usage of any k on LINK (sum of usage on both arcs) 
 		forall(kk in (K_PathsServiceProvider(ss,pp)*L_PathsUsingArc(ii,jj))) do
-			create(BigMBackup(ii,jj,ss));
-			BigMBackup(ii,jj,ss) := 0.0;
 			if(BigMBackup(ii,jj,ss) < U_PathBandwidthUsage(ii,jj,kk)) then
 				BigMBackup(ii,jj,ss):= U_PathBandwidthUsage(ii,jj,kk);
 			end-if
@@ -252,6 +252,31 @@ declarations
 	SetVariableY:				dynamic array(Customers)						of linctr;
 	SetPaths:					dynamic array(Paths)							of linctr;
 end-declarations
+
+forall(ss in Services, pp in Providers) do
+	if((ss = 1 and pp = 3) or (ss = 4 and pp = 4) or (ss = 7 and pp = 3) or (ss = 8 and pp = 4)) then
+		SetVariableX(ss,pp) := x_Placement(ss,pp) >= 1;
+	end-if
+end-do
+
+forall(cc in Customers) do
+	if(cc = 1 or cc= 4 or cc =6) then
+		SetVariableY(cc):= y_Serve(cc) >=1;
+	!else
+	!	SetVariableY(cc):= y_Serve(cc) <=0;		
+	end-if
+end-do
+
+forall(pp in Paths) do
+	!if(pp =6 or pp = 67 or pp = 142 or pp =163) then
+	if(pp =6 or pp = 67 or pp = 142 or pp =163) then
+		SetPaths(pp) := u_UsePrimaryPath(pp) >= 1;
+	end-if
+	!if(pp = 5 or pp = 71 or pp = 168) then
+	if(pp = 5 or pp = 71 or pp = 168) then ! infeasible if 168 also fixed, 1543 (worse than m3 if 168 not fixed)
+		SetPaths(pp) := v_UseBackupPath(pp) >= 1;
+	end-if
+end-do
 
 ! OBJECTIVE FUNCTION
 ! - total profits from serving customers
@@ -444,27 +469,6 @@ forall(ss in Services, tt in Services | ss < tt) do
 			+ l_Overlap(ss, tt)
 			<= 2;
 	end-do
-end-do
-
-forall(ss in Services, pp in Providers) do
-	if((ss = 1 and pp = 3) or (ss = 4 and pp = 4) or (ss = 7 and pp = 3) or (ss = 8 and pp = 4)) then
-		SetVariableX(ss,pp) := x_Placement(ss,pp) >= 1;
-	end-if
-end-do
-
-forall(cc in Customers) do
-	if(cc = 1 or cc= 4 or cc =6) then
-		SetVariableY(cc):= y_Serve(cc) >=1;
-	end-if
-end-do
-
-forall(pp in Paths) do
-	if(pp =6 or pp = 67 or pp = 142 or pp =163) then
-		SetPaths(pp) := u_UsePrimaryPath(pp) >= 1;
-	end-if
-	if(pp = 5 or pp = 71 or pp = 168) then
-		SetPaths(pp) := v_UseBackupPath(pp) >= 1;
-	end-if
 end-do
 
 
