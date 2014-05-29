@@ -56,7 +56,16 @@ declarations
 	! - First we have the customer nodes, then the internal nodes, the the provider nodes.
 	Nodes:					set of integer;
 	Paths:					set of integer; 
+	
+! FIXED LISTS
+	FixedCustomers: set of integer;
+	FixedPrimary: set of integer;
+	FixedBackup: set of integer;
 end-declarations
+
+FixedCustomers:= {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+FixedPrimary:= {2, 7, 11, 17, 21, 27, 33, 37, 41, 47, 53, 61, 63, 67, 81}; 	!customer <= 11
+FixedBackup:= {5, 15, 24, 29, 32, 40, 56, 58, 66, 71};			!customer <= 11
 
 initializations from Data
 	n_Customers;
@@ -148,14 +157,19 @@ end-if
 ! for every arc in network
 forall(ii in Nodes, jj in Nodes | exists(F_BandwidthCap(ii,jj))) do
 	! for every service
-	forall( ss in Services, pp in Providers | exists(K_PathsServiceProvider(ss,pp))) do
+	forall(ss in Services) do
 		create(BigMBackup(ii,jj,ss));
 		BigMBackup(ii,jj,ss) := 0.0;
-		! set BigMBackup(ii,jj,ss) to highest bandwidth usage of any k on LINK (sum of usage on both arcs) 
-		forall(kk in (K_PathsServiceProvider(ss,pp)*L_PathsUsingArc(ii,jj))) do
-			if(BigMBackup(ii,jj,ss) < U_PathBandwidthUsage(ii,jj,kk)) then
-				BigMBackup(ii,jj,ss):= U_PathBandwidthUsage(ii,jj,kk);
-			end-if
+		forall(pp in Providers | exists(K_PathsServiceProvider(ss,pp))) do
+			! set BigMBackup(ii,jj,ss) to highest bandwidth usage of any k on LINK (sum of usage on both arcs) 
+			forall(kk in K_PathsServiceProvider(ss,pp)) do !kk in (K_PathsServiceProvider(ss,pp)*L_PathsUsingArc(ii,jj))
+				if(BigMBackup(ii,jj,ss) < U_PathBandwidthUsage(ii,jj,kk)) then
+					BigMBackup(ii,jj,ss):= U_PathBandwidthUsage(ii,jj,kk);
+				end-if
+			end-do
+			!if(ss = 5) then
+			!	writeln("BigM(",ii,",",jj,",",ss,") : ",BigMBackup(ii,jj,ss));
+			!end-if
 		end-do
 	end-do
 end-do
@@ -207,7 +221,7 @@ forall(pp in Paths) do
 end-do
 
 ! - for every possible combination of two paths as primary and backup
-forall (pp in Paths, bb in Paths | exists(D_CombinationAvailability(pp,bb))) do
+forall (pp in Paths, bb in Paths | exists(D_CombinationAvailability(pp,bb)) and pp <> bb) do
 	create(o_UseCombination(pp,bb));
 	o_UseCombination(pp,bb) is_binary;
 end-do
@@ -253,29 +267,33 @@ declarations
 	SetPaths:					dynamic array(Paths)							of linctr;
 end-declarations
 
-forall(ss in Services, pp in Providers) do
+(!forall(ss in Services, pp in Providers) do
 	if((ss = 1 and pp = 3) or (ss = 4 and pp = 4) or (ss = 7 and pp = 3) or (ss = 8 and pp = 4)) then
 		SetVariableX(ss,pp) := x_Placement(ss,pp) >= 1;
 	end-if
-end-do
+end-do!)
 
 forall(cc in Customers) do
-	if(cc = 1 or cc= 4 or cc =6) then
-		SetVariableY(cc):= y_Serve(cc) >=1;
-	!else
-	!	SetVariableY(cc):= y_Serve(cc) <=0;		
-	end-if
+	forall(ff in FixedCustomers) do
+		if(cc = ff) then
+			SetVariableY(cc):= y_Serve(cc) >=1;
+		end-if
+	end-do
 end-do
 
 forall(pp in Paths) do
 	!if(pp =6 or pp = 67 or pp = 142 or pp =163) then
-	if(pp =6 or pp = 67 or pp = 142 or pp =163) then
-		SetPaths(pp) := u_UsePrimaryPath(pp) >= 1;
-	end-if
+	forall(ff in FixedPrimary) do
+		if(pp = ff) then
+			SetPaths(pp) := u_UsePrimaryPath(pp) >= 1;
+		end-if
+	end-do
 	!if(pp = 5 or pp = 71 or pp = 168) then
-	if(pp = 5 or pp = 71 or pp = 168) then ! infeasible if 168 also fixed, 1543 (worse than m3 if 168 not fixed)
-		SetPaths(pp) := v_UseBackupPath(pp) >= 1;
-	end-if
+	forall(ff in FixedBackup) do
+		if(pp = ff) then ! infeasible if 168 also fixed, 1543 (worse than m3 if 168 not fixed)
+			SetPaths(pp) := v_UseBackupPath(pp) >= 1;
+		end-if
+	end-do
 end-do
 
 ! OBJECTIVE FUNCTION
@@ -517,12 +535,17 @@ forall(cc in Customers) do
 				);
 				forall(kk in K_PathsServiceProvider(ss,pp)) do
 					if (getsol(u_UsePrimaryPath(kk)) > 0.001) then
-						writeln("	  - Primary path: ", kk, " , cost: ",getsol(u_UsePrimaryPath(kk))*C_PathCost(kk), " (", getsol(u_UsePrimaryPath(kk))*100, " %)");
+						forall(bb in K_PathsServiceProvider(ss,pp)) do
+							if(getsol(o_UseCombination(kk,bb)) > 0.001) then
+								writeln("	  - Combo: ", kk, ",",bb," (o: ",getsol(o_UseCombination(kk,bb)), ", Ac: ", D_CombinationAvailability(kk,bb), ")");
+							end-if
+						end-do
+						writeln("	  - Primary path: ", kk, " , cost: ",getsol(u_UsePrimaryPath(kk))*C_PathCost(kk), " (u:", getsol(u_UsePrimaryPath(kk))*100, " %, A:",D_PathAvailability(kk),")");
 					end-if
 				end-do
 				forall(kk in K_PathsServiceProvider(ss,pp)) do
 					if (getsol(v_UseBackupPath(kk)) > 0.001) then
-						writeln("	  - Backup path: ", kk, " (", getsol(v_UseBackupPath(kk))*100, " %)");
+						writeln("	  - Backup path: ", kk, " (v:", getsol(v_UseBackupPath(kk))*100, " %, A:",D_PathAvailability(kk),")");
 					end-if
 				end-do
 			end-if
