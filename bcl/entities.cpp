@@ -479,10 +479,9 @@ namespace entities {
 		*file << "\n]";
 
 		*file << "\n\nM_PrimaryMappingsPerPath: [\n";
-		for (unsigned int kk = 0; kk < data->paths.size(); ++kk) {
-			returnPath * k = p->paths[kk];
-			*file << "(" << k->globalPathIndex+1 << ") [";
-			for (list<mapping*>::const_iterator m = k->primary_mappings.begin(), m_end = k->primary_mappings.end(); m != m_end; ++m) {
+		for (list<returnPath>::const_iterator k_itr = data->paths.begin(), k_end = data->paths.end(); k_itr != k_end; ++k_itr) {
+			*file << "(" << k_itr->globalPathIndex+1 << ") [";
+			for (list<mapping*>::const_iterator m = k_itr->primary_mappings.begin(), m_end = k_itr->primary_mappings.end(); m != m_end; ++m) {
 				*file << (*m)->globalMappingIndex +1 << " ";
 			}
 			*file << "]\n";
@@ -490,10 +489,9 @@ namespace entities {
 		*file << "]";
 
 		*file << "\n\nM_BackupMappingsPerPath: [\n";
-		for (unsigned int l = 0; l < data->paths.size(); ++l) {
-			returnPath * path = p->paths[l];
-			*file << "(" << p->paths[l]->globalPathIndex+1 << ") [";
-			for (list<mapping*>::const_iterator m = path->backup_mappings.begin(), mend = path->backup_mappings.end(); m != mend; ++m) {
+		for (list<returnPath>::const_iterator k_itr = data->paths.begin(), k_end = data->paths.end(); k_itr != k_end; ++k_itr) {
+			*file << "(" << k_itr->globalPathIndex+1 << ") [";
+			for (list<mapping*>::const_iterator m = k_itr->backup_mappings.begin(), mend = k_itr->backup_mappings.end(); m != mend; ++m) {
 				*file << (*m)->globalMappingIndex +1 << " ";
 			}
 			*file << "]\n";
