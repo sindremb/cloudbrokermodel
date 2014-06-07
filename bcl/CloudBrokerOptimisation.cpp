@@ -70,7 +70,8 @@ namespace cloudbrokeroptimisation {
 		int itercount = 0;
 		while((cg_maxiters <= 0 || itercount < cg_maxiters) && 
 			  (cg_maxcount <= 0 || data->n_mappings < cg_maxcount)) {
-
+			  
+			++itercount;
 			bool foundColumn = false;
 
 			// solve LP-relaxation
@@ -104,9 +105,6 @@ namespace cloudbrokeroptimisation {
 				cout << "\n==> No more column found, column generation stopped\n";
 				break; /* no new column was found -> end column generation */
 			}
-
-			this->model.LoadSavedBasis();
-			++itercount;
 			
 			if(time_restricted) {
 				double current_total_time = run_cg_total_start.elapsed();
@@ -115,6 +113,8 @@ namespace cloudbrokeroptimisation {
 					break;
 				}
 			}
+
+			this->model.LoadSavedBasis();
 		}
 
 		this->model.SetColumnGenerationConfiguration(false);

@@ -1,6 +1,17 @@
-model CarrierBrokerPathModel
-uses "mmxprs"; !gain access to the Xpress-Optimizer solver
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!
+!! Carrier Broker Optimisation: Path Flow Model
+!!
+!!- The following script implements the PFM defined in Section 6.2
+!!	of Mari Holmen's and Sindre Møgster Braaten's masters thesis
+!!
+!!- Authors: Mari Holmen and Sindre Møgster Braaten
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+model CarrierBrokerPFM
+	
+uses "mmxprs"; !gain access to the Xpress-Optimizer solver
 options explterm
 options noimplicit
 
@@ -33,7 +44,8 @@ if(TimeLimit>0.0) then
 end-if
 
 setparam("XPRS_verbose", true);	! Turn on message printing
-setparam("XPRS_MIPLOG", 2);		! 2: print information for each solution found (ALT: 0: no log, 1: summary in end, 3: log each node, -N: log every Nth node)
+setparam("XPRS_MIPLOG", 2);	! 2: print information for each solution found
+							!(ALT: 0: no log, 1: summary in end, 3: log each node, -N: log every Nth node)
 
 !!!!!!!!!!!!!!!!!!!!!!!!
 ! SETS
@@ -275,20 +287,33 @@ Total_Profits := sum (cc in Customers) (
 ! Customers can only be served if all services for customer is provided
 forall(cc in Customers) do
 	forall(ss in S_ServicesForCustomer(cc)) do
-		ServeCustomer(ss) := sum (pp in Providers | exists(K_PathsServiceProvider(ss,pp))) x_Placement(ss,pp) = y_Serve(cc);
+		ServeCustomer(ss) := 
+			sum (pp in Providers | exists(K_PathsServiceProvider(ss,pp))) (
+				x_Placement(ss,pp)
+			) = y_Serve(cc);
 	end-do
 end-do
 
 ! for every service-provider pair
 forall(ss in Services, pp in Providers | exists(K_PathsServiceProvider(ss,pp))) do
 	! ALLOCATE PRIMARY PATH CONSTRAINT
-	! If a service is placed at a provider, a primary path connecting to that provider location must be chosen
-	AllocatePrimaryPath(ss,pp) := sum(kk in K_PathsServiceProvider(ss,pp)) u_UsePrimaryPath(kk) = x_Placement(ss,pp);
+	! If a service is placed at a provider, a primary path connecting to that provider location
+	! must be chosen
+	AllocatePrimaryPath(ss,pp) := 
+		sum(kk in K_PathsServiceProvider(ss,pp)) (
+			u_UsePrimaryPath(kk)
+		) = x_Placement(ss,pp);
 	
 	! ALLOCATE BACKUP PATH CONSTRAINT
 	! can only select a backup path to a provider if also selected primary path to the same provider
-	AllocateBackupPath(ss,pp) := sum(kk in K_PathsServiceProvider(ss,pp)) v_UseBackupPath(kk) <= sum(kk in K_PathsServiceProvider(ss,pp)) u_UsePrimaryPath(kk);
-
+	AllocateBackupPath(ss,pp) := 
+		sum(kk in K_PathsServiceProvider(ss,pp)) (
+			v_UseBackupPath(kk)
+		) 
+		<=
+		sum(kk in K_PathsServiceProvider(ss,pp)) (
+			u_UsePrimaryPath(kk)
+		);
 end-do
 
 ! ARC CAPACITY CONSTRAINT
@@ -400,7 +425,8 @@ end-do
 forall(cc in Customers) do
 	forall(ss in S_ServicesForCustomer(cc), pp in Providers| exists(K_PathsServiceProvider(ss,pp))) do
 		forall(kk in K_PathsServiceProvider(ss,pp), bb in K_PathsServiceProvider(ss,pp)) do
-			PathComboRequirement(kk,bb) := u_UsePrimaryPath(kk) + v_UseBackupPath(bb) - o_UseCombination(kk,bb) <= 1;
+			PathComboRequirement(kk,bb) := 
+				u_UsePrimaryPath(kk) + v_UseBackupPath(bb) - o_UseCombination(kk,bb) <= 1;
 		end-do
 	end-do
 end-do
@@ -418,7 +444,7 @@ forall(ss in Services, tt in Services | ss < tt) do
 			! Two services have overlapping primary paths if for any LINK both paths are represented
 			PrimaryOverlap(ii, jj, ss, tt):= 
 				sum(pp in Providers | exists(K_PathsServiceProvider(ss,pp)))(
-					! L_PathsUsingArc(ii,jj) = L_PathsUsingArc(jj,ii) -> only need one for all paths using LINK ii,jj
+					! L_PathsUsingArc(ii,jj)=L_PathsUsingArc(jj,ii) -> need only paths using LINK ii,jj
 					sum(kk in (K_PathsServiceProvider(ss,pp)*L_PathsUsingArc(ii,jj))) (
 						u_UsePrimaryPath(kk)
 					)
@@ -458,21 +484,27 @@ end-if
 
 writeln("\nTotal Profits: ", getobjval);
 
-writeln("\nTotal Backup Costs: ", sum(ii in Nodes)(sum(jj in Nodes)(C_BackupCost(ii, jj)*getsol(l_Lambda(ii, jj)))));
+writeln(
+	"\nTotal Backup Costs: ",
+	sum(ii in Nodes)(sum(jj in Nodes)(C_BackupCost(ii, jj)*getsol(l_Lambda(ii, jj))))
+);
 
-! for all customers
-forall(cc in Customers) do
-	! Check if customer is served
-	if (getsol(y_Serve(cc)) > 0.001) then
-		! output served customer and generated profits for customer
-		writeln("\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
-			R_Revenue(cc)*getsol(y_Serve(cc)));
-		forall(ss in S_ServicesForCustomer(cc), pp in Providers | exists(K_PathsServiceProvider(ss,pp))) do
-			if(getsol(x_Placement(ss,pp)) > 0.001) then
-				writeln("  - Service ",ss," is placed at provider ",pp);
-				writeln("     - Availability req.: ", Y_AvailabilityReq(ss));
-				writeln(
-					"     - Exp. availability: ",
+! for all served customers
+forall(cc in Customers | getsol(y_Serve(cc)) > 0.001) do
+	! output served customer and generated profits for customer
+	writeln(
+		"\nCustomer ", cc, " (node ",cc,") is being served\n - R_Revenue: ",
+		R_Revenue(cc)*getsol(y_Serve(cc))
+	);
+	! for all services of customer
+	forall(ss in S_ServicesForCustomer(cc)) do
+		! for the provider placement selected for service
+		forall(pp in Providers | getsol(x_Placement(ss,pp)) > 0.001) do
+			writeln(
+				"  - Service ",ss," is placed at provider ",pp,
+				"     - Availability req.: ", Y_AvailabilityReq(ss),
+				"     - Exp. availability: ",
+				(	! calculate expected availability for mapping
 					sum(kk in K_PathsServiceProvider(ss,pp)) (
 						D_PathAvailability(kk) 
 						*
@@ -486,20 +518,27 @@ forall(cc in Customers) do
 					! subtract P(A)P(B|A) if backup path is chosen
 					sum(kk in K_PathsServiceProvider(ss,pp), bb in K_PathsServiceProvider(ss,pp)) 
 						D_CombinationAvailability(kk,bb)*getsol(o_UseCombination(kk,bb))
-				);
-				forall(kk in K_PathsServiceProvider(ss,pp)) do
-					if (getsol(u_UsePrimaryPath(kk)) > 0.001) then
-						writeln("	  - Primary path: ", kk, " , cost: ",getsol(u_UsePrimaryPath(kk))*C_PathCost(kk), " (", getsol(u_UsePrimaryPath(kk))*100, " %)");
-					end-if
-				end-do
-				forall(kk in K_PathsServiceProvider(ss,pp)) do
-					if (getsol(v_UseBackupPath(kk)) > 0.001) then
-						writeln("	  - Backup path: ", kk, " (", getsol(v_UseBackupPath(kk))*100, " %)");
-					end-if
-				end-do
-			end-if
+				)
+			);
+			forall(kk in K_PathsServiceProvider(ss,pp)) do
+				if (getsol(u_UsePrimaryPath(kk)) > 0.001) then
+					writeln(
+						"	  - Primary path: ", kk, " , cost: ",
+						getsol(u_UsePrimaryPath(kk))*C_PathCost(kk),
+						" (", getsol(u_UsePrimaryPath(kk))*100, " %)"
+					);
+				end-if
+			end-do
+			forall(kk in K_PathsServiceProvider(ss,pp)) do
+				if (getsol(v_UseBackupPath(kk)) > 0.001) then
+					writeln(
+						"	  - Backup path: ", kk, " (",
+						getsol(v_UseBackupPath(kk))*100, " %)"
+					);
+				end-if
+			end-do
 		end-do
-	end-if
+	end-do
 end-do
 
 writeln("\nTotal backup usage");

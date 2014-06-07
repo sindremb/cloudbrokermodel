@@ -380,10 +380,10 @@ Datagen.utils.networkFromDataObject = function(dataObj, main) {
 } 
 
 Datagen.utils.toMoselData = function (dataVM) {
-    data = '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n' +
-            '! Data set: #' + Math.floor((Math.random() * 100)) + '\n' +
-            '! - Auto generated dataset by Cloud Broker Datagen v0.1 \n' +
-            '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n';
+    data =  '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' +
+            '! Cloud Broker Optimisation Problem Data\n' +
+            '! - Created with Cloud Broker Problem Data Editor v1.0 \n' +
+            '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n';
     data = data + '\nn_Customers: ' + dataVM.numCustomers() + ' ! number of customers\n';
     data = data + 'n_Services: ' + dataVM.numServices() + ' ! number of services in total\n';
     data = data + 'n_Providers: ' + dataVM.numProviders() + ' ! number of providers\n';

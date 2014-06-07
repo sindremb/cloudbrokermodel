@@ -1,0 +1,599 @@
+<html>
+<head>
+<title>Xpress-Mosel model</title>
+</head>
+<body>
+<STYLE TYPE="text/css" MEDIA=screen>
+<!--
+ .FontMosel { white-space: pre; font-family: monospace; font-size: 12px; line-height: 1; font-weight: 400; text-decoration: none; }
+-->
+</STYLE>
+<body>
+
+<font class='FontMosel'><pre>
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!</font>
+<font color="#22a000">!!</font>
+<font color="#22a000">!! Carrier Broker Optimisation: Path Flow Model</font>
+<font color="#22a000">!!</font>
+<font color="#22a000">!!- The following script implements the PFM defined in Section 6.2</font>
+<font color="#22a000">!!  of Mari Holmen's and Sindre Møgster Braaten's masters thesis</font>
+<font color="#22a000">!!</font>
+<font color="#22a000">!!- Authors: Mari Holmen and Sindre Møgster Braaten</font>
+<font color="#22a000">!!</font>
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!</font>
+
+<font color="#4444ff">model</font><font color="#000000"> CarrierBrokerPFM</font>
+<font color="#000000">    </font>
+<font color="#4444ff">uses</font><font color="#000000"> </font><font color="#800080">"mmxprs"</font><font color="#000000">; </font><font color="#22a000">!gain access to the Xpress-Optimizer solver</font>
+<font color="#4444ff">options</font><font color="#000000"> explterm</font>
+<font color="#4444ff">options</font><font color="#000000"> noimplicit</font>
+
+<font color="#4444ff">uses</font><font color="#000000"> </font><font color="#800080">"mmxprs"</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#800080">"mmsystem"</font><font color="#000000">;</font>
+
+<font color="#4444ff">parameters</font>
+<font color="#000000">    </font><font color="#22a000">! Data file to read from</font>
+<font color="#000000">    Data </font><font color="#ff0000">=</font><font color="#000000"> </font><font color="#800080">'data/ml_multi.txt'</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! Minimum proportion of total backup requirement reserved on an arc</font>
+<font color="#000000">    MinBackupProportion </font><font color="#ff0000">=</font><font color="#000000"> </font><font color="#ff0000">0.25</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! Time limit for runtime,  maximum number of seconds for optimisation</font>
+<font color="#000000">    TimeLimit </font><font color="#ff0000">=</font><font color="#000000"> </font><font color="#ff0000">-</font><font color="#ff0000">1</font><font color="#000000">; </font>
+<font color="#4444ff">end-parameters</font>
+
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"Model Parameters:"</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"Data:"</font><font color="#ff0000">,</font><font color="#000000"> Data</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"MinBackupProportion(beta):"</font><font color="#ff0000">,</font><font color="#000000"> MinBackupProportion</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"TimeLimit:"</font><font color="#ff0000">,</font><font color="#000000"> TimeLimit</font><font color="#4444ff">)</font><font color="#000000">;</font>
+
+<font color="#4444ff">declarations</font>
+<font color="#000000">    timetracker:    </font><font color="#4444ff">real</font><font color="#000000">; </font><font color="#22a000">! used to log timestamps for time consumption output</font>
+<font color="#4444ff">end-declarations</font>
+
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"Building model..."</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">timetracker </font><font color="#ff0000">:=</font><font color="#000000"> timestamp; </font><font color="#22a000">! assigns current "timestamp" to timetracker</font>
+
+<font color="#22a000">!setparam("XPRS_presolve", 0);  ! uncomment to turn of presolve</font>
+<font color="#4444ff">if</font><font color="#4444ff">(</font><font color="#000000">TimeLimit</font><font color="#ff0000">></font><font color="#ff0000">0.0</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">    </font><font color="#4444ff">setparam</font><font color="#4444ff">(</font><font color="#800080">"XPRS_maxtime"</font><font color="#ff0000">,</font><font color="#000000"> TimeLimit</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">end-if</font>
+
+<font color="#4444ff">setparam</font><font color="#4444ff">(</font><font color="#800080">"XPRS_verbose"</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#4444ff">true</font><font color="#4444ff">)</font><font color="#000000">; </font><font color="#22a000">! Turn on message printing</font>
+<font color="#4444ff">setparam</font><font color="#4444ff">(</font><font color="#800080">"XPRS_MIPLOG"</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#ff0000">2</font><font color="#4444ff">)</font><font color="#000000">; </font><font color="#22a000">! 2: print information for each solution found</font>
+<font color="#000000">                            </font><font color="#22a000">!(ALT: 0: no log, 1: summary in end, 3: log each node, -N: log every Nth node)</font>
+
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!!</font>
+<font color="#22a000">! SETS</font>
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!!</font>
+
+<font color="#4444ff">declarations</font>
+<font color="#22a000">! Set sizes</font>
+<font color="#000000">    n_Customers:            </font><font color="#4444ff">integer</font><font color="#000000">; </font><font color="#22a000">! number of customers</font>
+<font color="#000000">    n_Services:             </font><font color="#4444ff">integer</font><font color="#000000">; </font><font color="#22a000">! number of services</font>
+<font color="#000000">    n_Providers:            </font><font color="#4444ff">integer</font><font color="#000000">; </font><font color="#22a000">! number of providers</font>
+<font color="#000000">    n_Nodes:                </font><font color="#4444ff">integer</font><font color="#000000">; </font><font color="#22a000">! number of nodes in total</font>
+<font color="#000000">    n_Paths:                </font><font color="#4444ff">integer</font><font color="#000000">; </font><font color="#22a000">! number of paths</font>
+<font color="#000000">    </font>
+<font color="#22a000">! Sets  </font>
+<font color="#000000">    Customers:              </font><font color="#4444ff">set</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">integer</font><font color="#000000">;</font>
+<font color="#000000">    Providers:              </font><font color="#4444ff">set</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">integer</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! Used for shorthand for 'cc in Customers, ss in S_ServiceForCustomer(cc)' when cc is not needed </font>
+<font color="#000000">    Services:               </font><font color="#4444ff">set</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">integer</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! Set of nodes in the network. </font>
+<font color="#000000">    </font><font color="#22a000">! - First we have the customer nodes, then the internal nodes, the the provider nodes.</font>
+<font color="#000000">    Nodes:                  </font><font color="#4444ff">set</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">integer</font><font color="#000000">;</font>
+<font color="#000000">    Paths:                  </font><font color="#4444ff">set</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">integer</font><font color="#000000">; </font>
+<font color="#4444ff">end-declarations</font>
+
+<font color="#4444ff">initializations from</font><font color="#000000"> Data</font>
+<font color="#000000">    n_Customers;</font>
+<font color="#000000">    n_Services;</font>
+<font color="#000000">    n_Providers;</font>
+<font color="#000000">    n_Nodes;</font>
+<font color="#000000">    n_Paths;</font>
+<font color="#000000">    </font>
+<font color="#4444ff">end-initializations</font>
+<font color="#000000">    </font>
+<font color="#000000">Customers</font><font color="#ff0000">:=</font><font color="#000000"> </font><font color="#ff0000">1.</font><font color="#ff0000">.</font><font color="#000000">n_Customers;</font>
+<font color="#000000">Services</font><font color="#ff0000">:=</font><font color="#000000"> </font><font color="#ff0000">1.</font><font color="#ff0000">.</font><font color="#000000">n_Services;  </font>
+<font color="#000000">Providers</font><font color="#ff0000">:=</font><font color="#000000"> </font><font color="#ff0000">1.</font><font color="#ff0000">.</font><font color="#000000">n_Providers;</font>
+<font color="#000000">Nodes</font><font color="#ff0000">:=</font><font color="#000000"> </font><font color="#ff0000">1.</font><font color="#ff0000">.</font><font color="#000000">n_Nodes;</font>
+<font color="#000000">Paths </font><font color="#ff0000">:=</font><font color="#000000"> </font><font color="#ff0000">1.</font><font color="#ff0000">.</font><font color="#000000">n_Paths;</font>
+
+<font color="#4444ff">finalize</font><font color="#4444ff">(</font><font color="#000000">Customers</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">finalize</font><font color="#4444ff">(</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">finalize</font><font color="#4444ff">(</font><font color="#000000">Providers</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">finalize</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">finalize</font><font color="#4444ff">(</font><font color="#000000">Paths</font><font color="#4444ff">)</font><font color="#000000">;</font>
+
+<font color="#22a000">! INDEXED SETS</font>
+
+<font color="#4444ff">declarations</font>
+<font color="#000000">    </font><font color="#22a000">! set of services of for each customer</font>
+<font color="#000000">    S_ServicesForCustomer:      </font><font color="#4444ff">set</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">set</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">integer</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! paths for each pair of service and provider</font>
+<font color="#000000">    K_PathsServiceProvider:     </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Services</font><font color="#ff0000">,</font><font color="#000000">Providers</font><font color="#4444ff">)</font><font color="#000000">   </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">set</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">integer</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! set of paths using each link</font>
+<font color="#000000">    L_PathsUsingArc:            </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#4444ff">)</font><font color="#000000">          </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">set</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">integer</font><font color="#000000">;</font>
+<font color="#4444ff">end-declarations</font>
+
+<font color="#4444ff">initialisations from</font><font color="#000000"> Data</font>
+<font color="#000000">    S_ServicesForCustomer;</font>
+<font color="#000000">    K_PathsServiceProvider;</font>
+<font color="#000000">    L_PathsUsingArc;</font>
+<font color="#4444ff">end-initialisations</font>
+
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!</font>
+<font color="#22a000">! PARAMETERS</font>
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!</font>
+
+<font color="#4444ff">declarations</font>
+<font color="#000000">    </font><font color="#22a000">! R_Revenue from serving each customer cc</font>
+<font color="#000000">    R_Revenue:                  </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Customers</font><font color="#4444ff">)</font><font color="#000000">            </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">real</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! Bandwidth capacity between each pair of nodes ii,jj</font>
+<font color="#000000">    F_BandwidthCap:             </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#4444ff">)</font><font color="#000000">          </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">real</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! bandwidth usage on arc ii,jj for path kk</font>
+<font color="#000000">    U_PathBandwidthUsage:       </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Paths</font><font color="#4444ff">)</font><font color="#000000">    </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">real</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! cost of using path kk</font>
+<font color="#000000">    C_PathCost:                 </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Paths</font><font color="#4444ff">)</font><font color="#000000">                </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">real</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! cost per bandwidth used for backup paths on arc ii,jj</font>
+<font color="#000000">    C_BackupCost:               </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#4444ff">)</font><font color="#000000">          </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">real</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! availability of path kk alone</font>
+<font color="#000000">    D_PathAvailability:         </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Paths</font><font color="#4444ff">)</font><font color="#000000">                </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">real</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! 2d array of availability for paths kk and bb ( P(A)P(B|A) )</font>
+<font color="#000000">    D_CombinationAvailability:  </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Paths</font><font color="#ff0000">,</font><font color="#000000">Paths</font><font color="#4444ff">)</font><font color="#000000">          </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">real</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! array of availability req for services</font>
+<font color="#000000">    Y_AvailabilityReq:          </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">             </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">real</font><font color="#000000">;</font>
+<font color="#000000">    </font>
+<font color="#000000">    BigMBackup:                 </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">real</font><font color="#000000">;</font>
+
+<font color="#000000">    Symmetric:                                                      </font><font color="#4444ff">boolean</font><font color="#000000">;</font>
+<font color="#4444ff">end-declarations</font>
+
+
+<font color="#4444ff">initialisations from</font><font color="#000000"> Data   </font>
+<font color="#000000">    R_Revenue;</font>
+<font color="#000000">    F_BandwidthCap; </font>
+<font color="#000000">    U_PathBandwidthUsage;</font>
+<font color="#000000">    C_PathCost;</font>
+<font color="#000000">    C_BackupCost;</font>
+<font color="#000000">    D_PathAvailability;</font>
+<font color="#000000">    D_CombinationAvailability;</font>
+<font color="#000000">    Y_AvailabilityReq;</font>
+<font color="#000000">    Symmetric;</font>
+<font color="#4444ff">end-initialisations</font>
+
+<font color="#4444ff">if</font><font color="#4444ff">(</font><font color="#000000">Symmetric</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">    </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">        </font><font color="#4444ff">if</font><font color="#4444ff">(</font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#1d8f96">and</font><font color="#000000"> </font><font color="#1d8f96">not</font><font color="#000000"> </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ii</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">            </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ii</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">            F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ii</font><font color="#4444ff">)</font><font color="#ff0000">:=</font><font color="#000000">F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">        </font><font color="#4444ff">end-if</font>
+<font color="#000000">    </font><font color="#4444ff">end-do</font>
+<font color="#4444ff">end-if</font>
+
+<font color="#22a000">! for every arc in network</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#22a000">! for every service</font>
+<font color="#000000">    </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> Services</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">        </font><font color="#22a000">! set BigMBackup(ii,jj,ss) to highest bandwidth usage of any k for s in i,j</font>
+<font color="#000000">        </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">BigMBackup</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">        BigMBackup</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font><font color="#000000"> </font><font color="#ff0000">0.0</font><font color="#000000">;</font>
+<font color="#000000">        </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Providers | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">            </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">                </font><font color="#4444ff">if</font><font color="#4444ff">(</font><font color="#000000">BigMBackup</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000"><</font><font color="#000000"> U_PathBandwidthUsage</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">                    BigMBackup</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#ff0000">:=</font><font color="#000000"> U_PathBandwidthUsage</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">                </font><font color="#4444ff">end-if</font>
+<font color="#000000">            </font><font color="#4444ff">end-do</font>
+<font color="#000000">        </font><font color="#4444ff">end-do</font>
+<font color="#000000">    </font><font color="#4444ff">end-do</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!!!!!!</font>
+<font color="#22a000">! VARIABLES</font>
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!!!!!!</font>
+
+<font color="#4444ff">declarations</font>
+<font color="#000000">    </font><font color="#22a000">! - x: binary, placement of service at provider</font>
+<font color="#000000">    x_Placement:        </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Services</font><font color="#ff0000">,</font><font color="#000000"> Providers</font><font color="#4444ff">)</font><font color="#000000">      </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">mpvar</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! - y: binary, serving of a customer</font>
+<font color="#000000">    y_Serve:            </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Customers</font><font color="#4444ff">)</font><font color="#000000">                </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">mpvar</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! - u: binary, indicates which paths are used</font>
+<font color="#000000">    u_UsePrimaryPath:   </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Paths</font><font color="#4444ff">)</font><font color="#000000">                    </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">mpvar</font><font color="#000000">; </font>
+<font color="#000000">    </font><font color="#22a000">! - v: binary, indicates which backup paths are used</font>
+<font color="#000000">    v_UseBackupPath:    </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Paths</font><font color="#4444ff">)</font><font color="#000000">                    </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">mpvar</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! - o: binary, indicates if a combination of main and backup path is chosen</font>
+<font color="#000000">    o_UseCombination:   </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Paths</font><font color="#ff0000">,</font><font color="#000000">Paths</font><font color="#4444ff">)</font><font color="#000000">              </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">mpvar</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! - lambda: continous, amount of capacity reserved on a link for backup</font>
+<font color="#000000">    l_Lambda:           </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#4444ff">)</font><font color="#000000">              </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">mpvar</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! f: binary, indicates if a service has a need to reserve backup capacity on a arc</font>
+<font color="#000000">    f_needsBackupOnArc: </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">     </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">mpvar</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! - q: continous, amount of backup capacity needed on an arc for a service</font>
+<font color="#000000">    q_backupPerService: </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> Services</font><font color="#4444ff">)</font><font color="#000000">   </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">mpvar</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! - l: binary, indicates if two services have overlapping primary paths</font>
+<font color="#000000">    l_Overlap:          </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Services</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">        </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">mpvar</font><font color="#000000">;</font>
+<font color="#4444ff">end-declarations</font>
+
+<font color="#22a000">! - for all combinations of service and provider</font>
+<font color="#4444ff">forall</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> Services</font><font color="#ff0000">,</font><font color="#000000"> pp </font><font color="#ff0000">in</font><font color="#000000"> Providers</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">create</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">x_Placement</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    x_Placement</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">is_binary</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! - for all customers</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">cc </font><font color="#ff0000">in</font><font color="#000000"> Customers</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">y_Serve</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    y_Serve</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">is_binary</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! - for all paths</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Paths</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">is_binary</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">is_binary</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! - for every possible combination of two paths as primary and backup</font>
+<font color="#4444ff">forall</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Paths</font><font color="#ff0000">,</font><font color="#000000"> bb </font><font color="#ff0000">in</font><font color="#000000"> Paths | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">D_CombinationAvailability</font><font color="#4444ff">(</font><font color="#000000">pp</font><font color="#ff0000">,</font><font color="#000000">bb</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">o_UseCombination</font><font color="#4444ff">(</font><font color="#000000">pp</font><font color="#ff0000">,</font><font color="#000000">bb</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    o_UseCombination</font><font color="#4444ff">(</font><font color="#000000">pp</font><font color="#ff0000">,</font><font color="#000000">bb</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">is_binary</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! - for every arc</font>
+<font color="#4444ff">forall</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> ss </font><font color="#ff0000">in</font><font color="#000000"> Services | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">l_Lambda</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">q_backupPerService</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">f_needsBackupOnArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    f_needsBackupOnArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">is_binary</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! - for every distinct pair of two services</font>
+<font color="#4444ff">forall</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> Services</font><font color="#ff0000">,</font><font color="#000000"> tt </font><font color="#ff0000">in</font><font color="#000000"> Services | ss </font><font color="#ff0000"><</font><font color="#000000"> tt</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">create</font><font color="#4444ff">(</font><font color="#000000">l_Overlap</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">tt</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    l_Overlap</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">tt</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">is_binary</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!</font>
+<font color="#22a000">! CONSTRAINTS</font>
+<font color="#22a000">!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!</font>
+
+<font color="#4444ff">declarations</font>
+<font color="#22a000">! Objective function</font>
+<font color="#000000">    Total_Profits:                                                              </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+
+<font color="#22a000">! Constraints</font>
+<font color="#000000">    ServeCustomer:              </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">                         </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    AllocatePrimaryPath:        </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Services</font><font color="#ff0000">,</font><font color="#000000">Providers</font><font color="#4444ff">)</font><font color="#000000">               </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    AllocateBackupPath:         </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Services</font><font color="#ff0000">,</font><font color="#000000">Providers</font><font color="#4444ff">)</font><font color="#000000">               </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    ArcCapacity:                </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#4444ff">)</font><font color="#000000">                      </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    AvailabilityRequirement:    </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">                         </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    SumBackupLimit:             </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#4444ff">)</font><font color="#000000">                      </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    SingleBackupLimit:          </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">             </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    NeedsBackupCapacity:        </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">             </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    NeededBackupCapacity:       </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">             </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    PathComboRequirement:       </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Paths</font><font color="#ff0000">,</font><font color="#000000">Paths</font><font color="#4444ff">)</font><font color="#000000">                      </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    PrimaryOverlap:             </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">    </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#000000">    BackupOverlap:              </font><font color="#4444ff">dynamic</font><font color="#000000"> </font><font color="#4444ff">array</font><font color="#4444ff">(</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Nodes</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#ff0000">,</font><font color="#000000">Services</font><font color="#4444ff">)</font><font color="#000000">    </font><font color="#4444ff">of</font><font color="#000000"> </font><font color="#4444ff">linctr</font><font color="#000000">;</font>
+<font color="#4444ff">end-declarations</font>
+
+<font color="#22a000">! OBJECTIVE FUNCTION</font>
+<font color="#22a000">! - total profits from serving customers</font>
+<font color="#000000">Total_Profits </font><font color="#ff0000">:=</font><font color="#000000"> </font><font color="#4444ff">sum</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">cc </font><font color="#ff0000">in</font><font color="#000000"> Customers</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">            </font><font color="#22a000">! R_Revenue from serving customer (if served)</font>
+<font color="#000000">            R_Revenue</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">y_Serve</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#ff0000">-</font><font color="#000000"> </font>
+<font color="#000000">        </font><font color="#22a000">! for all paths</font>
+<font color="#000000">        </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> Paths</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">            </font><font color="#22a000">! add path cost if used as primary</font>
+<font color="#000000">            C_PathCost</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#ff0000">-</font>
+<font color="#000000">        </font><font color="#22a000">! for eac arc</font>
+<font color="#000000">        </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">(</font>
+<font color="#000000">            </font><font color="#22a000">! add cost of bandwidth reserved for backup paths</font>
+<font color="#000000">            C_BackupCost</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000"> jj</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">l_Lambda</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000"> jj</font><font color="#4444ff">)</font>
+<font color="#000000">    </font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">                    </font>
+<font color="#000000">                    </font>
+<font color="#22a000">! SERVE CUSTOMER CONSTRAINT</font>
+<font color="#22a000">! Customers can only be served if all services for customer is provided</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">cc </font><font color="#ff0000">in</font><font color="#000000"> Customers</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> S_ServicesForCustomer</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">        ServeCustomer</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">            </font><font color="#4444ff">sum</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Providers | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">                x_Placement</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">=</font><font color="#000000"> y_Serve</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#4444ff">end-do</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! for every service-provider pair</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> Services</font><font color="#ff0000">,</font><font color="#000000"> pp </font><font color="#ff0000">in</font><font color="#000000"> Providers | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#22a000">! ALLOCATE PRIMARY PATH CONSTRAINT</font>
+<font color="#000000">    </font><font color="#22a000">! If a service is placed at a provider, a primary path connecting to that provider location</font>
+<font color="#000000">    </font><font color="#22a000">! must be chosen</font>
+<font color="#000000">    AllocatePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">        </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">            u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">=</font><font color="#000000"> x_Placement</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    </font>
+<font color="#000000">    </font><font color="#22a000">! ALLOCATE BACKUP PATH CONSTRAINT</font>
+<font color="#000000">    </font><font color="#22a000">! can only select a backup path to a provider if also selected primary path to the same provider</font>
+<font color="#000000">    AllocateBackupPath</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">        </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">            v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#4444ff">)</font><font color="#000000"> </font>
+<font color="#000000">        </font><font color="#ff0000"><=</font>
+<font color="#000000">        </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">            u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! ARC CAPACITY CONSTRAINT</font>
+<font color="#22a000">! The total used bandwidth for main paths and reserved for backup paths must not exceed the</font>
+<font color="#22a000">! arcs capacity</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    ArcCapacity</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">        </font><font color="#22a000">! for each path</font>
+<font color="#000000">        </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">            </font><font color="#22a000">! add bw req for path if used as primary</font>
+<font color="#000000">            U_PathBandwidthUsage</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#22a000">! add bandwidth reserved for backup paths on arc</font>
+<font color="#000000">        </font><font color="#ff0000">+</font>
+<font color="#000000">        l_Lambda</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#ff0000"><=</font><font color="#000000"> F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! AVAILABILITY REQUIREMENT CONSTRAINT</font>
+<font color="#22a000">! The selected main path, with possible backup path, must provide an availability equal to</font>
+<font color="#22a000">! or higher than requirement</font>
+<font color="#22a000">! - single main path: P(A)</font>
+<font color="#22a000">! - with backup path: P(A) + P(B) - P(A)P(B|A)</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">cc </font><font color="#ff0000">in</font><font color="#000000"> Customers</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> S_ServicesForCustomer</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">        AvailabilityRequirement</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">            </font><font color="#22a000">! Availability from main (and backup path): P(A) + P(B)</font>
+<font color="#000000">            </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Providers | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">                </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">                    D_PathAvailability</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#000000"> </font>
+<font color="#000000">                    </font><font color="#ff0000">*</font>
+<font color="#000000">                    </font><font color="#4444ff">(</font>
+<font color="#000000">                        u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">                        </font><font color="#ff0000">+</font>
+<font color="#000000">                        v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#000000"> </font>
+<font color="#000000">                    </font><font color="#4444ff">)</font>
+<font color="#000000">                </font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#ff0000">-</font><font color="#000000"> </font>
+<font color="#000000">            </font><font color="#22a000">! subtract P(A)P(B|A) if backup path is chosen</font>
+<font color="#000000">            </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Providers | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">                </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#ff0000">,</font><font color="#000000"> bb </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font>
+<font color="#000000">                    D_CombinationAvailability</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#ff0000">,</font><font color="#000000">bb</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">o_UseCombination</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#ff0000">,</font><font color="#000000">bb</font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#ff0000">>=</font><font color="#000000"> Y_AvailabilityReq</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000"> y_Serve</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#4444ff">end-do</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! BACKUP BANDWIDTH RESERVATION CONSTRAINTS</font>
+<font color="#22a000">! - for every arc and service</font>
+<font color="#4444ff">forall</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> ss </font><font color="#ff0000">in</font><font color="#000000"> Services | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">F_BandwidthCap</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+
+<font color="#000000">    </font><font color="#22a000">! NEEDS BACKUP CAPACITY ON ARC CONSTRAINT</font>
+<font color="#000000">    </font><font color="#22a000">! Sets the f variable to 1 if there is a need for backup capacity reservation </font>
+<font color="#000000">    </font><font color="#22a000">!for the service on the arc </font>
+<font color="#000000">    NeedsBackupCapacity</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">        q_backupPerService</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">-</font><font color="#000000"> BigMBackup</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">f_needsBackupOnArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000"><=</font><font color="#000000"> </font><font color="#ff0000">0</font><font color="#000000">;</font>
+<font color="#000000">        </font>
+<font color="#000000">    </font><font color="#22a000">! AMOUNT BACKUP CAPACITY NEEDED ON ARC CONSTRAINT</font>
+<font color="#000000">    </font><font color="#22a000">! a service will require a backup reservation at an arc equal to its backup arc requirement</font>
+<font color="#000000">    </font><font color="#22a000">! minus the capacity used by the primary path at the same arc (as this capacity will be released</font>
+<font color="#000000">    </font><font color="#22a000">! if the primary path goes down and the backup is needed)</font>
+<font color="#000000">    NeededBackupCapacity</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font>
+<font color="#000000">        </font><font color="#22a000">! bandwidth for backup minus bandwidth for primary on arc</font>
+<font color="#000000">        </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Providers | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">(</font>
+<font color="#000000">            </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">(</font>
+<font color="#000000">                U_PathBandwidthUsage</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">                </font><font color="#ff0000">*</font>
+<font color="#000000">                </font><font color="#4444ff">(</font>
+<font color="#000000">                    v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">                    </font><font color="#ff0000">-</font>
+<font color="#000000">                    u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">                </font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#ff0000">-</font>
+<font color="#000000">        q_backupPerService</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#ff0000"><=</font><font color="#000000"> </font><font color="#ff0000">0</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! SUM SERVICE BACKUP BANDWIDTH CONSTRAINTS</font>
+<font color="#22a000">! bandwidth reserved for backup paths on an arc is at least a fraction of the total bandwidth of all</font>
+<font color="#22a000">! backup paths using that arc</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000"> ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    SumBackupLimit</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">        MinBackupProportion</font><font color="#ff0000">*</font>
+<font color="#000000">        </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">cc </font><font color="#ff0000">in</font><font color="#000000"> Customers</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">            </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> S_ServicesForCustomer</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">                q_backupPerService</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#4444ff">)</font>
+<font color="#000000">        </font><font color="#ff0000"><=</font><font color="#000000"> l_Lambda</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! SINGLE SERVICE BACKUP BANDWIDTH CONSTRAINT</font>
+<font color="#22a000">! bandwidth reserved for backup paths must be at least as high as the bandwidth required by the</font>
+<font color="#22a000">! the most demaning single service</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> Services</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font><font color="#000000">       </font>
+<font color="#000000">        SingleBackupLimit</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font>
+<font color="#000000">            q_backupPerService</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000"><=</font><font color="#000000"> l_Lambda</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#000000">;  </font>
+<font color="#000000">    </font><font color="#4444ff">end-do</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! PATH COMBINATION CONSTRAINT</font>
+<font color="#22a000">! if path kk is used as main path and path bb as backup path, the corresponding combo variable</font>
+<font color="#22a000">! o_UseCombination(kk,bb) must also be 1</font>
+<font color="#22a000">! for any valid combination of two paths; two paths from same service-provider pair</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">cc </font><font color="#ff0000">in</font><font color="#000000"> Customers</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> S_ServicesForCustomer</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#ff0000">,</font><font color="#000000"> pp </font><font color="#ff0000">in</font><font color="#000000"> Providers| </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">        </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#ff0000">,</font><font color="#000000"> bb </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">            PathComboRequirement</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#ff0000">,</font><font color="#000000">bb</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">                u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">+</font><font color="#000000"> v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">bb</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">-</font><font color="#000000"> o_UseCombination</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#ff0000">,</font><font color="#000000">bb</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000"><=</font><font color="#000000"> </font><font color="#ff0000">1</font><font color="#000000">;</font>
+<font color="#000000">        </font><font color="#4444ff">end-do</font>
+<font color="#000000">    </font><font color="#4444ff">end-do</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#22a000">! SERVICE PATH OVERLAP CONSTRAINTS</font>
+<font color="#22a000">! To services have overlapping main paths if for any arc both paths are represented</font>
+<font color="#22a000">! for every service combination</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> Services</font><font color="#ff0000">,</font><font color="#000000"> tt </font><font color="#ff0000">in</font><font color="#000000"> Services | ss </font><font color="#ff0000"><</font><font color="#000000"> tt</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#22a000">! for every LINK (every (ii,jj) where ii < jj)</font>
+<font color="#000000">    </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">                    </font>
+<font color="#000000">        </font><font color="#22a000">! only for evey link (ii < jj) (failured happen at link level -> failing both arcs)</font>
+<font color="#000000">        </font><font color="#4444ff">if</font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000"><</font><font color="#000000"> jj</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">            </font><font color="#22a000">! SERVICE PATH OVERLAP CONSTRAINTS</font>
+<font color="#000000">            </font><font color="#22a000">! Two services have overlapping primary paths if for any LINK both paths are represented</font>
+<font color="#000000">            PrimaryOverlap</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000"> jj</font><font color="#ff0000">,</font><font color="#000000"> ss</font><font color="#ff0000">,</font><font color="#000000"> tt</font><font color="#4444ff">)</font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">                </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Providers | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">(</font>
+<font color="#000000">                    </font><font color="#22a000">! L_PathsUsingArc(ii,jj)=L_PathsUsingArc(jj,ii) -> need only paths using LINK ii,jj</font>
+<font color="#000000">                    </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">                        u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">                    </font><font color="#4444ff">)</font>
+<font color="#000000">                </font><font color="#4444ff">)</font>
+<font color="#000000">                </font><font color="#ff0000">+</font>
+<font color="#000000">                </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Providers | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">tt</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">(</font>
+<font color="#000000">                    </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#000000">K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">tt</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">                        u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font>
+<font color="#000000">                    </font><font color="#4444ff">)</font>
+<font color="#000000">                </font><font color="#4444ff">)</font>
+<font color="#000000">                </font><font color="#ff0000">-</font><font color="#000000">l_Overlap</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000"> tt</font><font color="#4444ff">)</font>
+<font color="#000000">                </font><font color="#ff0000"><=</font><font color="#000000"> </font><font color="#ff0000">1</font><font color="#000000">;</font>
+<font color="#000000">        </font><font color="#4444ff">end-if</font>
+<font color="#000000">            </font>
+<font color="#000000">        </font><font color="#22a000">! BACKUP PATH OVERLAP CONSTRAINT</font>
+<font color="#000000">        </font><font color="#22a000">! backup paths may not overlap at any ARC if their primary paths overlap on any LINK</font>
+<font color="#000000">        BackupOverlap</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">tt</font><font color="#4444ff">)</font><font color="#ff0000">:=</font><font color="#000000"> </font>
+<font color="#000000">            f_needsBackupOnArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#ff0000">+</font>
+<font color="#000000">            f_needsBackupOnArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">tt</font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#ff0000">+</font><font color="#000000"> l_Overlap</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000"> tt</font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#ff0000"><=</font><font color="#000000"> </font><font color="#ff0000">2</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#4444ff">end-do</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"\nModel building completed in "</font><font color="#ff0000">,</font><font color="#000000"> timestamp </font><font color="#ff0000">-</font><font color="#000000"> timetracker</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#800080">" seconds"</font><font color="#4444ff">)</font><font color="#000000">;</font>
+
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"\nSolving model..."</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">timetracker </font><font color="#ff0000">:=</font><font color="#000000"> timestamp;</font>
+<font color="#1d8f96">maximize</font><font color="#4444ff">(</font><font color="#1d8f96">XPRS_PRI</font><font color="#ff0000">,</font><font color="#000000"> Total_Profits</font><font color="#4444ff">)</font><font color="#000000">;</font>
+
+<font color="#4444ff">if</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#1d8f96">getprobstat</font><font color="#ff0000">=</font><font color="#1d8f96">XPRS_OPT</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">    </font><font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"\nModel solved in "</font><font color="#ff0000">,</font><font color="#000000"> timestamp </font><font color="#ff0000">-</font><font color="#000000"> timetracker</font><font color="#ff0000">,</font><font color="#800080">" seconds"</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">else</font>
+<font color="#000000">    </font><font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"\nModel was not solved after "</font><font color="#ff0000">,</font><font color="#000000"> timestamp </font><font color="#ff0000">-</font><font color="#000000"> timetracker</font><font color="#ff0000">,</font><font color="#800080">" seconds"</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">end-if</font>
+
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"\nTotal Profits: "</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#4444ff">getobjval</font><font color="#4444ff">)</font><font color="#000000">;</font>
+
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font>
+<font color="#000000">    </font><font color="#800080">"\nTotal Backup Costs: "</font><font color="#ff0000">,</font>
+<font color="#000000">    </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#4444ff">)</font><font color="#4444ff">(</font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#4444ff">)</font><font color="#4444ff">(</font><font color="#000000">C_BackupCost</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000"> jj</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">l_Lambda</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000"> jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font>
+<font color="#4444ff">)</font><font color="#000000">;</font>
+
+<font color="#22a000">! for all served customers</font>
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">cc </font><font color="#ff0000">in</font><font color="#000000"> Customers | </font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">y_Serve</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">></font><font color="#000000"> </font><font color="#ff0000">0.001</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#22a000">! output served customer and generated profits for customer</font>
+<font color="#000000">    </font><font color="#4444ff">writeln</font><font color="#4444ff">(</font>
+<font color="#000000">        </font><font color="#800080">"\nCustomer "</font><font color="#ff0000">,</font><font color="#000000"> cc</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#800080">" (node "</font><font color="#ff0000">,</font><font color="#000000">cc</font><font color="#ff0000">,</font><font color="#800080">") is being served\n - R_Revenue: "</font><font color="#ff0000">,</font>
+<font color="#000000">        R_Revenue</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">y_Serve</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#4444ff">)</font>
+<font color="#000000">    </font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#22a000">! for all services of customer</font>
+<font color="#000000">    </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> S_ServicesForCustomer</font><font color="#4444ff">(</font><font color="#000000">cc</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">        </font><font color="#22a000">! for the provider placement selected for service</font>
+<font color="#000000">        </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">pp </font><font color="#ff0000">in</font><font color="#000000"> Providers | </font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">x_Placement</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">></font><font color="#000000"> </font><font color="#ff0000">0.001</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">            </font><font color="#4444ff">writeln</font><font color="#4444ff">(</font>
+<font color="#000000">                </font><font color="#800080">"  - Service "</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#800080">" is placed at provider "</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#ff0000">,</font>
+<font color="#000000">                </font><font color="#800080">"     - Availability req.: "</font><font color="#ff0000">,</font><font color="#000000"> Y_AvailabilityReq</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">                </font><font color="#800080">"     - Exp. availability: "</font><font color="#ff0000">,</font>
+<font color="#000000">                </font><font color="#4444ff">(</font><font color="#000000">   </font><font color="#22a000">! calculate expected availability for mapping</font>
+<font color="#000000">                    </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">(</font>
+<font color="#000000">                        D_PathAvailability</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#000000"> </font>
+<font color="#000000">                        </font><font color="#ff0000">*</font>
+<font color="#000000">                        </font><font color="#4444ff">(</font>
+<font color="#000000">                            </font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#4444ff">)</font>
+<font color="#000000">                            </font><font color="#ff0000">+</font>
+<font color="#000000">                            </font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#4444ff">)</font>
+<font color="#000000">                        </font><font color="#4444ff">)</font>
+<font color="#000000">                    </font><font color="#4444ff">)</font>
+<font color="#000000">                    </font><font color="#ff0000">-</font><font color="#000000"> </font>
+<font color="#000000">                    </font><font color="#22a000">! subtract P(A)P(B|A) if backup path is chosen</font>
+<font color="#000000">                    </font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#ff0000">,</font><font color="#000000"> bb </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font>
+<font color="#000000">                        D_CombinationAvailability</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#ff0000">,</font><font color="#000000">bb</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">o_UseCombination</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#ff0000">,</font><font color="#000000">bb</font><font color="#4444ff">)</font><font color="#4444ff">)</font>
+<font color="#000000">                </font><font color="#4444ff">)</font>
+<font color="#000000">            </font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">            </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">                </font><font color="#4444ff">if</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">></font><font color="#000000"> </font><font color="#ff0000">0.001</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">                    </font><font color="#4444ff">writeln</font><font color="#4444ff">(</font>
+<font color="#000000">                        </font><font color="#800080">"     - Primary path: "</font><font color="#ff0000">,</font><font color="#000000"> kk</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#800080">" , cost: "</font><font color="#ff0000">,</font>
+<font color="#000000">                        </font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#000000">C_PathCost</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">                        </font><font color="#800080">" ("</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">u_UsePrimaryPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#ff0000">100</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#800080">" %)"</font>
+<font color="#000000">                    </font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">                </font><font color="#4444ff">end-if</font>
+<font color="#000000">            </font><font color="#4444ff">end-do</font>
+<font color="#000000">            </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> K_PathsServiceProvider</font><font color="#4444ff">(</font><font color="#000000">ss</font><font color="#ff0000">,</font><font color="#000000">pp</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">                </font><font color="#4444ff">if</font><font color="#000000"> </font><font color="#4444ff">(</font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">></font><font color="#000000"> </font><font color="#ff0000">0.001</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">                    </font><font color="#4444ff">writeln</font><font color="#4444ff">(</font>
+<font color="#000000">                        </font><font color="#800080">"     - Backup path: "</font><font color="#ff0000">,</font><font color="#000000"> kk</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#800080">" ("</font><font color="#ff0000">,</font>
+<font color="#000000">                        </font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#ff0000">*</font><font color="#ff0000">100</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#800080">" %)"</font>
+<font color="#000000">                    </font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">                </font><font color="#4444ff">end-if</font>
+<font color="#000000">            </font><font color="#4444ff">end-do</font>
+<font color="#000000">        </font><font color="#4444ff">end-do</font>
+<font color="#000000">    </font><font color="#4444ff">end-do</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font><font color="#800080">"\nTotal backup usage"</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#4444ff">writeln</font><font color="#4444ff">(</font>
+<font color="#000000">    </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#800080">"arc "</font><font color="#ff0000">,</font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font><font color="#000000"> </font>
+<font color="#000000">    </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#800080">"reserved"</font><font color="#ff0000">,</font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">    </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#800080">"max req"</font><font color="#ff0000">,</font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">    </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#800080">"sum reqs*"</font><font color="#ff0000">,</font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">    </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#800080">"cost/bw"</font><font color="#ff0000">,</font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">    </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#800080">"paths"</font><font color="#ff0000">,</font><font color="#ff0000">10</font><font color="#4444ff">)</font>
+<font color="#4444ff">)</font><font color="#000000">;</font>
+
+<font color="#4444ff">declarations</font>
+<font color="#000000">    temp: </font><font color="#4444ff">real</font><font color="#000000">;</font>
+<font color="#4444ff">end-declarations</font>
+
+<font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ii </font><font color="#ff0000">in</font><font color="#000000"> Nodes</font><font color="#ff0000">,</font><font color="#000000"> jj </font><font color="#ff0000">in</font><font color="#000000"> Nodes | </font><font color="#4444ff">exists</font><font color="#4444ff">(</font><font color="#000000">L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">    </font><font color="#22a000">! Find the actual single maximal backup requirement on arc</font>
+<font color="#000000">    temp </font><font color="#ff0000">:=</font><font color="#000000"> </font><font color="#ff0000">0.0</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> Services</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">        </font><font color="#4444ff">if</font><font color="#4444ff">(</font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">q_backupPerService</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">></font><font color="#000000"> temp</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">            temp </font><font color="#ff0000">:=</font><font color="#000000"> </font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">q_backupPerService</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">        </font><font color="#4444ff">end-if</font>
+<font color="#000000">    </font><font color="#4444ff">end-do</font>
+<font color="#000000">    </font>
+<font color="#000000">    </font><font color="#22a000">! Print information about the arc and backup reservations</font>
+<font color="#000000">    </font><font color="#4444ff">if</font><font color="#4444ff">(</font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">l_Lambda</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">></font><font color="#000000"> </font><font color="#ff0000">0.001</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">then</font>
+<font color="#000000">        </font><font color="#4444ff">write</font><font color="#4444ff">(</font>
+<font color="#000000">            </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#800080">"("</font><font color="#ff0000">+</font><font color="#000000"> ii</font><font color="#ff0000">+</font><font color="#000000"> </font><font color="#800080">", "</font><font color="#ff0000">+</font><font color="#000000"> jj</font><font color="#ff0000">+</font><font color="#000000"> </font><font color="#800080">")"</font><font color="#ff0000">,</font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">            </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">l_Lambda</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">            </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#000000">temp</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">            </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#4444ff">(</font><font color="#4444ff">sum</font><font color="#4444ff">(</font><font color="#000000">ss </font><font color="#ff0000">in</font><font color="#000000"> Services</font><font color="#4444ff">)</font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">q_backupPerService</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#ff0000">,</font><font color="#000000">ss</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">            </font><font color="#4444ff">strfmt</font><font color="#4444ff">(</font><font color="#000000">C_BackupCost</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#ff0000">10</font><font color="#4444ff">)</font><font color="#ff0000">,</font>
+<font color="#000000">            </font><font color="#800080">"     "</font>
+<font color="#000000">        </font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">        </font><font color="#4444ff">forall</font><font color="#4444ff">(</font><font color="#000000">kk </font><font color="#ff0000">in</font><font color="#000000"> L_PathsUsingArc</font><font color="#4444ff">(</font><font color="#000000">ii</font><font color="#ff0000">,</font><font color="#000000">jj</font><font color="#4444ff">)</font><font color="#000000"> | </font><font color="#4444ff">getsol</font><font color="#4444ff">(</font><font color="#000000">v_UseBackupPath</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#4444ff">)</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#ff0000">></font><font color="#000000"> </font><font color="#ff0000">0.001</font><font color="#4444ff">)</font><font color="#000000"> </font><font color="#4444ff">do</font>
+<font color="#000000">            </font><font color="#4444ff">write</font><font color="#4444ff">(</font><font color="#000000">kk</font><font color="#ff0000">,</font><font color="#000000"> </font><font color="#800080">", "</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">        </font><font color="#4444ff">end-do</font>
+<font color="#000000">        </font><font color="#4444ff">write</font><font color="#4444ff">(</font><font color="#800080">"\n"</font><font color="#4444ff">)</font><font color="#000000">;</font>
+<font color="#000000">    </font><font color="#4444ff">end-if</font>
+<font color="#4444ff">end-do</font>
+
+<font color="#4444ff">end-model</font>
+
+</pre></font></body></html>
